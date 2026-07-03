@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import { ROLE_PERMISSIONS } from '@/constants/roles'
-import type { Category } from '@/types/catalog.types'
+import type { Category, Company, Priority, SlaPolicy } from '@/types/catalog.types'
 import type {
   SlaComplianceSummary,
   TicketsByAgentItem,
@@ -71,6 +71,138 @@ const mockCategories: Category[] = [
     name: 'Accesos',
     description: 'Altas, bajas y cambios de permisos',
     status: 'INACTIVE',
+  },
+]
+
+const mockPriorities: Priority[] = [
+  {
+    id: '1',
+    name: 'Baja',
+    level: 'LOW',
+    color: '#94a3b8',
+    description: 'Impacto minimo en operaciones',
+    status: 'ACTIVE',
+  },
+  {
+    id: '2',
+    name: 'Media',
+    level: 'MEDIUM',
+    color: '#247b7b',
+    description: 'Afecta a un grupo reducido de usuarios',
+    status: 'ACTIVE',
+  },
+  {
+    id: '3',
+    name: 'Alta',
+    level: 'HIGH',
+    color: '#f97316',
+    description: 'Interrumpe procesos importantes',
+    status: 'ACTIVE',
+  },
+  {
+    id: '4',
+    name: 'Critica',
+    level: 'CRITICAL',
+    color: '#db3a34',
+    description: 'Detiene operaciones criticas del negocio',
+    status: 'ACTIVE',
+  },
+]
+
+const mockSlaPolicies: SlaPolicy[] = [
+  {
+    id: '1',
+    name: 'SLA Baja',
+    priorityId: '1',
+    priorityName: 'Baja',
+    responseHours: 24,
+    resolutionHours: 72,
+    status: 'ACTIVE',
+  },
+  {
+    id: '2',
+    name: 'SLA Media',
+    priorityId: '2',
+    priorityName: 'Media',
+    responseHours: 8,
+    resolutionHours: 48,
+    status: 'ACTIVE',
+  },
+  {
+    id: '3',
+    name: 'SLA Alta',
+    priorityId: '3',
+    priorityName: 'Alta',
+    responseHours: 4,
+    resolutionHours: 24,
+    status: 'ACTIVE',
+  },
+  {
+    id: '4',
+    name: 'SLA Critica',
+    priorityId: '4',
+    priorityName: 'Critica',
+    responseHours: 1,
+    resolutionHours: 8,
+    status: 'ACTIVE',
+  },
+]
+
+const mockCompanies: Company[] = [
+  {
+    id: '1',
+    name: 'Acme Corp',
+    industry: 'Finanzas',
+    region: 'Norte',
+    tier: 'GOLD',
+    contactEmail: 'soporte@acme.com',
+    contactPhone: '+52 81 1234 5678',
+    activeTickets: 12,
+    status: 'ACTIVE',
+  },
+  {
+    id: '2',
+    name: 'Globex',
+    industry: 'Retail',
+    region: 'Centro',
+    tier: 'SILVER',
+    contactEmail: 'it@globex.com',
+    contactPhone: '+52 55 8765 4321',
+    activeTickets: 7,
+    status: 'ACTIVE',
+  },
+  {
+    id: '3',
+    name: 'Initech',
+    industry: 'Tecnologia',
+    region: 'Sur',
+    tier: 'PLATINUM',
+    contactEmail: 'mesa@initech.com',
+    contactPhone: '+52 33 2468 1357',
+    activeTickets: 19,
+    status: 'ACTIVE',
+  },
+  {
+    id: '4',
+    name: 'Umbrella',
+    industry: 'Salud',
+    region: 'Norte',
+    tier: 'BRONZE',
+    contactEmail: 'help@umbrella.com',
+    contactPhone: '+52 81 5555 1212',
+    activeTickets: 4,
+    status: 'ACTIVE',
+  },
+  {
+    id: '5',
+    name: 'Wayne Enterprises',
+    industry: 'Manufactura',
+    region: 'Occidente',
+    tier: 'GOLD',
+    contactEmail: 'ops@wayne.com',
+    contactPhone: '+52 33 9999 8888',
+    activeTickets: 9,
+    status: 'ACTIVE',
   },
 ]
 
@@ -463,6 +595,248 @@ export const handlers = [
       data: updatedCategory,
       meta: null,
     })
+  }),
+
+  http.get('*/priorities', async ({ request }) => {
+    const url = new URL(request.url)
+    let filtered = [...mockPriorities]
+    const status = url.searchParams.get('status')
+    const search = url.searchParams.get('search')
+
+    if (status) filtered = filtered.filter((priority) => priority.status === status)
+
+    if (search) {
+      const query = search.toLowerCase()
+      filtered = filtered.filter(
+        (priority) =>
+          priority.name.toLowerCase().includes(query) ||
+          priority.description.toLowerCase().includes(query),
+      )
+    }
+
+    const page = Number(url.searchParams.get('page')) || 1
+    const perPage = Number(url.searchParams.get('perPage')) || 10
+    const result = paginate(filtered, page, perPage)
+
+    return HttpResponse.json({
+      success: true,
+      message: 'OK',
+      data: result.data,
+      meta: result.meta,
+    })
+  }),
+
+  http.post('*/priorities', async ({ request }) => {
+    const body = (await request.json()) as {
+      name: string
+      level: Priority['level']
+      color?: string
+      description?: string
+    }
+    const name = body.name?.trim()
+
+    if (!name) {
+      return HttpResponse.json(
+        { success: false, message: 'El nombre es obligatorio', data: null, meta: null },
+        { status: 422 },
+      )
+    }
+
+    const newPriority: Priority = {
+      id: String(mockPriorities.length + 1),
+      name,
+      level: body.level,
+      color: body.color || '#247b7b',
+      description: body.description?.trim() || '',
+      status: 'ACTIVE',
+    }
+
+    mockPriorities.push(newPriority)
+
+    return HttpResponse.json(
+      { success: true, message: 'Prioridad creada', data: newPriority, meta: null },
+      { status: 201 },
+    )
+  }),
+
+  http.put('*/priorities/:id', async ({ params, request }) => {
+    const body = (await request.json()) as Partial<Priority>
+    const index = mockPriorities.findIndex((priority) => priority.id === params.id)
+
+    if (index === -1) {
+      return HttpResponse.json(
+        { success: false, message: 'No encontrado', data: null, meta: null },
+        { status: 404 },
+      )
+    }
+
+    const updatedPriority: Priority = {
+      ...mockPriorities[index],
+      name: body.name?.trim() || mockPriorities[index].name,
+      level: body.level || mockPriorities[index].level,
+      color: body.color || mockPriorities[index].color,
+      description:
+        typeof body.description === 'string'
+          ? body.description.trim()
+          : mockPriorities[index].description,
+    }
+
+    mockPriorities[index] = updatedPriority
+
+    return HttpResponse.json({
+      success: true,
+      message: 'Prioridad actualizada',
+      data: updatedPriority,
+      meta: null,
+    })
+  }),
+
+  http.get('*/sla-policies', async ({ request }) => {
+    const url = new URL(request.url)
+    let filtered = [...mockSlaPolicies]
+    const status = url.searchParams.get('status')
+    const search = url.searchParams.get('search')
+
+    if (status) filtered = filtered.filter((policy) => policy.status === status)
+
+    if (search) {
+      const query = search.toLowerCase()
+      filtered = filtered.filter(
+        (policy) =>
+          policy.name.toLowerCase().includes(query) ||
+          policy.priorityName.toLowerCase().includes(query),
+      )
+    }
+
+    const page = Number(url.searchParams.get('page')) || 1
+    const perPage = Number(url.searchParams.get('perPage')) || 10
+    const result = paginate(filtered, page, perPage)
+
+    return HttpResponse.json({
+      success: true,
+      message: 'OK',
+      data: result.data,
+      meta: result.meta,
+    })
+  }),
+
+  http.post('*/sla-policies', async ({ request }) => {
+    const body = (await request.json()) as {
+      name: string
+      priorityId: string
+      responseHours: number
+      resolutionHours: number
+    }
+    const name = body.name?.trim()
+    const priority = mockPriorities.find((item) => item.id === body.priorityId)
+
+    if (!name) {
+      return HttpResponse.json(
+        { success: false, message: 'El nombre es obligatorio', data: null, meta: null },
+        { status: 422 },
+      )
+    }
+    if (!priority) {
+      return HttpResponse.json(
+        { success: false, message: 'Prioridad no encontrada', data: null, meta: null },
+        { status: 422 },
+      )
+    }
+
+    const newPolicy: SlaPolicy = {
+      id: String(mockSlaPolicies.length + 1),
+      name,
+      priorityId: priority.id,
+      priorityName: priority.name,
+      responseHours: body.responseHours,
+      resolutionHours: body.resolutionHours,
+      status: 'ACTIVE',
+    }
+
+    mockSlaPolicies.push(newPolicy)
+
+    return HttpResponse.json(
+      { success: true, message: 'Politica SLA creada', data: newPolicy, meta: null },
+      { status: 201 },
+    )
+  }),
+
+  http.put('*/sla-policies/:id', async ({ params, request }) => {
+    const body = (await request.json()) as {
+      name?: string
+      priorityId?: string
+      responseHours?: number
+      resolutionHours?: number
+    }
+    const index = mockSlaPolicies.findIndex((policy) => policy.id === params.id)
+
+    if (index === -1) {
+      return HttpResponse.json(
+        { success: false, message: 'No encontrado', data: null, meta: null },
+        { status: 404 },
+      )
+    }
+
+    const priority = mockPriorities.find((item) => item.id === body.priorityId)
+
+    const updatedPolicy: SlaPolicy = {
+      ...mockSlaPolicies[index],
+      name: body.name?.trim() || mockSlaPolicies[index].name,
+      priorityId: priority?.id || mockSlaPolicies[index].priorityId,
+      priorityName: priority?.name || mockSlaPolicies[index].priorityName,
+      responseHours: body.responseHours ?? mockSlaPolicies[index].responseHours,
+      resolutionHours: body.resolutionHours ?? mockSlaPolicies[index].resolutionHours,
+    }
+
+    mockSlaPolicies[index] = updatedPolicy
+
+    return HttpResponse.json({
+      success: true,
+      message: 'Politica SLA actualizada',
+      data: updatedPolicy,
+      meta: null,
+    })
+  }),
+
+  http.get('*/companies', async ({ request }) => {
+    const url = new URL(request.url)
+    let filtered = [...mockCompanies]
+    const industry = url.searchParams.get('industry')
+    const region = url.searchParams.get('region')
+    const tier = url.searchParams.get('tier')
+    const search = url.searchParams.get('search')
+
+    if (industry) filtered = filtered.filter((company) => company.industry === industry)
+    if (region) filtered = filtered.filter((company) => company.region === region)
+    if (tier) filtered = filtered.filter((company) => company.tier === tier)
+    if (search) {
+      const query = search.toLowerCase()
+      filtered = filtered.filter((company) => company.name.toLowerCase().includes(query))
+    }
+
+    const page = Number(url.searchParams.get('page')) || 1
+    const perPage = Number(url.searchParams.get('perPage')) || 10
+    const result = paginate(filtered, page, perPage)
+
+    return HttpResponse.json({
+      success: true,
+      message: 'OK',
+      data: result.data,
+      meta: result.meta,
+    })
+  }),
+
+  http.get('*/companies/:id', async ({ params }) => {
+    const company = mockCompanies.find((item) => item.id === params.id)
+
+    if (!company) {
+      return HttpResponse.json(
+        { success: false, message: 'No encontrado', data: null, meta: null },
+        { status: 404 },
+      )
+    }
+
+    return HttpResponse.json({ success: true, message: 'OK', data: company, meta: null })
   }),
 
   http.get('*/api/v1/dashboard/summary', async ({ request }) => {

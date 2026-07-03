@@ -7,9 +7,10 @@ import { DashboardPlaceholderPage } from '@/pages/dashboard/DashboardPlaceholder
 import { ForbiddenPage } from '@/pages/errors/ForbiddenPage'
 import { LoginPage } from '@/pages/login/LoginPage'
 import { CategoriesPage } from '@/pages/catalogs/CategoriesPage'
-import { CompaniesPlaceholderPage } from '@/pages/catalogs/CompaniesPlaceholderPage'
-import { PrioritiesPlaceholderPage } from '@/pages/catalogs/PrioritiesPlaceholderPage'
-import { SlaPoliciesPlaceholderPage } from '@/pages/catalogs/SlaPoliciesPlaceholderPage'
+import { CompaniesListPage } from '@/pages/catalogs/CompaniesListPage'
+import { CompanyDetailPage } from '@/pages/catalogs/CompanyDetailPage'
+import { PrioritiesPage } from '@/pages/catalogs/PrioritiesPage'
+import { SlaPoliciesPage } from '@/pages/catalogs/SlaPoliciesPage'
 import { ProfilePage } from '@/pages/profile/ProfilePage'
 import { ReportsPlaceholderPage } from '@/pages/reports/ReportsPlaceholderPage'
 import { TicketsPlaceholderPage } from '@/pages/tickets/TicketsPlaceholderPage'
@@ -115,7 +116,7 @@ export const routes: RouteObject[] = [
                 path: 'priorities',
                 element: (
                   <RoleRoute permission={PERMISSIONS.PRIORITY_MANAGE}>
-                    <PrioritiesPlaceholderPage />
+                    <PrioritiesPage />
                   </RoleRoute>
                 ),
               },
@@ -123,17 +124,30 @@ export const routes: RouteObject[] = [
                 path: 'sla-policies',
                 element: (
                   <RoleRoute permission={PERMISSIONS.SLA_MANAGE}>
-                    <SlaPoliciesPlaceholderPage />
+                    <SlaPoliciesPage />
                   </RoleRoute>
                 ),
               },
               {
                 path: 'companies',
-                element: (
-                  <RoleRoute permission={PERMISSIONS.CATEGORY_MANAGE}>
-                    <CompaniesPlaceholderPage />
-                  </RoleRoute>
-                ),
+                children: [
+                  {
+                    index: true,
+                    element: (
+                      <RoleRoute permission={PERMISSIONS.CATEGORY_MANAGE}>
+                        <CompaniesListPage />
+                      </RoleRoute>
+                    ),
+                  },
+                  {
+                    path: ':id',
+                    element: (
+                      <RoleRoute permission={PERMISSIONS.CATEGORY_MANAGE}>
+                        <CompanyDetailPage />
+                      </RoleRoute>
+                    ),
+                  },
+                ],
               },
             ],
           },
