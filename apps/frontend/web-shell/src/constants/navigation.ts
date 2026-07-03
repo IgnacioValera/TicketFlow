@@ -33,6 +33,30 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ['ADMIN'],
   },
   {
+    label: 'Categorias',
+    path: '/catalogs/categories',
+    permission: PERMISSIONS.CATEGORY_MANAGE,
+    roles: ['ADMIN'],
+  },
+  {
+    label: 'Prioridades',
+    path: '/catalogs/priorities',
+    permission: PERMISSIONS.PRIORITY_MANAGE,
+    roles: ['ADMIN'],
+  },
+  {
+    label: 'SLA',
+    path: '/catalogs/sla-policies',
+    permission: PERMISSIONS.SLA_MANAGE,
+    roles: ['ADMIN', 'SUPERVISOR'],
+  },
+  {
+    label: 'Empresas',
+    path: '/catalogs/companies',
+    permission: PERMISSIONS.CATEGORY_MANAGE,
+    roles: ['ADMIN'],
+  },
+  {
     label: 'Reportes',
     path: '/reports',
     permission: PERMISSIONS.REPORT_VIEW,

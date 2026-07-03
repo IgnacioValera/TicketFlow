@@ -6,6 +6,10 @@ import { DashboardLayout } from '@/layouts/DashboardLayout'
 import { DashboardPlaceholderPage } from '@/pages/dashboard/DashboardPlaceholderPage'
 import { ForbiddenPage } from '@/pages/errors/ForbiddenPage'
 import { LoginPage } from '@/pages/login/LoginPage'
+import { CategoriesPage } from '@/pages/catalogs/CategoriesPage'
+import { CompaniesPlaceholderPage } from '@/pages/catalogs/CompaniesPlaceholderPage'
+import { PrioritiesPlaceholderPage } from '@/pages/catalogs/PrioritiesPlaceholderPage'
+import { SlaPoliciesPlaceholderPage } from '@/pages/catalogs/SlaPoliciesPlaceholderPage'
 import { ProfilePage } from '@/pages/profile/ProfilePage'
 import { ReportsPlaceholderPage } from '@/pages/reports/ReportsPlaceholderPage'
 import { TicketsPlaceholderPage } from '@/pages/tickets/TicketsPlaceholderPage'
@@ -91,6 +95,43 @@ export const routes: RouteObject[] = [
                 element: (
                   <RoleRoute permission={PERMISSIONS.USER_MANAGE}>
                     <UserEditPage />
+                  </RoleRoute>
+                ),
+              },
+            ],
+          },
+          {
+            path: 'catalogs',
+            children: [
+              {
+                path: 'categories',
+                element: (
+                  <RoleRoute permission={PERMISSIONS.CATEGORY_MANAGE}>
+                    <CategoriesPage />
+                  </RoleRoute>
+                ),
+              },
+              {
+                path: 'priorities',
+                element: (
+                  <RoleRoute permission={PERMISSIONS.PRIORITY_MANAGE}>
+                    <PrioritiesPlaceholderPage />
+                  </RoleRoute>
+                ),
+              },
+              {
+                path: 'sla-policies',
+                element: (
+                  <RoleRoute permission={PERMISSIONS.SLA_MANAGE}>
+                    <SlaPoliciesPlaceholderPage />
+                  </RoleRoute>
+                ),
+              },
+              {
+                path: 'companies',
+                element: (
+                  <RoleRoute permission={PERMISSIONS.CATEGORY_MANAGE}>
+                    <CompaniesPlaceholderPage />
                   </RoleRoute>
                 ),
               },
