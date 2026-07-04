@@ -13,7 +13,9 @@ import { PrioritiesPage } from '@/pages/catalogs/PrioritiesPage'
 import { SlaPoliciesPage } from '@/pages/catalogs/SlaPoliciesPage'
 import { ProfilePage } from '@/pages/profile/ProfilePage'
 import { ReportsPlaceholderPage } from '@/pages/reports/ReportsPlaceholderPage'
-import { TicketsPlaceholderPage } from '@/pages/tickets/TicketsPlaceholderPage'
+import { TicketCreatePage } from '@/pages/tickets/TicketCreatePage'
+import { TicketDetailPage } from '@/pages/tickets/TicketDetailPage'
+import { TicketsListPage } from '@/pages/tickets/TicketsListPage'
 import { UserCreatePage } from '@/pages/users/UserCreatePage'
 import { UserEditPage } from '@/pages/users/UserEditPage'
 import { UsersListPage } from '@/pages/users/UsersListPage'
@@ -50,7 +52,7 @@ export const routes: RouteObject[] = [
                 index: true,
                 element: (
                   <RoleRoute permission={PERMISSIONS.TICKET_VIEW_OWN}>
-                    <TicketsPlaceholderPage />
+                    <TicketsListPage />
                   </RoleRoute>
                 ),
               },
@@ -58,7 +60,7 @@ export const routes: RouteObject[] = [
                 path: 'create',
                 element: (
                   <RoleRoute permission={PERMISSIONS.TICKET_CREATE}>
-                    <TicketsPlaceholderPage />
+                    <TicketCreatePage />
                   </RoleRoute>
                 ),
               },
@@ -66,7 +68,7 @@ export const routes: RouteObject[] = [
                 path: ':id',
                 element: (
                   <RoleRoute permission={PERMISSIONS.TICKET_VIEW_OWN}>
-                    <TicketsPlaceholderPage />
+                    <TicketDetailPage />
                   </RoleRoute>
                 ),
               },
