@@ -9,6 +9,7 @@ import type {
   TicketsByStatusItem,
 } from '@/types/report.types'
 import type { User, UserRole, UserStatus } from '@/types/user.types'
+import { createTicketHandlers } from '@/mocks/ticket.handlers'
 
 const mockUsers: User[] = [
   {
@@ -948,6 +949,8 @@ export const handlers = [
       meta: null,
     }),
   ),
+
+  ...createTicketHandlers(mockUsers),
 ]
 
 export async function enableMocking() {

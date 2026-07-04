@@ -127,4 +127,11 @@ export async function apiDelete<T>(url: string) {
   return response.data
 }
 
+export async function apiPostForm<T>(url: string, formData: FormData) {
+  const response = await apiClient.post<ApiResponse<T>>(url, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return response.data
+}
+
 export default apiClient
