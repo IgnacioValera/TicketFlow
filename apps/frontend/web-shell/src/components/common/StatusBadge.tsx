@@ -1,4 +1,4 @@
-import type { TicketStatus } from '@/types/user.types'
+import type { TicketStatus } from '@/types/ticket.types'
 
 const STATUS_CONFIG: Record<
   TicketStatus,
