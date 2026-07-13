@@ -86,10 +86,7 @@ export function UsersListPage() {
       header: 'Acciones',
       render: (row) => (
         <div className="flex flex-wrap gap-2">
-          <Link
-            to={`/users/${row.id}/edit`}
-            className="text-sm text-brand-teal hover:underline"
-          >
+          <Link to={`/users/${row.id}/edit`} className="text-sm text-brand-teal hover:underline">
             Editar
           </Link>
           {hasPermission(PERMISSIONS.USER_MANAGE) && (
@@ -131,16 +128,26 @@ export function UsersListPage() {
   return (
     <div>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold text-brand-navy">Usuarios</h1>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8c8191]">
+            Administración
+          </p>
+          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-brand-navy md:text-3xl">
+            Usuarios
+          </h1>
+          <p className="mt-1 text-sm text-[#766c7c]">
+            Gestiona identidades, roles y estado de acceso.
+          </p>
+        </div>
         <Link
           to="/users/create"
-          className="inline-flex justify-center rounded-lg bg-brand-teal px-4 py-2 text-sm font-medium text-white hover:bg-brand-teal/90"
+          className="inline-flex justify-center rounded-xl bg-brand-teal px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(111,79,216,.2)] hover:bg-[#6040c8]"
         >
           Nuevo usuario
         </Link>
       </div>
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-5 grid gap-3 rounded-2xl border border-[#e2dce5] bg-white p-4 shadow-[0_8px_25px_rgba(61,45,69,.04)] sm:grid-cols-2 lg:grid-cols-4">
         <input
           type="search"
           placeholder="Buscar por nombre o correo..."

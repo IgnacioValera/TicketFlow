@@ -122,4 +122,16 @@ export async function apiPatch<T>(url: string, body?: unknown) {
   return response.data
 }
 
+export async function apiDelete<T>(url: string) {
+  const response = await apiClient.delete<ApiResponse<T>>(url)
+  return response.data
+}
+
+export async function apiPostForm<T>(url: string, formData: FormData) {
+  const response = await apiClient.post<ApiResponse<T>>(url, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return response.data
+}
+
 export default apiClient

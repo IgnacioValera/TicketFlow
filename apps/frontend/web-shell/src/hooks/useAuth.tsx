@@ -27,7 +27,7 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 function normalizeUser(user: User): User {
   const permissions =
-    user.permissions?.length > 0 ? user.permissions : ROLE_PERMISSIONS[user.role] ?? []
+    user.permissions?.length > 0 ? user.permissions : (ROLE_PERMISSIONS[user.role] ?? [])
   return { ...user, permissions }
 }
 

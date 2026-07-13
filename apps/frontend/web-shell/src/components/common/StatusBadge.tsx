@@ -1,9 +1,6 @@
-import type { TicketStatus } from '@/types/user.types'
+import type { TicketStatus } from '@/types/ticket.types'
 
-const STATUS_CONFIG: Record<
-  TicketStatus,
-  { label: string; className: string }
-> = {
+const STATUS_CONFIG: Record<TicketStatus, { label: string; className: string }> = {
   OPEN: { label: 'Abierto', className: 'bg-status-open/15 text-status-open' },
   ASSIGNED: { label: 'Asignado', className: 'bg-status-assigned/15 text-status-assigned' },
   IN_PROGRESS: {
@@ -29,8 +26,9 @@ export function StatusBadge({ status, className = '' }: StatusBadgeProps) {
   const config = STATUS_CONFIG[status]
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${config.className} ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${config.className} ${className}`}
     >
+      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />
       {config.label}
     </span>
   )

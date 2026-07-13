@@ -4,11 +4,7 @@ interface ErrorStateProps {
   onRetry?: () => void
 }
 
-export function ErrorState({
-  title = 'Algo salió mal',
-  message,
-  onRetry,
-}: ErrorStateProps) {
+export function ErrorState({ title = 'Algo salió mal', message, onRetry }: ErrorStateProps) {
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-brand-scarlet/30 bg-red-50 px-6 py-10 text-center">
       <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-scarlet/15 text-brand-scarlet">

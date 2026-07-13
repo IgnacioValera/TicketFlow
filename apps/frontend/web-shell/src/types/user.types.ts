@@ -46,12 +46,4 @@ export interface UsersListParams {
   search?: string
 }
 
-export type TicketStatus =
-  | 'OPEN'
-  | 'ASSIGNED'
-  | 'IN_PROGRESS'
-  | 'WAITING_USER'
-  | 'ESCALATED'
-  | 'RESOLVED'
-  | 'CLOSED'
-  | 'CANCELLED'
+export type { TicketStatus } from '@/types/ticket.types'
