@@ -20,11 +20,7 @@ export interface TransitionContext {
   isRequester: boolean
 }
 
-function canTransitionTo(
-  from: TicketStatus,
-  to: TicketStatus,
-  ctx: TransitionContext,
-): boolean {
+function canTransitionTo(from: TicketStatus, to: TicketStatus, ctx: TransitionContext): boolean {
   if (!TRANSITIONS[from]?.includes(to)) return false
 
   const { role, permissions, isAssignee, isRequester } = ctx
@@ -53,9 +49,7 @@ export function getAllowedTransitions(
   currentStatus: TicketStatus,
   ctx: TransitionContext,
 ): TicketStatus[] {
-  return (TRANSITIONS[currentStatus] ?? []).filter((to) =>
-    canTransitionTo(currentStatus, to, ctx),
-  )
+  return (TRANSITIONS[currentStatus] ?? []).filter((to) => canTransitionTo(currentStatus, to, ctx))
 }
 
 export const STATUS_ACTION_LABELS: Partial<Record<TicketStatus, string>> = {

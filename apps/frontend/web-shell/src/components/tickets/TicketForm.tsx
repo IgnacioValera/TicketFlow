@@ -122,7 +122,9 @@ export function TicketForm({
           >
             <option value="">Seleccionar...</option>
             {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
             ))}
           </select>
         </div>
@@ -138,7 +140,9 @@ export function TicketForm({
           >
             <option value="">Seleccionar...</option>
             {priorities.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
             ))}
           </select>
         </div>

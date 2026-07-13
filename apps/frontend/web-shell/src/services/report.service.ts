@@ -24,7 +24,10 @@ export async function getTicketsByCategory() {
 }
 
 export async function getSlaCompliance(params: ReportDateRangeParams = {}) {
-  const response = await apiGet<SlaComplianceSummary>('/reports/sla-compliance', params as Record<string, unknown>)
+  const response = await apiGet<SlaComplianceSummary>(
+    '/reports/sla-compliance',
+    params as Record<string, unknown>,
+  )
   return response.data
 }
 

@@ -188,18 +188,26 @@ export function CategoriesPage() {
   return (
     <div>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold text-brand-navy">Categorías</h1>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8c8191]">Catálogos</p>
+          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-brand-navy md:text-3xl">
+            Categorías
+          </h1>
+          <p className="mt-1 text-sm text-[#766c7c]">
+            Organiza los tipos de solicitudes de soporte.
+          </p>
+        </div>
         <button
           type="button"
           onClick={openCreateModal}
           disabled={!canManage}
-          className="inline-flex justify-center rounded-lg bg-brand-teal px-4 py-2 text-sm font-medium text-white hover:bg-brand-teal/90 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex justify-center rounded-xl bg-brand-teal px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(111,79,216,.2)] hover:bg-[#6040c8] disabled:cursor-not-allowed disabled:opacity-50"
         >
           Nueva categoría
         </button>
       </div>
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-5 grid gap-3 rounded-2xl border border-[#e2dce5] bg-white p-4 shadow-[0_8px_25px_rgba(61,45,69,.04)] sm:grid-cols-2 lg:grid-cols-4">
         <input
           type="search"
           placeholder="Buscar por nombre..."
@@ -263,7 +271,11 @@ export function CategoriesPage() {
           </>
         }
       >
-        <form id="category-form" onSubmit={(event) => void handleSubmit(event)} className="space-y-4">
+        <form
+          id="category-form"
+          onSubmit={(event) => void handleSubmit(event)}
+          className="space-y-4"
+        >
           {formError && <ErrorState message={formError} />}
 
           <div>
@@ -286,9 +298,7 @@ export function CategoriesPage() {
             <textarea
               id="category-description"
               value={formState.description}
-              onChange={(e) =>
-                setFormState((prev) => ({ ...prev, description: e.target.value }))
-              }
+              onChange={(e) => setFormState((prev) => ({ ...prev, description: e.target.value }))}
               className="min-h-24 w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
               maxLength={250}
             />
@@ -302,9 +312,7 @@ export function CategoriesPage() {
         onConfirm={() => void handleDeactivate()}
         title="Desactivar categoría"
         message={
-          deactivateTarget
-            ? `¿Deseas desactivar la categoría ${deactivateTarget.name}?`
-            : ''
+          deactivateTarget ? `¿Deseas desactivar la categoría ${deactivateTarget.name}?` : ''
         }
         confirmLabel="Desactivar"
         variant="danger"

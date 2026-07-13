@@ -16,6 +16,7 @@ import { ReportsPlaceholderPage } from '@/pages/reports/ReportsPlaceholderPage'
 import { TicketCreatePage } from '@/pages/tickets/TicketCreatePage'
 import { TicketDetailPage } from '@/pages/tickets/TicketDetailPage'
 import { TicketsListPage } from '@/pages/tickets/TicketsListPage'
+import { TicketFlowPage } from '@/pages/tickets/TicketFlowPage'
 import { UserCreatePage } from '@/pages/users/UserCreatePage'
 import { UserEditPage } from '@/pages/users/UserEditPage'
 import { UsersListPage } from '@/pages/users/UsersListPage'
@@ -46,6 +47,10 @@ export const routes: RouteObject[] = [
             ),
           },
           {
+            path: 'ticket-flow',
+            element: <TicketFlowPage />,
+          },
+          {
             path: 'tickets',
             children: [
               {
@@ -61,6 +66,14 @@ export const routes: RouteObject[] = [
                 element: (
                   <RoleRoute permission={PERMISSIONS.TICKET_CREATE}>
                     <TicketCreatePage />
+                  </RoleRoute>
+                ),
+              },
+              {
+                path: ':id/flow',
+                element: (
+                  <RoleRoute permission={PERMISSIONS.TICKET_VIEW_OWN}>
+                    <TicketFlowPage />
                   </RoleRoute>
                 ),
               },

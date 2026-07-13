@@ -25,7 +25,11 @@ export function TicketAssignModal({
     if (!open) return
     const load = async () => {
       try {
-        const response = await usersService.getUsers({ role: 'AGENT', status: 'ACTIVE', perPage: 100 })
+        const response = await usersService.getUsers({
+          role: 'AGENT',
+          status: 'ACTIVE',
+          perPage: 100,
+        })
         setAgents(response.data)
         setAssigneeId(currentAssigneeId ?? response.data[0]?.id ?? '')
       } catch {
@@ -87,7 +91,9 @@ export function TicketAssignModal({
       >
         <option value="">Seleccionar agente...</option>
         {agents.map((a) => (
-          <option key={a.id} value={a.id}>{a.fullName}</option>
+          <option key={a.id} value={a.id}>
+            {a.fullName}
+          </option>
         ))}
       </select>
     </Modal>

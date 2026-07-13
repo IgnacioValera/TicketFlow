@@ -8,10 +8,7 @@ export function usePermissions() {
 
   const permissions = useMemo(() => user?.permissions ?? [], [user])
 
-  const hasPermission = useCallback(
-    (code: string) => permissions.includes(code),
-    [permissions],
-  )
+  const hasPermission = useCallback((code: string) => permissions.includes(code), [permissions])
 
   const hasRole = useCallback(
     (role: UserRole | UserRole[]) => {

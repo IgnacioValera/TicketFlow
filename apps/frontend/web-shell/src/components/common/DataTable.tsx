@@ -43,7 +43,7 @@ export function DataTable<T>({
 }: DataTableProps<T>) {
   if (loading) {
     return (
-      <div className="overflow-hidden rounded-xl border border-brand-slate/40 bg-white">
+      <div className="overflow-hidden rounded-2xl border border-brand-slate/40 bg-white shadow-[0_10px_30px_rgba(61,45,69,.04)]">
         <div className="animate-pulse space-y-3 p-4">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="h-10 rounded bg-brand-slate/20" />
@@ -58,10 +58,10 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-brand-slate/40 bg-white">
+    <div className="overflow-hidden rounded-2xl border border-brand-slate/40 bg-white shadow-[0_12px_35px_rgba(61,45,69,.05)]">
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-brand-slate/30">
-          <thead className="bg-brand-cream/40">
+          <thead className="bg-[#f7f3f8]">
             <tr>
               {columns.map((col) => (
                 <th
@@ -89,9 +89,12 @@ export function DataTable<T>({
           </thead>
           <tbody className="divide-y divide-brand-slate/20">
             {data.map((row) => (
-              <tr key={rowKey(row)} className="hover:bg-brand-cream/20">
+              <tr key={rowKey(row)} className="transition-colors hover:bg-[#faf8fb]">
                 {columns.map((col) => (
-                  <td key={col.key} className={`px-4 py-3 text-sm text-slate-700 ${col.className ?? ''}`}>
+                  <td
+                    key={col.key}
+                    className={`px-4 py-3 text-sm text-slate-700 ${col.className ?? ''}`}
+                  >
                     {col.render
                       ? col.render(row)
                       : String((row as Record<string, unknown>)[col.key] ?? '')}
@@ -104,7 +107,7 @@ export function DataTable<T>({
       </div>
 
       {pagination && pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-brand-slate/30 px-4 py-3">
+        <div className="flex flex-col gap-3 border-t border-brand-slate/30 bg-[#fcfbfa] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-slate-600">
             Página {pagination.page} de {pagination.totalPages} ({pagination.total} registros)
           </p>
@@ -113,7 +116,7 @@ export function DataTable<T>({
               type="button"
               disabled={pagination.page <= 1}
               onClick={() => onPageChange?.(pagination.page - 1)}
-              className="rounded-lg border border-brand-slate px-3 py-1 text-sm disabled:opacity-40"
+              className="rounded-lg border border-brand-slate bg-white px-3 py-1.5 text-sm font-medium hover:border-brand-teal disabled:opacity-40"
             >
               Anterior
             </button>
@@ -121,7 +124,7 @@ export function DataTable<T>({
               type="button"
               disabled={pagination.page >= pagination.totalPages}
               onClick={() => onPageChange?.(pagination.page + 1)}
-              className="rounded-lg border border-brand-slate px-3 py-1 text-sm disabled:opacity-40"
+              className="rounded-lg border border-brand-slate bg-white px-3 py-1.5 text-sm font-medium hover:border-brand-teal disabled:opacity-40"
             >
               Siguiente
             </button>

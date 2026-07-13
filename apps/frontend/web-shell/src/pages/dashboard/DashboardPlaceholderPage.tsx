@@ -47,9 +47,15 @@ export function DashboardPlaceholderPage() {
 
   return (
     <div className="space-y-6">
-      <header className="rounded-xl border border-brand-slate/40 bg-white p-5">
-        <h1 className="text-2xl font-bold text-brand-navy">Dashboard</h1>
-        <p className="mt-2 text-sm text-slate-600">
+      <header className="relative overflow-hidden rounded-[22px] border border-[#e1dae4] bg-[#302938] p-6 text-white shadow-[0_16px_45px_rgba(48,41,56,.14)]">
+        <div className="absolute -right-16 -top-20 h-52 w-52 rounded-full bg-[#7d5ce1]/25 blur-3xl" />
+        <p className="relative text-xs font-bold uppercase tracking-[0.18em] text-white/45">
+          Resumen operativo
+        </p>
+        <h1 className="relative mt-1 text-2xl font-extrabold tracking-tight md:text-3xl">
+          Dashboard
+        </h1>
+        <p className="relative mt-2 text-sm text-white/60">
           {scope === 'OWN'
             ? 'Vista limitada para agente: solo tus indicadores.'
             : 'Vista global del estado operativo de la mesa de ayuda.'}
@@ -61,7 +67,7 @@ export function DashboardPlaceholderPage() {
           {Array.from({ length: 4 }).map((_, index) => (
             <div
               key={index}
-              className="h-28 animate-pulse rounded-xl border border-brand-slate/30 bg-white"
+              className="h-28 animate-pulse rounded-2xl border border-brand-slate/30 bg-white"
             />
           ))}
         </div>

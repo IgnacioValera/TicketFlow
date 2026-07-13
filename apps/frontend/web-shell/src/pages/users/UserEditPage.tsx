@@ -65,12 +65,20 @@ export function UserEditPage() {
   if (error && !fullName) return <ErrorState message={error} />
 
   return (
-    <div className="mx-auto max-w-xl">
+    <div className="mx-auto max-w-3xl">
       <div className="mb-6">
         <Link to="/users" className="text-sm text-brand-teal hover:underline">
           ← Volver al listado
         </Link>
-        <h1 className="mt-2 text-2xl font-bold text-brand-navy">Editar usuario</h1>
+        <p className="mt-4 text-xs font-bold uppercase tracking-[0.18em] text-[#8c8191]">
+          Administración
+        </p>
+        <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-brand-navy md:text-3xl">
+          Editar usuario
+        </h1>
+        <p className="mt-2 text-sm text-[#766c7c]">
+          Actualiza identidad, rol o credenciales de acceso.
+        </p>
       </div>
 
       {error && fullName && (
@@ -81,7 +89,7 @@ export function UserEditPage() {
 
       <form
         onSubmit={(e) => void handleSubmit(e)}
-        className="space-y-4 rounded-xl border border-brand-slate/40 bg-white p-6"
+        className="space-y-5 rounded-2xl border border-brand-slate/40 bg-white p-6 shadow-[0_12px_35px_rgba(61,45,69,.06)] md:p-8"
       >
         <div>
           <label htmlFor="fullName" className="mb-1 block text-sm font-medium">
