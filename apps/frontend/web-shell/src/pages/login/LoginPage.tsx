@@ -52,10 +52,18 @@ export function LoginPage() {
 
   return (
     <div>
-      <h2 className="mb-6 text-xl font-semibold text-brand-navy">Iniciar sesión</h2>
+      <div className="mb-7">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8c8191]">Bienvenido</p>
+        <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-brand-navy">
+          Inicia sesión
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-[#7b7181]">
+          Accede a tu espacio de atención y seguimiento.
+        </p>
+      </div>
       <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
         {error && (
-          <div className="rounded-lg border border-brand-scarlet/30 bg-red-50 px-3 py-2 text-sm text-brand-scarlet">
+          <div className="rounded-xl border border-brand-scarlet/25 bg-[#fff1ee] px-3 py-2.5 text-sm text-brand-scarlet">
             {error}
           </div>
         )}
@@ -69,7 +77,7 @@ export function LoginPage() {
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm focus:border-brand-teal focus:outline-none focus:ring-1 focus:ring-brand-teal"
+            className="w-full rounded-xl border border-[#d9d1dd] bg-[#fffefd] px-3.5 py-3 text-sm focus:border-brand-teal focus:outline-none focus:ring-4 focus:ring-brand-teal/10"
             placeholder="usuario@empresa.com"
           />
         </div>
@@ -83,20 +91,22 @@ export function LoginPage() {
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm focus:border-brand-teal focus:outline-none focus:ring-1 focus:ring-brand-teal"
+            className="w-full rounded-xl border border-[#d9d1dd] bg-[#fffefd] px-3.5 py-3 text-sm focus:border-brand-teal focus:outline-none focus:ring-4 focus:ring-brand-teal/10"
           />
         </div>
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-lg bg-brand-teal py-2.5 text-sm font-medium text-white hover:bg-brand-teal/90 disabled:opacity-50"
+          className="w-full rounded-xl bg-brand-teal py-3 text-sm font-bold text-white shadow-[0_10px_24px_rgba(111,79,216,.22)] hover:bg-[#6040c8] disabled:opacity-50"
         >
           {submitting ? 'Ingresando...' : 'Ingresar'}
         </button>
       </form>
-      <p className="mt-4 text-center text-xs text-slate-500">
-        Demo: admin@helpdesk.com / agent@helpdesk.com — contraseña: password
-      </p>
+      <div className="mt-6 rounded-xl border border-[#e5dfe8] bg-[#faf8fb] p-3 text-center text-[11px] leading-5 text-[#807687]">
+        Demo: <strong>admin@helpdesk.com</strong>
+        <br />
+        Contraseña: <strong>password</strong>
+      </div>
     </div>
   )
 }

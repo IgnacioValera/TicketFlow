@@ -3,10 +3,7 @@ import { PERMISSIONS } from '@/constants/permissions'
 import { useAuth } from '@/hooks/useAuth'
 import { usePermissions } from '@/hooks/usePermissions'
 import type { Ticket, TicketStatus } from '@/types/ticket.types'
-import {
-  getAllowedTransitions,
-  STATUS_ACTION_LABELS,
-} from '@/utils/ticket-state-machine'
+import { getAllowedTransitions, STATUS_ACTION_LABELS } from '@/utils/ticket-state-machine'
 import { ConfirmModal, Modal } from '@/components/common/Modal'
 
 interface TicketStatusActionsProps {

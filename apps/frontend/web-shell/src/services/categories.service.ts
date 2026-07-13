@@ -17,7 +17,10 @@ export async function createCategory(payload: CreateCategoryPayload): Promise<Ca
   return response.data
 }
 
-export async function updateCategory(id: string, payload: UpdateCategoryPayload): Promise<Category> {
+export async function updateCategory(
+  id: string,
+  payload: UpdateCategoryPayload,
+): Promise<Category> {
   const response = await apiPut<Category>(`/categories/${id}`, payload)
   return response.data
 }

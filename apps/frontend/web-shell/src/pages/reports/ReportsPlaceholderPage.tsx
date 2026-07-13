@@ -242,11 +242,16 @@ export function ReportsPlaceholderPage() {
 
   return (
     <div className="space-y-6">
-      <header className="rounded-xl border border-brand-slate/40 bg-white p-5">
+      <header className="rounded-[22px] border border-[#e1dae4] bg-white p-5 shadow-[0_10px_35px_rgba(61,45,69,.05)]">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-brand-navy">Reportes</h1>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8c8191]">
+              Analítica
+            </p>
+            <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-brand-navy md:text-3xl">
+              Reportes
+            </h1>
+            <p className="mt-1 text-sm text-[#766c7c]">
               Analitica operativa: estado, agentes, categorias, SLA y empresas.
             </p>
           </div>
@@ -255,7 +260,7 @@ export function ReportsPlaceholderPage() {
             <button
               type="button"
               onClick={handleExport}
-              className="rounded-lg bg-brand-teal px-4 py-2 text-sm font-medium text-white hover:bg-brand-teal/90"
+              className="rounded-xl bg-brand-teal px-4 py-2 text-sm font-bold text-white shadow-[0_8px_20px_rgba(111,79,216,.18)] hover:bg-[#6040c8]"
             >
               Exportar CSV
             </button>
@@ -312,7 +317,13 @@ export function ReportsPlaceholderPage() {
                 <PieChart>
                   <Tooltip />
                   <Legend />
-                  <Pie data={statusChartData} dataKey="value" nameKey="name" outerRadius={100} label>
+                  <Pie
+                    data={statusChartData}
+                    dataKey="value"
+                    nameKey="name"
+                    outerRadius={100}
+                    label
+                  >
                     {statusChartData.map((entry, index) => (
                       <Cell key={entry.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
@@ -368,7 +379,9 @@ export function ReportsPlaceholderPage() {
       {activeTab === 'category' && (
         <section className="space-y-4">
           <div className="rounded-xl border border-brand-slate/40 bg-white p-4">
-            <h2 className="text-base font-semibold text-brand-navy">Tickets por categoria y prioridad</h2>
+            <h2 className="text-base font-semibold text-brand-navy">
+              Tickets por categoria y prioridad
+            </h2>
             <div className="mt-3 h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={ticketsByCategory}>
@@ -407,7 +420,9 @@ export function ReportsPlaceholderPage() {
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
                 <select
                   value={rangePreset}
-                  onChange={(e) => handlePresetChange(e.target.value as '7d' | '30d' | '90d' | 'custom')}
+                  onChange={(e) =>
+                    handlePresetChange(e.target.value as '7d' | '30d' | '90d' | 'custom')
+                  }
                   className="rounded-lg border border-brand-slate px-3 py-2 text-sm"
                 >
                   <option value="7d">Ultimos 7 dias</option>

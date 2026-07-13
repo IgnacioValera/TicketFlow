@@ -46,12 +46,28 @@ function hoursFromNow(h: number) {
   return new Date(Date.now() + h * 3600000).toISOString()
 }
 
-function buildTicket(partial: Partial<Ticket> & Pick<Ticket, 'id' | 'folio' | 'title' | 'description' | 'status' | 'requesterId' | 'requesterName' | 'categoryId' | 'priorityId'>): Ticket {
+function buildTicket(
+  partial: Partial<Ticket> &
+    Pick<
+      Ticket,
+      | 'id'
+      | 'folio'
+      | 'title'
+      | 'description'
+      | 'status'
+      | 'requesterId'
+      | 'requesterName'
+      | 'categoryId'
+      | 'priorityId'
+    >,
+): Ticket {
   const cat = mockCategories.find((c) => c.id === partial.categoryId)!
   const pri = mockPriorities.find((p) => p.id === partial.priorityId)!
   const createdAt = partial.createdAt ?? hoursAgo(10)
   const resolutionHours = partial.resolutionHours ?? pri.resolutionHours
-  const slaDueAt = partial.slaDueAt ?? new Date(new Date(createdAt).getTime() + resolutionHours * 3600000).toISOString()
+  const slaDueAt =
+    partial.slaDueAt ??
+    new Date(new Date(createdAt).getTime() + resolutionHours * 3600000).toISOString()
   return {
     categoryName: cat.name,
     priorityName: pri.name,
@@ -128,8 +144,24 @@ const ticketStores: TicketStore[] = [
     ],
     attachments: [],
     statusHistory: [
-      { id: 'h2', ticketId: 't2', oldStatus: null, newStatus: 'OPEN', changedBy: '4', changedByName: 'Usuario Solicitante', createdAt: hoursAgo(20) },
-      { id: 'h3', ticketId: 't2', oldStatus: 'OPEN', newStatus: 'ASSIGNED', changedBy: '3', changedByName: 'Supervisor Mesa', createdAt: hoursAgo(19) },
+      {
+        id: 'h2',
+        ticketId: 't2',
+        oldStatus: null,
+        newStatus: 'OPEN',
+        changedBy: '4',
+        changedByName: 'Usuario Solicitante',
+        createdAt: hoursAgo(20),
+      },
+      {
+        id: 'h3',
+        ticketId: 't2',
+        oldStatus: 'OPEN',
+        newStatus: 'ASSIGNED',
+        changedBy: '3',
+        changedByName: 'Supervisor Mesa',
+        createdAt: hoursAgo(19),
+      },
     ],
     survey: null,
   },
@@ -154,9 +186,33 @@ const ticketStores: TicketStore[] = [
     comments: [],
     attachments: [],
     statusHistory: [
-      { id: 'h4', ticketId: 't3', oldStatus: null, newStatus: 'OPEN', changedBy: '4', changedByName: 'Usuario Solicitante', createdAt: hoursAgo(6) },
-      { id: 'h5', ticketId: 't3', oldStatus: 'OPEN', newStatus: 'ASSIGNED', changedBy: '3', changedByName: 'Supervisor Mesa', createdAt: hoursAgo(5) },
-      { id: 'h6', ticketId: 't3', oldStatus: 'ASSIGNED', newStatus: 'IN_PROGRESS', changedBy: '2', changedByName: 'Agente Soporte', createdAt: hoursAgo(4) },
+      {
+        id: 'h4',
+        ticketId: 't3',
+        oldStatus: null,
+        newStatus: 'OPEN',
+        changedBy: '4',
+        changedByName: 'Usuario Solicitante',
+        createdAt: hoursAgo(6),
+      },
+      {
+        id: 'h5',
+        ticketId: 't3',
+        oldStatus: 'OPEN',
+        newStatus: 'ASSIGNED',
+        changedBy: '3',
+        changedByName: 'Supervisor Mesa',
+        createdAt: hoursAgo(5),
+      },
+      {
+        id: 'h6',
+        ticketId: 't3',
+        oldStatus: 'ASSIGNED',
+        newStatus: 'IN_PROGRESS',
+        changedBy: '2',
+        changedByName: 'Agente Soporte',
+        createdAt: hoursAgo(4),
+      },
     ],
     survey: null,
   },
@@ -177,14 +233,54 @@ const ticketStores: TicketStore[] = [
       slaDueAt: hoursFromNow(0),
     }),
     comments: [
-      { id: 'c2', ticketId: 't4', userId: '2', authorName: 'Agente Soporte', body: 'Acceso configurado correctamente.', isInternal: false, createdAt: hoursAgo(24) },
+      {
+        id: 'c2',
+        ticketId: 't4',
+        userId: '2',
+        authorName: 'Agente Soporte',
+        body: 'Acceso configurado correctamente.',
+        isInternal: false,
+        createdAt: hoursAgo(24),
+      },
     ],
     attachments: [],
     statusHistory: [
-      { id: 'h7', ticketId: 't4', oldStatus: null, newStatus: 'OPEN', changedBy: '4', changedByName: 'Usuario Solicitante', createdAt: hoursAgo(48) },
-      { id: 'h8', ticketId: 't4', oldStatus: 'OPEN', newStatus: 'ASSIGNED', changedBy: '3', changedByName: 'Supervisor Mesa', createdAt: hoursAgo(47) },
-      { id: 'h9', ticketId: 't4', oldStatus: 'ASSIGNED', newStatus: 'IN_PROGRESS', changedBy: '2', changedByName: 'Agente Soporte', createdAt: hoursAgo(46) },
-      { id: 'h10', ticketId: 't4', oldStatus: 'IN_PROGRESS', newStatus: 'RESOLVED', changedBy: '2', changedByName: 'Agente Soporte', createdAt: hoursAgo(24) },
+      {
+        id: 'h7',
+        ticketId: 't4',
+        oldStatus: null,
+        newStatus: 'OPEN',
+        changedBy: '4',
+        changedByName: 'Usuario Solicitante',
+        createdAt: hoursAgo(48),
+      },
+      {
+        id: 'h8',
+        ticketId: 't4',
+        oldStatus: 'OPEN',
+        newStatus: 'ASSIGNED',
+        changedBy: '3',
+        changedByName: 'Supervisor Mesa',
+        createdAt: hoursAgo(47),
+      },
+      {
+        id: 'h9',
+        ticketId: 't4',
+        oldStatus: 'ASSIGNED',
+        newStatus: 'IN_PROGRESS',
+        changedBy: '2',
+        changedByName: 'Agente Soporte',
+        createdAt: hoursAgo(46),
+      },
+      {
+        id: 'h10',
+        ticketId: 't4',
+        oldStatus: 'IN_PROGRESS',
+        newStatus: 'RESOLVED',
+        changedBy: '2',
+        changedByName: 'Agente Soporte',
+        createdAt: hoursAgo(24),
+      },
     ],
     survey: null,
   },
@@ -207,8 +303,25 @@ const ticketStores: TicketStore[] = [
     comments: [],
     attachments: [],
     statusHistory: [
-      { id: 'h11', ticketId: 't5', oldStatus: null, newStatus: 'OPEN', changedBy: '4', changedByName: 'Usuario Solicitante', createdAt: hoursAgo(10) },
-      { id: 'h12', ticketId: 't5', oldStatus: 'IN_PROGRESS', newStatus: 'ESCALATED', changedBy: '2', changedByName: 'Agente Soporte', reason: 'Requiere infraestructura', createdAt: hoursAgo(3) },
+      {
+        id: 'h11',
+        ticketId: 't5',
+        oldStatus: null,
+        newStatus: 'OPEN',
+        changedBy: '4',
+        changedByName: 'Usuario Solicitante',
+        createdAt: hoursAgo(10),
+      },
+      {
+        id: 'h12',
+        ticketId: 't5',
+        oldStatus: 'IN_PROGRESS',
+        newStatus: 'ESCALATED',
+        changedBy: '2',
+        changedByName: 'Agente Soporte',
+        reason: 'Requiere infraestructura',
+        createdAt: hoursAgo(3),
+      },
     ],
     survey: null,
   },
@@ -228,7 +341,12 @@ function paginate<T>(items: T[], page = 1, perPage = 10) {
   const data = items.slice(start, start + perPage)
   return {
     data,
-    meta: { page, perPage, total: items.length, totalPages: Math.ceil(items.length / perPage) || 1 },
+    meta: {
+      page,
+      perPage,
+      total: items.length,
+      totalPages: Math.ceil(items.length / perPage) || 1,
+    },
   }
 }
 
@@ -252,7 +370,13 @@ function filterByRole(stores: TicketStore[], user: User): TicketStore[] {
   return stores
 }
 
-function addHistory(store: TicketStore, oldStatus: TicketStatus | null, newStatus: TicketStatus, user: User, reason?: string) {
+function addHistory(
+  store: TicketStore,
+  oldStatus: TicketStatus | null,
+  newStatus: TicketStatus,
+  user: User,
+  reason?: string,
+) {
   store.statusHistory.push({
     id: `h-${Date.now()}`,
     ticketId: store.ticket.id,
@@ -269,7 +393,11 @@ export function createTicketHandlers(mockUsers: User[]) {
   return [
     http.get('*/api/v1/tickets', async ({ request }) => {
       const user = findUserFromRequest(request, mockUsers)
-      if (!user) return HttpResponse.json({ success: false, message: 'No autenticado', data: null, meta: null }, { status: 401 })
+      if (!user)
+        return HttpResponse.json(
+          { success: false, message: 'No autenticado', data: null, meta: null },
+          { status: 401 },
+        )
 
       const url = new URL(request.url)
       let filtered = filterByRole([...ticketStores], user)
@@ -280,22 +408,29 @@ export function createTicketHandlers(mockUsers: User[]) {
       const assigneeId = url.searchParams.get('assigneeId')
       const search = url.searchParams.get('search')
       const unassigned = url.searchParams.get('unassigned') === 'true'
-      const slaStatus = (url.searchParams.get('sla_status') ?? url.searchParams.get('slaStatus')) as 'overdue' | 'warning' | 'on_time' | null
+      const slaStatus = (url.searchParams.get('sla_status') ??
+        url.searchParams.get('slaStatus')) as 'overdue' | 'warning' | 'on_time' | null
 
       if (status) filtered = filtered.filter((s) => s.ticket.status === status)
       if (priorityId) filtered = filtered.filter((s) => s.ticket.priorityId === priorityId)
       if (categoryId) filtered = filtered.filter((s) => s.ticket.categoryId === categoryId)
       if (assigneeId) filtered = filtered.filter((s) => s.ticket.assigneeId === assigneeId)
-      if (unassigned) filtered = filtered.filter((s) => !s.ticket.assigneeId && s.ticket.status === 'OPEN')
+      if (unassigned)
+        filtered = filtered.filter((s) => !s.ticket.assigneeId && s.ticket.status === 'OPEN')
       if (search) {
         const q = search.toLowerCase()
         filtered = filtered.filter(
-          (s) => s.ticket.title.toLowerCase().includes(q) || s.ticket.folio.toLowerCase().includes(q),
+          (s) =>
+            s.ticket.title.toLowerCase().includes(q) || s.ticket.folio.toLowerCase().includes(q),
         )
       }
       if (slaStatus) {
         filtered = filtered.filter((s) => {
-          const sla = calculateSlaStatus(s.ticket.slaCreatedAt, s.ticket.slaDueAt, s.ticket.resolutionHours)
+          const sla = calculateSlaStatus(
+            s.ticket.slaCreatedAt,
+            s.ticket.slaDueAt,
+            s.ticket.resolutionHours,
+          )
           return matchesSlaFilter(sla, slaStatus)
         })
       }
@@ -307,12 +442,21 @@ export function createTicketHandlers(mockUsers: User[]) {
         page,
         perPage,
       )
-      return HttpResponse.json({ success: true, message: 'OK', data: result.data, meta: result.meta })
+      return HttpResponse.json({
+        success: true,
+        message: 'OK',
+        data: result.data,
+        meta: result.meta,
+      })
     }),
 
     http.post('*/api/v1/tickets', async ({ request }) => {
       const user = findUserFromRequest(request, mockUsers)
-      if (!user) return HttpResponse.json({ success: false, message: 'No autenticado', data: null, meta: null }, { status: 401 })
+      if (!user)
+        return HttpResponse.json(
+          { success: false, message: 'No autenticado', data: null, meta: null },
+          { status: 401 },
+        )
 
       const body = (await request.json()) as {
         title: string
@@ -322,7 +466,10 @@ export function createTicketHandlers(mockUsers: User[]) {
         companyId?: string
       }
       if (!body.title || !body.description || !body.categoryId || !body.priorityId) {
-        return HttpResponse.json({ success: false, message: 'Campos obligatorios faltantes', data: null, meta: null }, { status: 422 })
+        return HttpResponse.json(
+          { success: false, message: 'Campos obligatorios faltantes', data: null, meta: null },
+          { status: 422 },
+        )
       }
 
       folioCounter += 1
@@ -354,44 +501,81 @@ export function createTicketHandlers(mockUsers: User[]) {
         ticket,
         comments: [],
         attachments: [],
-        statusHistory: [{
-          id: `h-${id}`,
-          ticketId: id,
-          oldStatus: null,
-          newStatus: 'OPEN',
-          changedBy: user.id,
-          changedByName: user.fullName,
-          createdAt,
-        }],
+        statusHistory: [
+          {
+            id: `h-${id}`,
+            ticketId: id,
+            oldStatus: null,
+            newStatus: 'OPEN',
+            changedBy: user.id,
+            changedByName: user.fullName,
+            createdAt,
+          },
+        ],
         survey: null,
       }
       ticketStores.unshift(store)
-      return HttpResponse.json({ success: true, message: 'Ticket creado', data: ticket, meta: null }, { status: 201 })
+      return HttpResponse.json(
+        { success: true, message: 'Ticket creado', data: ticket, meta: null },
+        { status: 201 },
+      )
     }),
 
     http.get('*/api/v1/tickets/:id', async ({ params, request }) => {
       const user = findUserFromRequest(request, mockUsers)
-      if (!user) return HttpResponse.json({ success: false, message: 'No autenticado', data: null, meta: null }, { status: 401 })
+      if (!user)
+        return HttpResponse.json(
+          { success: false, message: 'No autenticado', data: null, meta: null },
+          { status: 401 },
+        )
       const store = ticketStores.find((s) => s.ticket.id === params.id)
-      if (!store) return HttpResponse.json({ success: false, message: 'No encontrado', data: null, meta: null }, { status: 404 })
+      if (!store)
+        return HttpResponse.json(
+          { success: false, message: 'No encontrado', data: null, meta: null },
+          { status: 404 },
+        )
 
       const allowed = filterByRole([store], user)
       if (allowed.length === 0 && user.role !== 'SUPERVISOR' && user.role !== 'ADMIN') {
-        return HttpResponse.json({ success: false, message: 'Sin permiso', data: null, meta: null }, { status: 403 })
+        return HttpResponse.json(
+          { success: false, message: 'Sin permiso', data: null, meta: null },
+          { status: 403 },
+        )
       }
-      return HttpResponse.json({ success: true, message: 'OK', data: enrichTicket(store), meta: null })
+      return HttpResponse.json({
+        success: true,
+        message: 'OK',
+        data: enrichTicket(store),
+        meta: null,
+      })
     }),
 
     http.put('*/api/v1/tickets/:id', async ({ params, request }) => {
       const user = findUserFromRequest(request, mockUsers)
-      if (!user) return HttpResponse.json({ success: false, message: 'No autenticado', data: null, meta: null }, { status: 401 })
+      if (!user)
+        return HttpResponse.json(
+          { success: false, message: 'No autenticado', data: null, meta: null },
+          { status: 401 },
+        )
       const store = ticketStores.find((s) => s.ticket.id === params.id)
-      if (!store) return HttpResponse.json({ success: false, message: 'No encontrado', data: null, meta: null }, { status: 404 })
+      if (!store)
+        return HttpResponse.json(
+          { success: false, message: 'No encontrado', data: null, meta: null },
+          { status: 404 },
+        )
 
-      const body = (await request.json()) as { title?: string; description?: string; categoryId?: string; priorityId?: string }
+      const body = (await request.json()) as {
+        title?: string
+        description?: string
+        categoryId?: string
+        priorityId?: string
+      }
       if (body.categoryId) {
         const cat = mockCategories.find((c) => c.id === body.categoryId)
-        if (cat) { store.ticket.categoryId = cat.id; store.ticket.categoryName = cat.name }
+        if (cat) {
+          store.ticket.categoryId = cat.id
+          store.ticket.categoryName = cat.name
+        }
       }
       if (body.priorityId) {
         const pri = mockPriorities.find((p) => p.id === body.priorityId)
@@ -400,18 +584,29 @@ export function createTicketHandlers(mockUsers: User[]) {
           store.ticket.priorityName = pri.name
           store.ticket.priorityColor = pri.color
           store.ticket.resolutionHours = pri.resolutionHours
-          store.ticket.slaDueAt = new Date(new Date(store.ticket.slaCreatedAt).getTime() + pri.resolutionHours * 3600000).toISOString()
+          store.ticket.slaDueAt = new Date(
+            new Date(store.ticket.slaCreatedAt).getTime() + pri.resolutionHours * 3600000,
+          ).toISOString()
         }
       }
       if (body.title) store.ticket.title = body.title
       if (body.description) store.ticket.description = body.description
-      return HttpResponse.json({ success: true, message: 'Ticket actualizado', data: enrichTicket(store), meta: null })
+      return HttpResponse.json({
+        success: true,
+        message: 'Ticket actualizado',
+        data: enrichTicket(store),
+        meta: null,
+      })
     }),
 
     http.patch('*/api/v1/tickets/:id/status', async ({ params, request }) => {
       const user = findUserFromRequest(request, mockUsers)
       const store = ticketStores.find((s) => s.ticket.id === params.id)
-      if (!store) return HttpResponse.json({ success: false, message: 'No encontrado', data: null, meta: null }, { status: 404 })
+      if (!store)
+        return HttpResponse.json(
+          { success: false, message: 'No encontrado', data: null, meta: null },
+          { status: 404 },
+        )
       const body = (await request.json()) as { status: TicketStatus; reason?: string }
       const old = store.ticket.status
       store.ticket.status = body.status
@@ -419,16 +614,29 @@ export function createTicketHandlers(mockUsers: User[]) {
         /* keep */
       }
       addHistory(store, old, body.status, user!, body.reason)
-      return HttpResponse.json({ success: true, message: 'Estado actualizado', data: enrichTicket(store), meta: null })
+      return HttpResponse.json({
+        success: true,
+        message: 'Estado actualizado',
+        data: enrichTicket(store),
+        meta: null,
+      })
     }),
 
     http.patch('*/api/v1/tickets/:id/assign', async ({ params, request }) => {
       const user = findUserFromRequest(request, mockUsers)
       const store = ticketStores.find((s) => s.ticket.id === params.id)
-      if (!store) return HttpResponse.json({ success: false, message: 'No encontrado', data: null, meta: null }, { status: 404 })
+      if (!store)
+        return HttpResponse.json(
+          { success: false, message: 'No encontrado', data: null, meta: null },
+          { status: 404 },
+        )
       const body = (await request.json()) as { assigneeId: string }
       const agent = mockUsers.find((u) => u.id === body.assigneeId && u.role === 'AGENT')
-      if (!agent) return HttpResponse.json({ success: false, message: 'Agente invalido', data: null, meta: null }, { status: 422 })
+      if (!agent)
+        return HttpResponse.json(
+          { success: false, message: 'Agente invalido', data: null, meta: null },
+          { status: 422 },
+        )
       const old = store.ticket.status
       store.ticket.assigneeId = agent.id
       store.ticket.assigneeName = agent.fullName
@@ -436,35 +644,62 @@ export function createTicketHandlers(mockUsers: User[]) {
         store.ticket.status = 'ASSIGNED'
         addHistory(store, old, 'ASSIGNED', user!, 'Asignado a agente')
       }
-      return HttpResponse.json({ success: true, message: 'Ticket asignado', data: enrichTicket(store), meta: null })
+      return HttpResponse.json({
+        success: true,
+        message: 'Ticket asignado',
+        data: enrichTicket(store),
+        meta: null,
+      })
     }),
 
     http.patch('*/api/v1/tickets/:id/escalate', async ({ params, request }) => {
       const store = ticketStores.find((s) => s.ticket.id === params.id)
-      if (!store) return HttpResponse.json({ success: false, message: 'No encontrado', data: null, meta: null }, { status: 404 })
+      if (!store)
+        return HttpResponse.json(
+          { success: false, message: 'No encontrado', data: null, meta: null },
+          { status: 404 },
+        )
       const user = findUserFromRequest(request, mockUsers)!
       const body = (await request.json()) as { reason: string }
       const old = store.ticket.status
       store.ticket.status = 'ESCALATED'
       addHistory(store, old, 'ESCALATED', user, body.reason)
-      return HttpResponse.json({ success: true, message: 'Ticket escalado', data: enrichTicket(store), meta: null })
+      return HttpResponse.json({
+        success: true,
+        message: 'Ticket escalado',
+        data: enrichTicket(store),
+        meta: null,
+      })
     }),
 
     http.patch('*/api/v1/tickets/:id/close', async ({ params, request }) => {
       const store = ticketStores.find((s) => s.ticket.id === params.id)
-      if (!store) return HttpResponse.json({ success: false, message: 'No encontrado', data: null, meta: null }, { status: 404 })
+      if (!store)
+        return HttpResponse.json(
+          { success: false, message: 'No encontrado', data: null, meta: null },
+          { status: 404 },
+        )
       const user = findUserFromRequest(request, mockUsers)!
       const old = store.ticket.status
       store.ticket.status = 'CLOSED'
       store.ticket.closedAt = new Date().toISOString()
       addHistory(store, old, 'CLOSED', user)
-      return HttpResponse.json({ success: true, message: 'Ticket cerrado', data: enrichTicket(store), meta: null })
+      return HttpResponse.json({
+        success: true,
+        message: 'Ticket cerrado',
+        data: enrichTicket(store),
+        meta: null,
+      })
     }),
 
     http.get('*/api/v1/tickets/:id/comments', async ({ params, request }) => {
       const user = findUserFromRequest(request, mockUsers)
       const store = ticketStores.find((s) => s.ticket.id === params.id)
-      if (!store) return HttpResponse.json({ success: false, message: 'No encontrado', data: null, meta: null }, { status: 404 })
+      if (!store)
+        return HttpResponse.json(
+          { success: false, message: 'No encontrado', data: null, meta: null },
+          { status: 404 },
+        )
       let comments = store.comments
       if (user?.role === 'REQUESTER') comments = comments.filter((c) => !c.isInternal)
       return HttpResponse.json({ success: true, message: 'OK', data: comments, meta: null })
@@ -473,7 +708,11 @@ export function createTicketHandlers(mockUsers: User[]) {
     http.post('*/api/v1/tickets/:id/comments', async ({ params, request }) => {
       const user = findUserFromRequest(request, mockUsers)!
       const store = ticketStores.find((s) => s.ticket.id === params.id)
-      if (!store) return HttpResponse.json({ success: false, message: 'No encontrado', data: null, meta: null }, { status: 404 })
+      if (!store)
+        return HttpResponse.json(
+          { success: false, message: 'No encontrado', data: null, meta: null },
+          { status: 404 },
+        )
       const body = (await request.json()) as { body: string; isInternal?: boolean }
       const isInternal = user.role === 'REQUESTER' ? false : Boolean(body.isInternal)
       const comment: TicketComment = {
@@ -486,22 +725,42 @@ export function createTicketHandlers(mockUsers: User[]) {
         createdAt: new Date().toISOString(),
       }
       store.comments.push(comment)
-      return HttpResponse.json({ success: true, message: 'Comentario agregado', data: comment, meta: null }, { status: 201 })
+      return HttpResponse.json(
+        { success: true, message: 'Comentario agregado', data: comment, meta: null },
+        { status: 201 },
+      )
     }),
 
     http.get('*/api/v1/tickets/:id/attachments', async ({ params }) => {
       const store = ticketStores.find((s) => s.ticket.id === params.id)
-      if (!store) return HttpResponse.json({ success: false, message: 'No encontrado', data: null, meta: null }, { status: 404 })
-      return HttpResponse.json({ success: true, message: 'OK', data: store.attachments, meta: null })
+      if (!store)
+        return HttpResponse.json(
+          { success: false, message: 'No encontrado', data: null, meta: null },
+          { status: 404 },
+        )
+      return HttpResponse.json({
+        success: true,
+        message: 'OK',
+        data: store.attachments,
+        meta: null,
+      })
     }),
 
     http.post('*/api/v1/tickets/:id/attachments', async ({ params, request }) => {
       const user = findUserFromRequest(request, mockUsers)!
       const store = ticketStores.find((s) => s.ticket.id === params.id)
-      if (!store) return HttpResponse.json({ success: false, message: 'No encontrado', data: null, meta: null }, { status: 404 })
+      if (!store)
+        return HttpResponse.json(
+          { success: false, message: 'No encontrado', data: null, meta: null },
+          { status: 404 },
+        )
       const formData = await request.formData()
       const file = formData.get('file') as File | null
-      if (!file) return HttpResponse.json({ success: false, message: 'Archivo requerido', data: null, meta: null }, { status: 422 })
+      if (!file)
+        return HttpResponse.json(
+          { success: false, message: 'Archivo requerido', data: null, meta: null },
+          { status: 422 },
+        )
       const attachment: TicketAttachment = {
         id: `a-${Date.now()}`,
         ticketId: store.ticket.id,
@@ -514,7 +773,10 @@ export function createTicketHandlers(mockUsers: User[]) {
         createdAt: new Date().toISOString(),
       }
       store.attachments.push(attachment)
-      return HttpResponse.json({ success: true, message: 'Adjunto subido', data: attachment, meta: null }, { status: 201 })
+      return HttpResponse.json(
+        { success: true, message: 'Adjunto subido', data: attachment, meta: null },
+        { status: 201 },
+      )
     }),
 
     http.delete('*/api/v1/attachments/:id', async ({ params, request }) => {
@@ -524,26 +786,49 @@ export function createTicketHandlers(mockUsers: User[]) {
         if (idx >= 0) {
           const att = store.attachments[idx]
           if (att.uploadedBy !== user.id && user.role !== 'SUPERVISOR' && user.role !== 'ADMIN') {
-            return HttpResponse.json({ success: false, message: 'Sin permiso', data: null, meta: null }, { status: 403 })
+            return HttpResponse.json(
+              { success: false, message: 'Sin permiso', data: null, meta: null },
+              { status: 403 },
+            )
           }
           store.attachments.splice(idx, 1)
-          return HttpResponse.json({ success: true, message: 'Adjunto eliminado', data: null, meta: null })
+          return HttpResponse.json({
+            success: true,
+            message: 'Adjunto eliminado',
+            data: null,
+            meta: null,
+          })
         }
       }
-      return HttpResponse.json({ success: false, message: 'No encontrado', data: null, meta: null }, { status: 404 })
+      return HttpResponse.json(
+        { success: false, message: 'No encontrado', data: null, meta: null },
+        { status: 404 },
+      )
     }),
 
     http.get('*/api/v1/tickets/:id/sla', async ({ params }) => {
       const store = ticketStores.find((s) => s.ticket.id === params.id)
-      if (!store) return HttpResponse.json({ success: false, message: 'No encontrado', data: null, meta: null }, { status: 404 })
-      const sla = calculateSlaStatus(store.ticket.slaCreatedAt, store.ticket.slaDueAt, store.ticket.resolutionHours)
+      if (!store)
+        return HttpResponse.json(
+          { success: false, message: 'No encontrado', data: null, meta: null },
+          { status: 404 },
+        )
+      const sla = calculateSlaStatus(
+        store.ticket.slaCreatedAt,
+        store.ticket.slaDueAt,
+        store.ticket.resolutionHours,
+      )
       return HttpResponse.json({ success: true, message: 'OK', data: sla, meta: null })
     }),
 
     http.post('*/api/v1/tickets/:id/survey', async ({ params, request }) => {
       findUserFromRequest(request, mockUsers)
       const store = ticketStores.find((s) => s.ticket.id === params.id)
-      if (!store) return HttpResponse.json({ success: false, message: 'No encontrado', data: null, meta: null }, { status: 404 })
+      if (!store)
+        return HttpResponse.json(
+          { success: false, message: 'No encontrado', data: null, meta: null },
+          { status: 404 },
+        )
       const body = (await request.json()) as { rating: number; comment?: string }
       const survey: TicketSurvey = {
         id: `s-${Date.now()}`,
@@ -554,7 +839,10 @@ export function createTicketHandlers(mockUsers: User[]) {
       }
       store.survey = survey
       store.ticket.survey = survey
-      return HttpResponse.json({ success: true, message: 'Encuesta registrada', data: survey, meta: null }, { status: 201 })
+      return HttpResponse.json(
+        { success: true, message: 'Encuesta registrada', data: survey, meta: null },
+        { status: 201 },
+      )
     }),
   ]
 }

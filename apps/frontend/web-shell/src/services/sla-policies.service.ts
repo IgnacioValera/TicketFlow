@@ -17,7 +17,10 @@ export async function createSlaPolicy(payload: CreateSlaPolicyPayload): Promise<
   return response.data
 }
 
-export async function updateSlaPolicy(id: string, payload: UpdateSlaPolicyPayload): Promise<SlaPolicy> {
+export async function updateSlaPolicy(
+  id: string,
+  payload: UpdateSlaPolicyPayload,
+): Promise<SlaPolicy> {
   const response = await apiPut<SlaPolicy>(`/sla-policies/${id}`, payload)
   return response.data
 }

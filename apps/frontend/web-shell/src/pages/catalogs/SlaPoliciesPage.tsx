@@ -208,8 +208,11 @@ export function SlaPoliciesPage() {
     <div>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-brand-navy">Políticas SLA</h1>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8c8191]">Catálogos</p>
+          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-brand-navy md:text-3xl">
+            Políticas SLA
+          </h1>
+          <p className="mt-1 text-sm text-[#766c7c]">
             Tiempos de respuesta y resolución por prioridad.
           </p>
         </div>
@@ -217,13 +220,13 @@ export function SlaPoliciesPage() {
           type="button"
           onClick={openCreateModal}
           disabled={!canManage || priorities.length === 0}
-          className="inline-flex justify-center rounded-lg bg-brand-teal px-4 py-2 text-sm font-medium text-white hover:bg-brand-teal/90 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex justify-center rounded-xl bg-brand-teal px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(111,79,216,.2)] hover:bg-[#6040c8] disabled:cursor-not-allowed disabled:opacity-50"
         >
           Nueva política
         </button>
       </div>
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-5 grid gap-3 rounded-2xl border border-[#e2dce5] bg-white p-4 shadow-[0_8px_25px_rgba(61,45,69,.04)] sm:grid-cols-2 lg:grid-cols-4">
         <input
           type="search"
           placeholder="Buscar por nombre..."
@@ -287,7 +290,11 @@ export function SlaPoliciesPage() {
           </>
         }
       >
-        <form id="sla-policy-form" onSubmit={(event) => void handleSubmit(event)} className="space-y-4">
+        <form
+          id="sla-policy-form"
+          onSubmit={(event) => void handleSubmit(event)}
+          className="space-y-4"
+        >
           {formError && <ErrorState message={formError} />}
 
           <div>

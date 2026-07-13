@@ -68,16 +68,7 @@ export function TicketsListPage() {
     } catch {
       // error in hook
     }
-  }, [
-    loadTickets,
-    page,
-    search,
-    statusFilter,
-    priorityFilter,
-    categoryFilter,
-    slaFilter,
-    tab,
-  ])
+  }, [loadTickets, page, search, statusFilter, priorityFilter, categoryFilter, slaFilter, tab])
 
   useEffect(() => {
     void fetchTickets()
@@ -102,9 +93,7 @@ export function TicketsListPage() {
     {
       key: 'priorityName',
       header: 'Prioridad',
-      render: (row) => (
-        <span style={{ color: row.priorityColor }}>{row.priorityName}</span>
-      ),
+      render: (row) => <span style={{ color: row.priorityColor }}>{row.priorityName}</span>,
     },
     { key: 'categoryName', header: 'Categoría' },
     {
@@ -128,13 +117,21 @@ export function TicketsListPage() {
     user?.role === 'ADMIN'
 
   return (
-    <div className="overflow-x-auto">
+    <div>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold text-brand-navy">Tickets</h1>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8c8191]">Operación</p>
+          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-brand-navy md:text-3xl">
+            Tickets
+          </h1>
+          <p className="mt-1 text-sm text-[#766c7c]">
+            Consulta, filtra y da seguimiento a cada solicitud.
+          </p>
+        </div>
         {hasPermission(PERMISSIONS.TICKET_CREATE) && (
           <Link
             to="/tickets/create"
-            className="inline-flex justify-center rounded-lg bg-brand-teal px-4 py-2 text-sm font-medium text-white hover:bg-brand-teal/90"
+            className="inline-flex justify-center rounded-xl bg-brand-teal px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(111,79,216,.2)] hover:bg-[#6040c8]"
           >
             Nuevo ticket
           </Link>
@@ -194,7 +191,7 @@ export function TicketsListPage() {
         </div>
       )}
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mb-5 grid gap-3 rounded-2xl border border-[#e2dce5] bg-white p-4 shadow-[0_8px_25px_rgba(61,45,69,.04)] sm:grid-cols-2 lg:grid-cols-5">
         <input
           type="search"
           placeholder="Buscar folio o título..."
@@ -233,7 +230,9 @@ export function TicketsListPage() {
         >
           <option value="">Todas las prioridades</option>
           {priorities.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
           ))}
         </select>
         <select
@@ -246,7 +245,9 @@ export function TicketsListPage() {
         >
           <option value="">Todas las categorías</option>
           {categories.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
           ))}
         </select>
         <select

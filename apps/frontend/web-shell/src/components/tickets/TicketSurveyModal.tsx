@@ -82,7 +82,10 @@ export function TicketSurveyModal({ open, onClose, onSubmit }: TicketSurveyModal
           ))}
         </div>
         <div>
-          <label htmlFor="survey-comment" className="mb-1 block text-sm font-medium text-brand-navy">
+          <label
+            htmlFor="survey-comment"
+            className="mb-1 block text-sm font-medium text-brand-navy"
+          >
             Comentario (opcional)
           </label>
           <textarea

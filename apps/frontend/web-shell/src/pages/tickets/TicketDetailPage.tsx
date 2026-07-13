@@ -54,12 +54,7 @@ export function TicketDetailPage() {
 
   const refresh = useCallback(async () => {
     if (!id) return
-    await Promise.all([
-      loadTicket(id),
-      loadComments(id),
-      loadAttachments(id),
-      loadSla(id),
-    ])
+    await Promise.all([loadTicket(id), loadComments(id), loadAttachments(id), loadSla(id)])
   }, [id, loadTicket, loadComments, loadAttachments, loadSla])
 
   useEffect(() => {
@@ -171,11 +166,17 @@ export function TicketDetailPage() {
         </Link>
         <span className="text-sm text-slate-400">|</span>
         <span className="font-mono text-sm text-slate-600">{ticket.folio}</span>
+        <Link
+          to={`/tickets/${ticket.id}/flow`}
+          className="ml-auto inline-flex items-center gap-2 rounded-xl bg-[#6f4fd8] px-4 py-2 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(111,79,216,.2)] hover:bg-[#6040c8]"
+        >
+          Ver flujo visual
+        </Link>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <div className="rounded-xl border border-brand-slate/30 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-brand-slate/30 bg-white p-6 shadow-[0_10px_30px_rgba(61,45,69,.05)]">
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h1 className="text-xl font-bold text-brand-navy sm:text-2xl">{ticket.title}</h1>
@@ -216,7 +217,7 @@ export function TicketDetailPage() {
             )}
           </div>
 
-          <div className="rounded-xl border border-brand-slate/30 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-brand-slate/30 bg-white p-6 shadow-[0_10px_30px_rgba(61,45,69,.05)]">
             <TicketComments
               comments={comments}
               onAdd={async (body, isInternal) => {
@@ -225,7 +226,7 @@ export function TicketDetailPage() {
             />
           </div>
 
-          <div className="rounded-xl border border-brand-slate/30 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-brand-slate/30 bg-white p-6 shadow-[0_10px_30px_rgba(61,45,69,.05)]">
             <TicketAttachments
               attachments={attachments}
               onUpload={async (file) => {
@@ -237,14 +238,14 @@ export function TicketDetailPage() {
             />
           </div>
 
-          <div className="rounded-xl border border-brand-slate/30 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-brand-slate/30 bg-white p-6 shadow-[0_10px_30px_rgba(61,45,69,.05)]">
             <h3 className="mb-4 text-base font-semibold text-brand-navy">Historial</h3>
             <TicketTimeline history={ticket.statusHistory ?? []} />
           </div>
         </div>
 
         <aside className="space-y-4">
-          <div className="rounded-xl border border-brand-slate/30 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border border-brand-slate/30 bg-white p-4 shadow-[0_10px_30px_rgba(61,45,69,.05)]">
             <h3 className="mb-3 text-sm font-semibold text-brand-navy">Detalles</h3>
             <dl className="space-y-2 text-sm">
               <div className="flex justify-between gap-2">
@@ -263,7 +264,9 @@ export function TicketDetailPage() {
                       style={{ color: ticket.priorityColor }}
                     >
                       {priorities.map((p) => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
                       ))}
                     </select>
                   ) : (
@@ -279,7 +282,9 @@ export function TicketDetailPage() {
               )}
               <div className="flex justify-between gap-2">
                 <dt className="text-slate-500">Agente</dt>
-                <dd className="font-medium text-brand-navy">{ticket.assigneeName ?? 'Sin asignar'}</dd>
+                <dd className="font-medium text-brand-navy">
+                  {ticket.assigneeName ?? 'Sin asignar'}
+                </dd>
               </div>
             </dl>
             {canAssign && (
@@ -294,7 +299,7 @@ export function TicketDetailPage() {
           </div>
 
           {sla && (
-            <div className="rounded-xl border border-brand-slate/30 bg-white p-4 shadow-sm">
+            <div className="rounded-2xl border border-brand-slate/30 bg-white p-4 shadow-[0_10px_30px_rgba(61,45,69,.05)]">
               <h3 className="mb-3 text-sm font-semibold text-brand-navy">SLA</h3>
               <SlaSemaphore sla={sla} />
               <p className="mt-2 text-xs text-slate-500">
@@ -303,7 +308,7 @@ export function TicketDetailPage() {
             </div>
           )}
 
-          <div className="rounded-xl border border-brand-slate/30 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border border-brand-slate/30 bg-white p-4 shadow-[0_10px_30px_rgba(61,45,69,.05)]">
             <TicketStatusActions
               ticket={ticket}
               onChangeStatus={handleStatusChange}
@@ -313,7 +318,7 @@ export function TicketDetailPage() {
           </div>
 
           {ticket.survey && (
-            <div className="rounded-xl border border-brand-slate/30 bg-white p-4 shadow-sm">
+            <div className="rounded-2xl border border-brand-slate/30 bg-white p-4 shadow-[0_10px_30px_rgba(61,45,69,.05)]">
               <h3 className="mb-2 text-sm font-semibold text-brand-navy">Encuesta</h3>
               <p className="text-sm">
                 Calificación: <strong>{ticket.survey.rating}/5</strong>

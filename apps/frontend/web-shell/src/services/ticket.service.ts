@@ -77,10 +77,7 @@ export async function getAttachments(ticketId: string): Promise<TicketAttachment
   return response.data
 }
 
-export async function uploadAttachment(
-  ticketId: string,
-  file: File,
-): Promise<TicketAttachment> {
+export async function uploadAttachment(ticketId: string, file: File): Promise<TicketAttachment> {
   const formData = new FormData()
   formData.append('file', file)
   const response = await apiPostForm<TicketAttachment>(`/tickets/${ticketId}/attachments`, formData)

@@ -85,13 +85,16 @@ export function CompaniesListPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-brand-navy">Empresas clientes</h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8c8191]">Catálogos</p>
+        <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-brand-navy md:text-3xl">
+          Empresas clientes
+        </h1>
+        <p className="mt-1 text-sm text-[#766c7c]">
           Catálogo de empresas con filtros por industria, región y tier.
         </p>
       </div>
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mb-5 grid gap-3 rounded-2xl border border-[#e2dce5] bg-white p-4 shadow-[0_8px_25px_rgba(61,45,69,.04)] sm:grid-cols-2 lg:grid-cols-5">
         <input
           type="search"
           placeholder="Buscar por nombre..."

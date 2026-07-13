@@ -17,7 +17,10 @@ export async function createPriority(payload: CreatePriorityPayload): Promise<Pr
   return response.data
 }
 
-export async function updatePriority(id: string, payload: UpdatePriorityPayload): Promise<Priority> {
+export async function updatePriority(
+  id: string,
+  payload: UpdatePriorityPayload,
+): Promise<Priority> {
   const response = await apiPut<Priority>(`/priorities/${id}`, payload)
   return response.data
 }

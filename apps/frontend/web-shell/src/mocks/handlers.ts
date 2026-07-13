@@ -259,7 +259,10 @@ const reportTicketsByCompany: TicketsByCompanyItem[] = [
   { company: 'Umbrella', industry: 'Salud', region: 'Norte', tickets: 29 },
 ]
 
-function buildSlaCompliance(startDate?: string | null, endDate?: string | null): SlaComplianceSummary {
+function buildSlaCompliance(
+  startDate?: string | null,
+  endDate?: string | null,
+): SlaComplianceSummary {
   if (!startDate || !endDate) {
     return {
       periodLabel: 'Ultimos 30 dias',
@@ -444,7 +447,12 @@ export const handlers = [
       permissions: body.role ? ROLE_PERMISSIONS[body.role] : mockUsers[index].permissions,
     }
     mockUsers[index] = updated
-    return HttpResponse.json({ success: true, message: 'Usuario actualizado', data: updated, meta: null })
+    return HttpResponse.json({
+      success: true,
+      message: 'Usuario actualizado',
+      data: updated,
+      meta: null,
+    })
   }),
 
   http.patch('*/users/:id/status', async ({ params, request }) => {

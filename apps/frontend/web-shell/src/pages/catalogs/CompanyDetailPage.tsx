@@ -62,32 +62,37 @@ export function CompanyDetailPage() {
         <Link to="/catalogs/companies" className="text-sm text-brand-teal hover:underline">
           ← Volver al listado
         </Link>
-        <h1 className="mt-3 text-2xl font-bold text-brand-navy">{company.name}</h1>
+        <p className="mt-4 text-xs font-bold uppercase tracking-[0.18em] text-[#8c8191]">
+          Empresa cliente
+        </p>
+        <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-brand-navy md:text-3xl">
+          {company.name}
+        </h1>
         <p className="mt-1 text-sm text-slate-600">
           Detalle de empresa cliente y métricas operativas.
         </p>
       </div>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <article className="rounded-xl border border-brand-slate/40 bg-white p-4">
+        <article className="rounded-2xl border border-brand-slate/40 bg-white p-4 shadow-[0_8px_24px_rgba(61,45,69,.04)]">
           <p className="text-sm text-slate-600">Industria</p>
           <p className="mt-1 text-lg font-semibold text-brand-navy">{company.industry}</p>
         </article>
-        <article className="rounded-xl border border-brand-slate/40 bg-white p-4">
+        <article className="rounded-2xl border border-brand-slate/40 bg-white p-4 shadow-[0_8px_24px_rgba(61,45,69,.04)]">
           <p className="text-sm text-slate-600">Región</p>
           <p className="mt-1 text-lg font-semibold text-brand-navy">{company.region}</p>
         </article>
-        <article className="rounded-xl border border-brand-slate/40 bg-white p-4">
+        <article className="rounded-2xl border border-brand-slate/40 bg-white p-4 shadow-[0_8px_24px_rgba(61,45,69,.04)]">
           <p className="text-sm text-slate-600">Tier</p>
           <p className="mt-1 text-lg font-semibold text-brand-navy">{TIER_LABELS[company.tier]}</p>
         </article>
-        <article className="rounded-xl border border-brand-slate/40 bg-white p-4">
+        <article className="rounded-2xl border border-brand-slate/40 bg-white p-4 shadow-[0_8px_24px_rgba(61,45,69,.04)]">
           <p className="text-sm text-slate-600">Tickets activos</p>
           <p className="mt-1 text-lg font-semibold text-brand-teal">{company.activeTickets}</p>
         </article>
       </section>
 
-      <section className="rounded-xl border border-brand-slate/40 bg-white p-5">
+      <section className="rounded-2xl border border-brand-slate/40 bg-white p-5 shadow-[0_10px_30px_rgba(61,45,69,.04)]">
         <h2 className="text-base font-semibold text-brand-navy">Contacto</h2>
         <dl className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>

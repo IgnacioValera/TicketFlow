@@ -1,11 +1,11 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-brand-teal: #247b7b;
-  --color-brand-cream: #fcf6bd;
-  --color-brand-slate: #acb0bd;
-  --color-brand-navy: #03254e;
-  --color-brand-scarlet: #db3a34;
+  --color-brand-teal: #6f4fd8;
+  --color-brand-cream: #fff0e6;
+  --color-brand-slate: #b8afbe;
+  --color-brand-navy: #2d2833;
+  --color-brand-scarlet: #d85e53;
 
   --color-sla-green: #22c55e;
   --color-sla-yellow: #eab308;
@@ -13,13 +13,13 @@
   --color-sla-red: #ef4444;
 
   --color-priority-low: #94a3b8;
-  --color-priority-medium: #247b7b;
+  --color-priority-medium: #6f4fd8;
   --color-priority-high: #f97316;
   --color-priority-critical: #db3a34;
 
-  --color-status-open: #247b7b;
-  --color-status-assigned: #03254e;
-  --color-status-in-progress: #2563eb;
+  --color-status-open: #7d5ce1;
+  --color-status-assigned: #4f4655;
+  --color-status-in-progress: #d96b52;
   --color-status-waiting-user: #eab308;
   --color-status-escalated: #db3a34;
   --color-status-resolved: #22c55e;
@@ -38,7 +38,7 @@
   line-height: 1.5;
   font-weight: 400;
   color: var(--color-brand-navy);
-  background-color: #ffffff;
+  background-color: #f6f4f1;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -48,6 +48,63 @@
 body {
   margin: 0;
   min-height: 100vh;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  transition-duration: 160ms;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(111, 79, 216, 0.2);
+  outline-offset: 2px;
+}
+
+main input:not([type='checkbox']):not([type='radio']),
+main select,
+main textarea {
+  border-color: #d9d1dd;
+  background-color: #fffefd;
+}
+
+main input:not([type='checkbox']):not([type='radio']):focus,
+main select:focus,
+main textarea:focus {
+  border-color: #7d5ce1;
+  box-shadow: 0 0 0 3px rgba(111, 79, 216, 0.1);
+}
+
+@keyframes ticket-flow-dash {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+@keyframes ticket-flow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(217, 107, 82, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(217, 107, 82, 0);
+  }
+}
+.ticket-flow-canvas {
+  background-color: #faf8f5;
+  background-image: radial-gradient(circle, rgba(94, 79, 104, 0.16) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.ticket-flow-line-active {
+  animation: ticket-flow-dash 1s linear infinite;
+}
+.ticket-flow-node-active {
+  animation: ticket-flow-pulse 2.2s ease-in-out infinite;
 }
 
 #root {
