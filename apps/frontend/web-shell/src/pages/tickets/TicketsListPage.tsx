@@ -4,6 +4,7 @@ import { DataTable, type Column } from '@/components/common/DataTable'
 import { ErrorState } from '@/components/common/ErrorState'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { SlaSemaphore } from '@/components/tickets/SlaSemaphore'
+import { TicketsKanbanBoard } from '@/components/tickets/TicketsKanbanBoard'
 import { PERMISSIONS } from '@/constants/permissions'
 import { useAuth } from '@/hooks/useAuth'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -15,6 +16,7 @@ import type { Ticket, TicketStatus, SlaFilterStatus } from '@/types/ticket.types
 import { calculateSlaStatus } from '@/utils/sla.utils'
 
 type ListTab = 'all' | 'mine' | 'unassigned'
+type ViewMode = 'table' | 'kanban'
 
 export function TicketsListPage() {
   const { user } = useAuth()
@@ -30,6 +32,7 @@ export function TicketsListPage() {
   const [slaFilter, setSlaFilter] = useState<SlaFilterStatus | ''>('')
   const [categories, setCategories] = useState<Category[]>([])
   const [priorities, setPriorities] = useState<Priority[]>([])
+  const [viewMode, setViewMode] = useState<ViewMode>('table')
 
   const defaultTab: ListTab = useMemo(() => {
     if (user?.role === 'AGENT') return 'mine'
@@ -54,10 +57,10 @@ export function TicketsListPage() {
   const fetchTickets = useCallback(async () => {
     try {
       const response = await loadTickets({
-        page,
-        perPage: 10,
+        page: viewMode === 'kanban' ? 1 : page,
+        perPage: viewMode === 'kanban' ? 100 : 10,
         search: search || undefined,
-        status: statusFilter || undefined,
+        status: viewMode === 'kanban' ? undefined : statusFilter || undefined,
         priorityId: priorityFilter || undefined,
         categoryId: categoryFilter || undefined,
         slaStatus: slaFilter || undefined,
@@ -68,7 +71,17 @@ export function TicketsListPage() {
     } catch {
       // error in hook
     }
-  }, [loadTickets, page, search, statusFilter, priorityFilter, categoryFilter, slaFilter, tab])
+  }, [
+    loadTickets,
+    page,
+    search,
+    statusFilter,
+    priorityFilter,
+    categoryFilter,
+    slaFilter,
+    tab,
+    viewMode,
+  ])
 
   useEffect(() => {
     void fetchTickets()
@@ -128,14 +141,66 @@ export function TicketsListPage() {
             Consulta, filtra y da seguimiento a cada solicitud.
           </p>
         </div>
-        {hasPermission(PERMISSIONS.TICKET_CREATE) && (
-          <Link
-            to="/tickets/create"
-            className="inline-flex justify-center rounded-xl bg-brand-teal px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(111,79,216,.2)] hover:bg-[#6040c8]"
+        <div className="flex flex-wrap items-center gap-2">
+          <div
+            className="inline-flex rounded-xl border border-[#e2dce5] bg-white p-1 shadow-[0_4px_14px_rgba(61,45,69,.05)]"
+            role="group"
+            aria-label="Cambiar vista de tickets"
           >
-            Nuevo ticket
-          </Link>
-        )}
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                viewMode === 'table'
+                  ? 'bg-brand-teal text-white shadow-sm'
+                  : 'text-[#766c7c] hover:bg-[#f6f3f8] hover:text-brand-navy'
+              }`}
+              aria-pressed={viewMode === 'table'}
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 6h16M4 10h16M4 14h16M4 18h16"
+                />
+              </svg>
+              Tabla
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode('kanban')
+                setStatusFilter('')
+                setPage(1)
+              }}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                viewMode === 'kanban'
+                  ? 'bg-brand-teal text-white shadow-sm'
+                  : 'text-[#766c7c] hover:bg-[#f6f3f8] hover:text-brand-navy'
+              }`}
+              aria-pressed={viewMode === 'kanban'}
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 4h3v16H6zM11 4h3v10h-3zM16 4h3v13h-3z"
+                />
+              </svg>
+              Kanban
+            </button>
+          </div>
+          {hasPermission(PERMISSIONS.TICKET_CREATE) && (
+            <Link
+              to="/tickets/create"
+              className="inline-flex justify-center rounded-xl bg-brand-teal px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(111,79,216,.2)] hover:bg-[#6040c8]"
+            >
+              Nuevo ticket
+            </Link>
+          )}
+        </div>
       </div>
 
       {(user?.role === 'AGENT' || showUnassignedTab) && (
@@ -191,7 +256,11 @@ export function TicketsListPage() {
         </div>
       )}
 
-      <div className="mb-5 grid gap-3 rounded-2xl border border-[#e2dce5] bg-white p-4 shadow-[0_8px_25px_rgba(61,45,69,.04)] sm:grid-cols-2 lg:grid-cols-5">
+      <div
+        className={`mb-5 grid gap-3 rounded-2xl border border-[#e2dce5] bg-white p-4 shadow-[0_8px_25px_rgba(61,45,69,.04)] sm:grid-cols-2 ${
+          viewMode === 'kanban' ? 'xl:grid-cols-4' : 'xl:grid-cols-5'
+        }`}
+      >
         <input
           type="search"
           placeholder="Buscar folio o título..."
@@ -200,33 +269,35 @@ export function TicketsListPage() {
             setSearch(e.target.value)
             setPage(1)
           }}
-          className="rounded-lg border border-brand-slate px-3 py-2 text-sm focus:border-brand-teal focus:outline-none lg:col-span-2"
+          className="min-w-0 rounded-lg border border-brand-slate px-3 py-2 text-sm focus:border-brand-teal focus:outline-none"
         />
-        <select
-          value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value as TicketStatus | '')
-            setPage(1)
-          }}
-          className="rounded-lg border border-brand-slate px-3 py-2 text-sm"
-        >
-          <option value="">Todos los estados</option>
-          <option value="OPEN">Abierto</option>
-          <option value="ASSIGNED">Asignado</option>
-          <option value="IN_PROGRESS">En progreso</option>
-          <option value="WAITING_USER">Esperando usuario</option>
-          <option value="ESCALATED">Escalado</option>
-          <option value="RESOLVED">Resuelto</option>
-          <option value="CLOSED">Cerrado</option>
-          <option value="CANCELLED">Cancelado</option>
-        </select>
+        {viewMode === 'table' && (
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value as TicketStatus | '')
+              setPage(1)
+            }}
+            className="min-w-0 rounded-lg border border-brand-slate px-3 py-2 text-sm"
+          >
+            <option value="">Todos los estados</option>
+            <option value="OPEN">Abierto</option>
+            <option value="ASSIGNED">Asignado</option>
+            <option value="IN_PROGRESS">En progreso</option>
+            <option value="WAITING_USER">Esperando usuario</option>
+            <option value="ESCALATED">Escalado</option>
+            <option value="RESOLVED">Resuelto</option>
+            <option value="CLOSED">Cerrado</option>
+            <option value="CANCELLED">Cancelado</option>
+          </select>
+        )}
         <select
           value={priorityFilter}
           onChange={(e) => {
             setPriorityFilter(e.target.value)
             setPage(1)
           }}
-          className="rounded-lg border border-brand-slate px-3 py-2 text-sm"
+          className="min-w-0 rounded-lg border border-brand-slate px-3 py-2 text-sm"
         >
           <option value="">Todas las prioridades</option>
           {priorities.map((p) => (
@@ -241,7 +312,7 @@ export function TicketsListPage() {
             setCategoryFilter(e.target.value)
             setPage(1)
           }}
-          className="rounded-lg border border-brand-slate px-3 py-2 text-sm"
+          className="min-w-0 rounded-lg border border-brand-slate px-3 py-2 text-sm"
         >
           <option value="">Todas las categorías</option>
           {categories.map((c) => (
@@ -256,7 +327,7 @@ export function TicketsListPage() {
             setSlaFilter(e.target.value as SlaFilterStatus | '')
             setPage(1)
           }}
-          className="rounded-lg border border-brand-slate px-3 py-2 text-sm"
+          className="min-w-0 rounded-lg border border-brand-slate px-3 py-2 text-sm"
         >
           <option value="">SLA: todos</option>
           <option value="overdue">Vencidos</option>
@@ -267,6 +338,8 @@ export function TicketsListPage() {
 
       {error ? (
         <ErrorState message={error} onRetry={() => void fetchTickets()} />
+      ) : viewMode === 'kanban' ? (
+        <TicketsKanbanBoard tickets={tickets} loading={loading} />
       ) : (
         <DataTable
           columns={columns}
