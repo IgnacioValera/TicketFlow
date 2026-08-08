@@ -15,7 +15,7 @@ Cuando los tres contenedores estén listos:
 - Aplicación: http://localhost:5173
 - API: http://localhost:8000/api/v1
 - Swagger: http://localhost:8000/docs
-- PostgreSQL: `localhost:5432`
+- PostgreSQL: `localhost:55432`
 
 La API aplica la migración y ejecuta el seed de forma idempotente al iniciar.
 
