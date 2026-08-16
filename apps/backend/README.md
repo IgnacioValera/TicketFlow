@@ -33,6 +33,7 @@ se exporta simultáneamente como exportación nombrada y como `default`.
 - Guards globales de autenticación y permisos.
 - Visibilidad por recurso para impedir que un solicitante o agente consulte tickets ajenos.
 - Validación y limpieza de todos los DTO con `class-validator`.
-- Helmet, CORS configurable y límite de 10 MB para adjuntos.
+- Helmet, CORS configurable y límite de 5 MB para adjuntos.
+- Detección de tipo real de adjuntos con `file-type@16` (CommonJS, compatible con el backend Nest) y verificación de estructura DOCX con `jszip`.
 
 Para producción, cambia ambos secretos JWT, la contraseña de PostgreSQL y `FRONTEND_URL`.

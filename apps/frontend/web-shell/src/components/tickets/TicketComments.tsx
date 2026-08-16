@@ -1,15 +1,18 @@
 import { useState, type FormEvent } from 'react'
 import { PERMISSIONS } from '@/constants/permissions'
+import { LIMITS } from '@/constants/validation'
 import { usePermissions } from '@/hooks/usePermissions'
 import type { TicketComment } from '@/types/ticket.types'
+import { errorMessage, maxLengthAfterTrim, requiredTrimmed } from '@/utils/validation'
 
 interface TicketCommentsProps {
   comments: TicketComment[]
   loading?: boolean
+  readOnly?: boolean
   onAdd: (body: string, isInternal: boolean) => Promise<void>
 }
 
-export function TicketComments({ comments, loading, onAdd }: TicketCommentsProps) {
+export function TicketComments({ comments, loading, readOnly = false, onAdd }: TicketCommentsProps) {
   const { hasPermission } = usePermissions()
   const canInternal = hasPermission(PERMISSIONS.COMMENT_INTERNAL)
   const [body, setBody] = useState('')
@@ -19,7 +22,12 @@ export function TicketComments({ comments, loading, onAdd }: TicketCommentsProps
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!body.trim()) return
+    const validation =
+      requiredTrimmed(body, 'El comentario') || maxLengthAfterTrim(body, 'El comentario', LIMITS.COMMENT_BODY)
+    if (validation) {
+      setError(validation)
+      return
+    }
     setSubmitting(true)
     setError('')
     try {
@@ -27,7 +35,7 @@ export function TicketComments({ comments, loading, onAdd }: TicketCommentsProps
       setBody('')
       setIsInternal(false)
     } catch (err: unknown) {
-      setError((err as { message?: string }).message || 'Error al comentar')
+      setError(errorMessage(err, 'Error al comentar'))
     } finally {
       setSubmitting(false)
     }
@@ -60,12 +68,14 @@ export function TicketComments({ comments, loading, onAdd }: TicketCommentsProps
         </ul>
       )}
 
+      {!readOnly && (
       <form onSubmit={(e) => void handleSubmit(e)} className="space-y-2">
         {error && <p className="text-sm text-brand-scarlet">{error}</p>}
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={3}
+          maxLength={LIMITS.COMMENT_BODY}
           placeholder="Escribe un comentario..."
           className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
         />
@@ -87,6 +97,7 @@ export function TicketComments({ comments, loading, onAdd }: TicketCommentsProps
           {submitting ? 'Enviando...' : 'Agregar comentario'}
         </button>
       </form>
+      )}
     </div>
   )
 }

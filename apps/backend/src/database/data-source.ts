@@ -2,6 +2,7 @@ import 'dotenv/config'
 import { DataSource } from 'typeorm'
 import { ENTITIES } from './entities'
 import { InitialSchema1760000000000 } from './migrations/1760000000000-InitialSchema'
+import { SlaResolutionGteResponse1761000000000 } from './migrations/1761000000000-SlaResolutionGteResponse'
 
 const AppDataSource = new DataSource({
   type: 'postgres',
@@ -12,7 +13,7 @@ const AppDataSource = new DataSource({
   database: process.env.DB_DATABASE || 'ticketflow',
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
   entities: ENTITIES,
-  migrations: [InitialSchema1760000000000],
+  migrations: [InitialSchema1760000000000, SlaResolutionGteResponse1761000000000],
   synchronize: false,
   logging: process.env.DB_LOGGING === 'true',
 })

@@ -1,4 +1,5 @@
-import { ForbiddenException, UnprocessableEntityException } from '@nestjs/common'
+import { BadRequestException, ConflictException, ForbiddenException, UnprocessableEntityException } from '@nestjs/common'
+import { LIMITS } from '../common/limits'
 import { RoleCode, TicketStatus, User } from '../database/entities'
 
 export const TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
@@ -12,7 +13,45 @@ export const TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
   [TicketStatus.CANCELLED]: [],
 }
 
-export function hasPermission(user: User, code: string) { return (user.role.permissions ?? []).some((permission) => permission.code === code) }
+export function isTicketFinalized(status: TicketStatus) {
+  return status === TicketStatus.CLOSED || status === TicketStatus.CANCELLED
+}
+
+export function assertTicketMutable(ticket: { status: TicketStatus }) {
+  if (isTicketFinalized(ticket.status)) {
+    throw new ConflictException(`El ticket está finalizado (${ticket.status}) y no admite esta operación`)
+  }
+}
+
+export function statusRequiresReason(from: TicketStatus, to: TicketStatus) {
+  if (
+    to === TicketStatus.CANCELLED ||
+    to === TicketStatus.WAITING_USER ||
+    to === TicketStatus.RESOLVED ||
+    to === TicketStatus.ESCALATED
+  ) {
+    return true
+  }
+  return from === TicketStatus.CLOSED && to === TicketStatus.IN_PROGRESS
+}
+
+export function assertStatusReason(from: TicketStatus, to: TicketStatus, reason?: string) {
+  if (!statusRequiresReason(from, to)) return
+  const trimmed = reason?.trim() ?? ''
+  if (!trimmed) {
+    throw new BadRequestException('El motivo es obligatorio para esta transición de estado')
+  }
+  if (trimmed.length > LIMITS.REASON) {
+    throw new BadRequestException(`El motivo no puede superar ${LIMITS.REASON} caracteres`)
+  }
+  if (to === TicketStatus.ESCALATED && trimmed.length < LIMITS.ESCALATE_REASON_MIN) {
+    throw new BadRequestException(`El motivo de escalamiento debe tener al menos ${LIMITS.ESCALATE_REASON_MIN} caracteres`)
+  }
+}
+
+export function hasPermission(user: User, code: string) {
+  return (user.role.permissions ?? []).some((permission) => permission.code === code)
+}
 
 export function assertTransition(from: TicketStatus, to: TicketStatus, user: User, isAssignee: boolean, isRequester: boolean) {
   if (!TRANSITIONS[from]?.includes(to)) throw new UnprocessableEntityException(`Transición de ${from} a ${to} no permitida`)

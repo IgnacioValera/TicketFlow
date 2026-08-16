@@ -4,6 +4,7 @@ import { DataTable, type Column } from '@/components/common/DataTable'
 import { ErrorState } from '@/components/common/ErrorState'
 import { TableActionButton } from '@/components/common/TableActionButton'
 import { PERMISSIONS } from '@/constants/permissions'
+import { LIMITS } from '@/constants/validation'
 import { usePermissions } from '@/hooks/usePermissions'
 import * as categoriesService from '@/services/categories.service'
 import type { CatalogStatus, Category } from '@/types/catalog.types'
@@ -103,6 +104,18 @@ export function CategoriesPage() {
 
     if (!name) {
       setFormError('El nombre es obligatorio')
+      return
+    }
+    if (name.length > LIMITS.CATEGORY_NAME) {
+      setFormError(`El nombre no puede superar ${LIMITS.CATEGORY_NAME} caracteres`)
+      return
+    }
+    if (formState.description && !description) {
+      setFormError('La descripción no puede contener solo espacios')
+      return
+    }
+    if (description.length > LIMITS.CATALOG_DESCRIPTION) {
+      setFormError(`La descripción no puede superar ${LIMITS.CATALOG_DESCRIPTION} caracteres`)
       return
     }
 
@@ -298,7 +311,7 @@ export function CategoriesPage() {
               value={formState.name}
               onChange={(e) => setFormState((prev) => ({ ...prev, name: e.target.value }))}
               className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
-              maxLength={80}
+              maxLength={LIMITS.CATEGORY_NAME}
             />
           </div>
 
@@ -311,7 +324,7 @@ export function CategoriesPage() {
               value={formState.description}
               onChange={(e) => setFormState((prev) => ({ ...prev, description: e.target.value }))}
               className="min-h-24 w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
-              maxLength={250}
+              maxLength={LIMITS.CATALOG_DESCRIPTION}
             />
           </div>
         </form>

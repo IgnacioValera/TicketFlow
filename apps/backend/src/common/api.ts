@@ -64,6 +64,17 @@ export class ApiExceptionFilter {
         const raw = (body as { message: string | string[] }).message
         message = Array.isArray(raw) ? raw.join(', ') : raw
       }
+      if (status === HttpStatus.PAYLOAD_TOO_LARGE) {
+        message = 'El archivo no debe superar 5 MB'
+      }
+    } else if (isMulterFileTooLarge(exception)) {
+      response.status(HttpStatus.PAYLOAD_TOO_LARGE).json({
+        success: false,
+        message: 'El archivo no debe superar 5 MB',
+        data: null,
+        meta: null,
+      })
+      return
     }
 
     response.status(status).json({ success: false, message, data: null, meta: null })
@@ -75,4 +86,10 @@ export function parsePagination(page = 1, perPage = 10) {
   const safePerPage = Math.min(100, Math.max(1, Number(perPage) || 10))
   if (!Number.isFinite(safePage) || !Number.isFinite(safePerPage)) throw new BadRequestException('Paginación inválida')
   return { page: safePage, perPage: safePerPage, skip: (safePage - 1) * safePerPage }
+}
+
+function isMulterFileTooLarge(exception: unknown) {
+  if (!exception || typeof exception !== 'object') return false
+  const error = exception as { name?: string; code?: string }
+  return error.name === 'MulterError' && error.code === 'LIMIT_FILE_SIZE'
 }

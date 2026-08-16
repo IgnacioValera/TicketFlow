@@ -4,10 +4,12 @@ import { DataTable, type Column } from '@/components/common/DataTable'
 import { ErrorState } from '@/components/common/ErrorState'
 import { TableActionButton } from '@/components/common/TableActionButton'
 import { PERMISSIONS } from '@/constants/permissions'
+import { LIMITS } from '@/constants/validation'
 import { usePermissions } from '@/hooks/usePermissions'
 import * as prioritiesService from '@/services/priorities.service'
 import * as slaPoliciesService from '@/services/sla-policies.service'
 import type { CatalogStatus, Priority, SlaPolicy } from '@/types/catalog.types'
+import { validateSlaHours } from '@/utils/validation'
 
 const STATUS_LABELS: Record<CatalogStatus, string> = {
   ACTIVE: 'Activa',
@@ -125,20 +127,17 @@ export function SlaPoliciesPage() {
       setFormError('El nombre es obligatorio')
       return
     }
+    if (name.length > LIMITS.SLA_NAME) {
+      setFormError(`El nombre no puede superar ${LIMITS.SLA_NAME} caracteres`)
+      return
+    }
     if (!formState.priorityId) {
       setFormError('Selecciona una prioridad')
       return
     }
-    if (!Number.isFinite(responseHours) || responseHours <= 0) {
-      setFormError('Las horas de respuesta deben ser mayores a 0')
-      return
-    }
-    if (!Number.isFinite(resolutionHours) || resolutionHours <= 0) {
-      setFormError('Las horas de resolución deben ser mayores a 0')
-      return
-    }
-    if (resolutionHours < responseHours) {
-      setFormError('La resolución no puede ser menor que la respuesta')
+    const slaError = validateSlaHours(responseHours, resolutionHours)
+    if (slaError) {
+      setFormError(slaError)
       return
     }
 
@@ -305,7 +304,7 @@ export function SlaPoliciesPage() {
               value={formState.name}
               onChange={(e) => setFormState((prev) => ({ ...prev, name: e.target.value }))}
               className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
-              maxLength={80}
+              maxLength={LIMITS.SLA_NAME}
             />
           </div>
 

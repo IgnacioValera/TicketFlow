@@ -1,13 +1,18 @@
 import { Controller, Get, Query } from '@nestjs/common'
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
-import { IsDateString, IsIn, IsOptional } from 'class-validator'
+import { ApiBearerAuth, ApiPropertyOptional, ApiTags } from '@nestjs/swagger'
+import { IsDateString, IsIn, IsOptional, Validate } from 'class-validator'
 import { result } from '../common/api'
+import { DateRangeOrderConstraint } from '../common/validation'
 import { AnyPermissions, CurrentUser } from '../common/security'
 import { User } from '../database/entities'
 import { AnalyticsService } from './analytics.service'
 
-class DashboardQuery { @IsOptional() @IsIn(['GLOBAL', 'OWN']) scope?: 'GLOBAL' | 'OWN' }
-class DateRangeQuery { @IsOptional() @IsDateString() startDate?: string; @IsOptional() @IsDateString() endDate?: string }
+class DashboardQuery { @IsOptional() @IsIn(['GLOBAL','OWN']) scope?: 'GLOBAL' | 'OWN' }
+
+export class DateRangeQuery {
+  @ApiPropertyOptional() @IsOptional() @IsDateString({}, { message: 'La fecha inicial no tiene un formato válido' }) startDate?: string
+  @ApiPropertyOptional() @IsOptional() @IsDateString({}, { message: 'La fecha final no tiene un formato válido' }) @Validate(DateRangeOrderConstraint) endDate?: string
+}
 
 @ApiTags('Dashboard') @ApiBearerAuth() @AnyPermissions('DASHBOARD_VIEW', 'DASHBOARD_VIEW_LIMITED') @Controller('dashboard')
 export class DashboardController { constructor(private readonly analytics: AnalyticsService) {} @Get('summary') async summary(@CurrentUser() user: User, @Query() query: DashboardQuery) { return result(await this.analytics.dashboard(user, query.scope)) } }

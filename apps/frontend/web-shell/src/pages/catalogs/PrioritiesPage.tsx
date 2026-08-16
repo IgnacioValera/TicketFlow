@@ -4,6 +4,7 @@ import { DataTable, type Column } from '@/components/common/DataTable'
 import { ErrorState } from '@/components/common/ErrorState'
 import { TableActionButton } from '@/components/common/TableActionButton'
 import { PERMISSIONS } from '@/constants/permissions'
+import { LIMITS } from '@/constants/validation'
 import { usePermissions } from '@/hooks/usePermissions'
 import * as prioritiesService from '@/services/priorities.service'
 import type { CatalogStatus, Priority, PriorityLevel } from '@/types/catalog.types'
@@ -114,6 +115,18 @@ export function PrioritiesPage() {
 
     if (!name) {
       setFormError('El nombre es obligatorio')
+      return
+    }
+    if (name.length > LIMITS.PRIORITY_NAME) {
+      setFormError(`El nombre no puede superar ${LIMITS.PRIORITY_NAME} caracteres`)
+      return
+    }
+    if (formState.description && !description) {
+      setFormError('La descripción no puede contener solo espacios')
+      return
+    }
+    if (description.length > LIMITS.CATALOG_DESCRIPTION) {
+      setFormError(`La descripción no puede superar ${LIMITS.CATALOG_DESCRIPTION} caracteres`)
       return
     }
 
@@ -292,7 +305,7 @@ export function PrioritiesPage() {
               value={formState.name}
               onChange={(e) => setFormState((prev) => ({ ...prev, name: e.target.value }))}
               className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
-              maxLength={50}
+              maxLength={LIMITS.PRIORITY_NAME}
             />
           </div>
 
@@ -325,7 +338,7 @@ export function PrioritiesPage() {
               value={formState.description}
               onChange={(e) => setFormState((prev) => ({ ...prev, description: e.target.value }))}
               className="min-h-24 w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
-              maxLength={250}
+              maxLength={LIMITS.CATALOG_DESCRIPTION}
             />
           </div>
         </form>

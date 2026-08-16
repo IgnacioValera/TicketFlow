@@ -1,18 +1,10 @@
 import { useRef, useState } from 'react'
 import { PERMISSIONS } from '@/constants/permissions'
+import { FILE_MAX_MB } from '@/constants/validation'
 import { ConfirmModal } from '@/components/common/Modal'
 import { usePermissions } from '@/hooks/usePermissions'
 import type { TicketAttachment } from '@/types/ticket.types'
-
-const MAX_SIZE_BYTES = 5 * 1024 * 1024
-const ALLOWED_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-  'image/webp',
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-]
+import { ATTACHMENT_ACCEPT, errorMessage, validateAttachmentFile } from '@/utils/validation'
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
@@ -23,6 +15,7 @@ function formatSize(bytes: number) {
 interface TicketAttachmentsProps {
   attachments: TicketAttachment[]
   loading?: boolean
+  readOnly?: boolean
   onUpload: (file: File) => Promise<void>
   onDelete: (id: string) => Promise<void>
 }
@@ -30,28 +23,21 @@ interface TicketAttachmentsProps {
 export function TicketAttachments({
   attachments,
   loading,
+  readOnly = false,
   onUpload,
   onDelete,
 }: TicketAttachmentsProps) {
   const { hasPermission } = usePermissions()
-  const canUpload = hasPermission(PERMISSIONS.ATTACHMENT_UPLOAD)
+  const canUpload = hasPermission(PERMISSIONS.ATTACHMENT_UPLOAD) && !readOnly
   const fileRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState('')
   const [uploading, setUploading] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  const validateFile = (file: File): string | null => {
-    if (file.size > MAX_SIZE_BYTES) return 'El archivo no debe superar 5 MB'
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return 'Tipo no permitido. Usa imágenes, PDF o DOCX'
-    }
-    return null
-  }
-
   const handleFileChange = async (file: File | undefined) => {
     if (!file) return
-    const validationError = validateFile(file)
+    const validationError = await validateAttachmentFile(file)
     if (validationError) {
       setError(validationError)
       return
@@ -62,7 +48,7 @@ export function TicketAttachments({
       await onUpload(file)
       if (fileRef.current) fileRef.current.value = ''
     } catch (err: unknown) {
-      setError((err as { message?: string }).message || 'Error al subir archivo')
+      setError(errorMessage(err, 'Error al subir archivo'))
     } finally {
       setUploading(false)
     }
@@ -71,9 +57,12 @@ export function TicketAttachments({
   const handleDelete = async () => {
     if (!deleteId) return
     setDeleteLoading(true)
+    setError('')
     try {
       await onDelete(deleteId)
       setDeleteId(null)
+    } catch (err: unknown) {
+      setError(errorMessage(err, 'No se pudo eliminar el adjunto'))
     } finally {
       setDeleteLoading(false)
     }
@@ -125,7 +114,7 @@ export function TicketAttachments({
           <input
             ref={fileRef}
             type="file"
-            accept={ALLOWED_TYPES.join(',')}
+            accept={ATTACHMENT_ACCEPT}
             className="hidden"
             onChange={(e) => void handleFileChange(e.target.files?.[0])}
           />
@@ -137,7 +126,7 @@ export function TicketAttachments({
           >
             {uploading ? 'Subiendo...' : 'Subir archivo'}
           </button>
-          <p className="mt-1 text-xs text-slate-500">Máx. 5 MB · Imágenes, PDF o DOCX</p>
+          <p className="mt-1 text-xs text-slate-500">Máx. {FILE_MAX_MB} MB · PDF, DOCX, JPG o PNG</p>
         </div>
       )}
       {error && <p className="text-sm text-brand-scarlet">{error}</p>}

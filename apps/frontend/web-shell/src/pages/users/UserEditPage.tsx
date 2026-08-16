@@ -2,9 +2,12 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ErrorState } from '@/components/common/ErrorState'
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
+import { PasswordRequirements } from '@/components/common/PasswordRequirements'
 import { ROLES } from '@/constants/roles'
+import { LIMITS } from '@/constants/validation'
 import * as usersService from '@/services/users.service'
 import type { UserRole } from '@/types/user.types'
+import { errorMessage, maxLengthAfterTrim, minLengthAfterTrim, validatePasswordPolicy } from '@/utils/validation'
 
 export function UserEditPage() {
   const { id } = useParams<{ id: string }>()
@@ -13,6 +16,7 @@ export function UserEditPage() {
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<UserRole>('REQUESTER')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -44,6 +48,24 @@ export function UserEditPage() {
       setError('Nombre y correo son obligatorios')
       return
     }
+    const nameError =
+      minLengthAfterTrim(fullName, 'El nombre', LIMITS.USER_FULL_NAME_MIN) ||
+      maxLengthAfterTrim(fullName, 'El nombre', LIMITS.USER_FULL_NAME)
+    if (nameError) {
+      setError(nameError)
+      return
+    }
+    if (password) {
+      const passwordResult = validatePasswordPolicy(password)
+      if (!passwordResult.ok) {
+        setError(passwordResult.message)
+        return
+      }
+      if (password !== confirmPassword) {
+        setError('La confirmación de contraseña no coincide')
+        return
+      }
+    }
 
     setSubmitting(true)
     try {
@@ -55,7 +77,7 @@ export function UserEditPage() {
       })
       navigate('/users')
     } catch (err: unknown) {
-      setError((err as { message?: string }).message || 'Error al actualizar usuario')
+      setError(errorMessage(err, 'Error al actualizar usuario'))
     } finally {
       setSubmitting(false)
     }
@@ -100,6 +122,7 @@ export function UserEditPage() {
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
+            maxLength={LIMITS.USER_FULL_NAME}
           />
         </div>
         <div>
@@ -112,6 +135,7 @@ export function UserEditPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
+            maxLength={LIMITS.EMAIL}
           />
         </div>
         <div>
@@ -142,6 +166,22 @@ export function UserEditPage() {
             onChange={(e) => setPassword(e.target.value)}
             className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
             placeholder="Dejar vacío para no cambiar"
+            autoComplete="new-password"
+          />
+          <PasswordRequirements />
+        </div>
+        <div>
+          <label htmlFor="confirmPassword" className="mb-1 block text-sm font-medium">
+            Confirmar nueva contraseña
+          </label>
+          <input
+            id="confirmPassword"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
+            placeholder="Repite la nueva contraseña"
+            autoComplete="new-password"
           />
         </div>
         <div className="flex gap-3 pt-2">

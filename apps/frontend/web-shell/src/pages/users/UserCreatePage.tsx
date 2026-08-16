@@ -1,15 +1,25 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ErrorState } from '@/components/common/ErrorState'
+import { PasswordRequirements } from '@/components/common/PasswordRequirements'
 import { ROLES } from '@/constants/roles'
+import { LIMITS } from '@/constants/validation'
 import * as usersService from '@/services/users.service'
 import type { UserRole } from '@/types/user.types'
+import {
+  errorMessage,
+  maxLengthAfterTrim,
+  minLengthAfterTrim,
+  requiredTrimmed,
+  validatePasswordPolicy,
+} from '@/utils/validation'
 
 export function UserCreatePage() {
   const navigate = useNavigate()
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [role, setRole] = useState<UserRole>('REQUESTER')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -22,8 +32,25 @@ export function UserCreatePage() {
       setError('Todos los campos son obligatorios')
       return
     }
-    if (password.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres')
+    const nameError =
+      minLengthAfterTrim(fullName, 'El nombre', LIMITS.USER_FULL_NAME_MIN) ||
+      maxLengthAfterTrim(fullName, 'El nombre', LIMITS.USER_FULL_NAME)
+    if (nameError) {
+      setError(nameError)
+      return
+    }
+    const emailError = requiredTrimmed(email, 'El correo') || maxLengthAfterTrim(email, 'El correo', LIMITS.EMAIL)
+    if (emailError) {
+      setError(emailError)
+      return
+    }
+    const passwordResult = validatePasswordPolicy(password)
+    if (!passwordResult.ok) {
+      setError(passwordResult.message)
+      return
+    }
+    if (password !== confirmPassword) {
+      setError('La confirmación de contraseña no coincide')
       return
     }
 
@@ -37,7 +64,7 @@ export function UserCreatePage() {
       })
       navigate('/users')
     } catch (err: unknown) {
-      setError((err as { message?: string }).message || 'Error al crear usuario')
+      setError(errorMessage(err, 'Error al crear usuario'))
     } finally {
       setSubmitting(false)
     }
@@ -75,6 +102,7 @@ export function UserCreatePage() {
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
+            maxLength={LIMITS.USER_FULL_NAME}
           />
         </div>
         <div>
@@ -87,6 +115,7 @@ export function UserCreatePage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
+            maxLength={LIMITS.EMAIL}
           />
         </div>
         <div>
@@ -99,6 +128,21 @@ export function UserCreatePage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
+            autoComplete="new-password"
+          />
+          <PasswordRequirements />
+        </div>
+        <div>
+          <label htmlFor="confirmPassword" className="mb-1 block text-sm font-medium">
+            Confirmar contraseña
+          </label>
+          <input
+            id="confirmPassword"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
+            autoComplete="new-password"
           />
         </div>
         <div>

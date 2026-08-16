@@ -1,13 +1,16 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
-import { unlink } from 'fs/promises'
+import { randomUUID } from 'crypto'
+import { mkdirSync } from 'fs'
+import { unlink, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { Brackets, DataSource, Repository } from 'typeorm'
 import { pagination, parsePagination } from '../common/api'
 import { CatalogStatus, Category, Company, Priority, RoleCode, SatisfactionSurvey, SlaPolicy, Ticket, TicketAttachment, TicketComment, TicketCounter, TicketHistory, TicketStatus, User, UserStatus } from '../database/entities'
 import { AssignTicketDto, ChangeStatusDto, CreateCommentDto, CreateTicketDto, EscalateTicketDto, SubmitSurveyDto, TicketsQueryDto, UpdateTicketDto } from './dto'
-import { assertTransition, calculateSla, hasPermission } from './ticket-rules'
+import { removeTempUpload, validateUploadedFile } from './file-validation'
+import { assertStatusReason, assertTicketMutable, assertTransition, calculateSla, hasPermission } from './ticket-rules'
 
 @Injectable()
 export class TicketsService {
@@ -83,6 +86,7 @@ export class TicketsService {
 
   async update(id: string, dto: UpdateTicketDto, user: User) {
     const ticket = await this.findVisible(id, user)
+    assertTicketMutable(ticket)
     const elevated = this.isElevated(user)
     const isRequester = ticket.requester.id === user.id
     const isAssignee = ticket.assignee?.id === user.id
@@ -104,18 +108,20 @@ export class TicketsService {
   async changeStatus(id: string, dto: ChangeStatusDto, user: User) {
     const ticket = await this.findVisible(id, user)
     assertTransition(ticket.status, dto.status, user, ticket.assignee?.id === user.id, ticket.requester.id === user.id)
+    assertStatusReason(ticket.status, dto.status, dto.reason)
     if (dto.status === TicketStatus.ASSIGNED && !ticket.assignee) throw new UnprocessableEntityException('Primero debes asignar un agente')
     const old = ticket.status
     ticket.status = dto.status
     ticket.closedAt = dto.status === TicketStatus.CLOSED ? new Date() : dto.status === TicketStatus.IN_PROGRESS && old === TicketStatus.CLOSED ? null : ticket.closedAt
     await this.tickets.save(ticket)
-    await this.addHistory(ticket, user, old, dto.status, dto.reason)
+    await this.addHistory(ticket, user, old, dto.status, dto.reason?.trim())
     return this.serialize(await this.findVisible(id, user, true), true)
   }
 
   async assign(id: string, dto: AssignTicketDto, user: User) {
     if (!this.isElevated(user)) throw new ForbiddenException('Sólo administrador o supervisor pueden asignar tickets')
     const ticket = await this.findVisible(id, user)
+    assertTicketMutable(ticket)
     const agent = await this.users.findOne({ where: { id: dto.assigneeId, status: UserStatus.ACTIVE }, relations: { role: true } })
     if (!agent || agent.role.code !== RoleCode.AGENT) throw new UnprocessableEntityException('Agente inválido o inactivo')
     const oldStatus = ticket.status
@@ -130,7 +136,8 @@ export class TicketsService {
   async escalate(id: string, dto: EscalateTicketDto, user: User) {
     const ticket = await this.findVisible(id, user)
     assertTransition(ticket.status, TicketStatus.ESCALATED, user, ticket.assignee?.id === user.id, ticket.requester.id === user.id)
-    const old = ticket.status; ticket.status = TicketStatus.ESCALATED; await this.tickets.save(ticket); await this.addHistory(ticket, user, old, ticket.status, dto.reason)
+    assertStatusReason(ticket.status, TicketStatus.ESCALATED, dto.reason)
+    const old = ticket.status; ticket.status = TicketStatus.ESCALATED; await this.tickets.save(ticket); await this.addHistory(ticket, user, old, ticket.status, dto.reason.trim())
     return this.serialize(await this.findVisible(id, user, true), true)
   }
 
@@ -143,10 +150,58 @@ export class TicketsService {
   }
 
   async listComments(id: string, user: User) { const ticket = await this.findVisible(id, user); const where = this.comments.createQueryBuilder('comment').leftJoinAndSelect('comment.author', 'author').where('comment.ticket_id = :id', { id }); if (user.role.code === RoleCode.REQUESTER) where.andWhere('comment.isInternal = false'); return (await where.orderBy('comment.createdAt', 'ASC').getMany()).map((comment) => this.serializeComment(comment, ticket.id)) }
-  async addComment(id: string, dto: CreateCommentDto, user: User) { const ticket = await this.findVisible(id, user); if (!hasPermission(user, 'COMMENT_PUBLIC')) throw new ForbiddenException('No puedes comentar tickets'); if (dto.isInternal && !hasPermission(user, 'COMMENT_INTERNAL')) throw new ForbiddenException('No puedes crear comentarios internos'); const comment = await this.comments.save(this.comments.create({ ticket, author: user, body: dto.body.trim(), isInternal: Boolean(dto.isInternal) })); return this.serializeComment(comment, ticket.id) }
+  async addComment(id: string, dto: CreateCommentDto, user: User) {
+    const ticket = await this.findVisible(id, user)
+    assertTicketMutable(ticket)
+    if (!hasPermission(user, 'COMMENT_PUBLIC')) throw new ForbiddenException('No puedes comentar tickets')
+    if (dto.isInternal && !hasPermission(user, 'COMMENT_INTERNAL')) throw new ForbiddenException('No puedes crear comentarios internos')
+    const comment = await this.comments.save(this.comments.create({ ticket, author: user, body: dto.body.trim(), isInternal: Boolean(dto.isInternal) }))
+    return this.serializeComment(comment, ticket.id)
+  }
   async listAttachments(id: string, user: User) { const ticket = await this.findVisible(id, user); const items = await this.attachments.find({ where: { ticket: { id: ticket.id } }, relations: { uploader: true }, order: { createdAt: 'ASC' } }); return items.map((item) => this.serializeAttachment(item, ticket.id)) }
-  async addAttachment(id: string, file: Express.Multer.File, user: User) { const ticket = await this.findVisible(id, user); if (!hasPermission(user, 'ATTACHMENT_UPLOAD')) throw new ForbiddenException('No puedes adjuntar archivos'); const item = await this.attachments.save(this.attachments.create({ ticket, uploader: user, fileName: file.originalname, storedName: file.filename, mimeType: file.mimetype, sizeBytes: file.size })); return this.serializeAttachment(item, ticket.id) }
-  async deleteAttachment(id: string, user: User) { const item = await this.attachments.findOne({ where: { id }, relations: { ticket: { requester: true, assignee: true }, uploader: true } }); if (!item) throw new NotFoundException('Adjunto no encontrado'); await this.assertVisible(item.ticket, user); if (item.uploader.id !== user.id && !this.isElevated(user)) throw new ForbiddenException('No puedes eliminar este adjunto'); await this.attachments.remove(item); const directory = this.config.get('UPLOAD_DIR', 'uploads'); await unlink(join(process.cwd(), directory, item.storedName)).catch(() => undefined) }
+  async addAttachment(id: string, file: Express.Multer.File, user: User) {
+    let storedPath: string | undefined
+    try {
+      const ticket = await this.findVisible(id, user)
+      assertTicketMutable(ticket)
+      if (!hasPermission(user, 'ATTACHMENT_UPLOAD')) throw new ForbiddenException('No puedes adjuntar archivos')
+      const validated = await validateUploadedFile(file)
+      const directory = join(process.cwd(), this.config.get('UPLOAD_DIR', 'uploads'))
+      mkdirSync(directory, { recursive: true })
+      const storedName = `${randomUUID()}${validated.canonicalExt}`
+      storedPath = join(directory, storedName)
+      await writeFile(storedPath, validated.buffer)
+      try {
+        const item = await this.attachments.save(this.attachments.create({
+          ticket,
+          uploader: user,
+          fileName: validated.displayName,
+          storedName,
+          mimeType: validated.mimeType,
+          sizeBytes: validated.sizeBytes,
+        }))
+        return this.serializeAttachment(item, ticket.id)
+      } catch (error) {
+        await unlink(storedPath).catch(() => undefined)
+        storedPath = undefined
+        throw error
+      }
+    } catch (error) {
+      await removeTempUpload(file)
+      throw error
+    }
+  }
+
+  async deleteAttachment(id: string, user: User) {
+    const item = await this.attachments.findOne({ where: { id }, relations: { ticket: { requester: true, assignee: true }, uploader: true } })
+    if (!item) throw new NotFoundException('Adjunto no encontrado')
+    await this.assertVisible(item.ticket, user)
+    assertTicketMutable(item.ticket)
+    if (item.uploader.id !== user.id && !this.isElevated(user)) throw new ForbiddenException('No puedes eliminar este adjunto')
+    await this.attachments.remove(item)
+    const directory = this.config.get('UPLOAD_DIR', 'uploads')
+    await unlink(join(process.cwd(), directory, item.storedName)).catch(() => undefined)
+  }
   async getSla(id: string, user: User) { const ticket = await this.findVisible(id, user); return calculateSla(ticket.slaCreatedAt, ticket.slaDueAt, ticket.resolutionHours) }
   async submitSurvey(id: string, dto: SubmitSurveyDto, user: User) { const ticket = await this.findVisible(id, user); if (ticket.requester.id !== user.id) throw new ForbiddenException('Sólo el solicitante puede responder la encuesta'); if (ticket.status !== TicketStatus.CLOSED) throw new UnprocessableEntityException('La encuesta está disponible cuando el ticket está cerrado'); if (await this.surveys.exists({ where: { ticket: { id } } })) throw new ConflictException('La encuesta ya fue respondida'); const survey = await this.surveys.save(this.surveys.create({ ticket, submittedBy: user, rating: dto.rating, comment: dto.comment?.trim() ?? null })); return { id: survey.id, ticketId: id, rating: survey.rating, comment: survey.comment ?? undefined, submittedAt: survey.submittedAt.toISOString() } }
 

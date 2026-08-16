@@ -61,6 +61,8 @@ test.describe('Flujo completo de ticket', () => {
     await expect(page.getByText('Comentario de prueba E2E')).toBeVisible()
 
     await page.getByRole('button', { name: 'Resolver' }).click()
+    await page.getByPlaceholder(/Motivo/).fill('Incidente resuelto en pruebas E2E')
+    await page.getByRole('button', { name: 'Confirmar' }).click()
     await expect(page.getByText('Resuelto').first()).toBeVisible()
 
     await switchUser(page, 'requester@helpdesk.com')

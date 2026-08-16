@@ -51,6 +51,7 @@ export function TicketDetailPage() {
   const [surveyOpen, setSurveyOpen] = useState(false)
   const [priorities, setPriorities] = useState<Priority[]>([])
   const [priorityLoading, setPriorityLoading] = useState(false)
+  const [actionError, setActionError] = useState('')
 
   const refresh = useCallback(async () => {
     if (!id) return
@@ -77,8 +78,11 @@ export function TicketDetailPage() {
     void load()
   }, [])
 
+  const isFinalized = ticket?.status === 'CLOSED' || ticket?.status === 'CANCELLED'
+
   const canEdit =
     ticket &&
+    !isFinalized &&
     ((hasPermission(PERMISSIONS.TICKET_EDIT_OWN) &&
       ticket.requesterId === user?.id &&
       ['OPEN', 'ASSIGNED'].includes(ticket.status)) ||
@@ -86,10 +90,12 @@ export function TicketDetailPage() {
       user?.role === 'ADMIN')
 
   const canAssign =
-    hasPermission(PERMISSIONS.TICKET_ASSIGN) || hasPermission(PERMISSIONS.TICKET_REASSIGN)
+    !isFinalized &&
+    (hasPermission(PERMISSIONS.TICKET_ASSIGN) || hasPermission(PERMISSIONS.TICKET_REASSIGN))
 
   const canChangePriority =
     ticket &&
+    !isFinalized &&
     (user?.role === 'SUPERVISOR' ||
       user?.role === 'ADMIN' ||
       (user?.role === 'AGENT' && ticket.assigneeId === user.id))
@@ -102,10 +108,13 @@ export function TicketDetailPage() {
   }) => {
     if (!id) return
     setEditLoading(true)
+    setActionError('')
     try {
       await updateTicket(id, values)
       setEditing(false)
       await refresh()
+    } catch (err: unknown) {
+      setActionError((err as { message?: string }).message || 'No se pudo actualizar el ticket')
     } finally {
       setEditLoading(false)
     }
@@ -114,9 +123,12 @@ export function TicketDetailPage() {
   const handlePriorityChange = async (priorityId: string) => {
     if (!id || !ticket) return
     setPriorityLoading(true)
+    setActionError('')
     try {
       await updateTicket(id, { priorityId })
       await refresh()
+    } catch (err: unknown) {
+      setActionError((err as { message?: string }).message || 'No se pudo cambiar la prioridad')
     } finally {
       setPriorityLoading(false)
     }
@@ -124,26 +136,50 @@ export function TicketDetailPage() {
 
   const handleStatusChange = async (status: TicketStatus, reason?: string) => {
     if (!id) return
-    await changeStatus(id, { status, reason })
-    await refresh()
+    setActionError('')
+    try {
+      await changeStatus(id, { status, reason })
+      await refresh()
+    } catch (err: unknown) {
+      setActionError((err as { message?: string }).message || 'No se pudo cambiar el estado')
+      throw err
+    }
   }
 
   const handleAssign = async (assigneeId: string) => {
     if (!id) return
-    await assignTicket(id, { assigneeId })
-    await refresh()
+    setActionError('')
+    try {
+      await assignTicket(id, { assigneeId })
+      await refresh()
+    } catch (err: unknown) {
+      setActionError((err as { message?: string }).message || 'No se pudo asignar el ticket')
+      throw err
+    }
   }
 
   const handleEscalate = async (reason: string) => {
     if (!id) return
-    await escalateTicket(id, { reason })
-    await refresh()
+    setActionError('')
+    try {
+      await escalateTicket(id, { reason })
+      await refresh()
+    } catch (err: unknown) {
+      setActionError((err as { message?: string }).message || 'No se pudo escalar el ticket')
+      throw err
+    }
   }
 
   const handleClose = async () => {
     if (!id) return
-    await closeTicket(id)
-    await refresh()
+    setActionError('')
+    try {
+      await closeTicket(id)
+      await refresh()
+    } catch (err: unknown) {
+      setActionError((err as { message?: string }).message || 'No se pudo cerrar el ticket')
+      throw err
+    }
   }
 
   if (loading && !ticket) {
@@ -173,6 +209,19 @@ export function TicketDetailPage() {
           Ver flujo visual
         </Link>
       </div>
+
+      {actionError && (
+        <div className="rounded-lg border border-brand-scarlet/30 bg-red-50 px-3 py-2 text-sm text-brand-scarlet">
+          {actionError}
+        </div>
+      )}
+
+      {isFinalized && (
+        <div className="rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          Este ticket está {ticket.status === 'CLOSED' ? 'cerrado' : 'cancelado'} y es de solo lectura.
+          {ticket.status === 'CLOSED' ? ' Puedes reabrirlo si tu rol lo permite.' : ' No se puede reabrir.'}
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
@@ -220,6 +269,7 @@ export function TicketDetailPage() {
           <div className="rounded-2xl border border-brand-slate/30 bg-white p-6 shadow-[0_10px_30px_rgba(61,45,69,.05)]">
             <TicketComments
               comments={comments}
+              readOnly={isFinalized}
               onAdd={async (body, isInternal) => {
                 await addComment(ticket.id, { body, isInternal })
               }}
@@ -229,6 +279,7 @@ export function TicketDetailPage() {
           <div className="rounded-2xl border border-brand-slate/30 bg-white p-6 shadow-[0_10px_30px_rgba(61,45,69,.05)]">
             <TicketAttachments
               attachments={attachments}
+              readOnly={isFinalized}
               onUpload={async (file) => {
                 await uploadAttachment(ticket.id, file)
               }}

@@ -2,6 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { InjectRepository } from '@nestjs/typeorm'
 import { Brackets, Repository } from 'typeorm'
 import { pagination, parsePagination } from '../common/api'
+import { assertSlaHours } from '../common/validation'
 import { CatalogStatus, Category, Company, Priority, SlaPolicy, Ticket } from '../database/entities'
 import { CatalogQueryDto, CompaniesQueryDto, CreateCategoryDto, CreatePriorityDto, CreateSlaPolicyDto, UpdateCategoryDto, UpdatePriorityDto, UpdateSlaPolicyDto } from './dto'
 
@@ -33,8 +34,26 @@ export class CatalogsService {
     const [items, total] = await qb.orderBy('policy.resolutionHours', 'ASC').skip(skip).take(perPage).getManyAndCount()
     return { items: items.map((item) => this.serializePolicy(item)), meta: pagination(page, perPage, total) }
   }
-  async createPolicy(dto: CreateSlaPolicyDto) { await this.ensureUnique(this.policies, dto.name); const priority = await this.find(this.priorities, dto.priorityId, 'Prioridad'); if (await this.policies.exists({ where: { priority: { id: priority.id } } })) throw new ConflictException('Ya existe una política SLA para esa prioridad'); return this.serializePolicy(await this.policies.save(this.policies.create({ name: dto.name.trim(), priority, responseHours: dto.responseHours, resolutionHours: dto.resolutionHours }))) }
-  async updatePolicy(id: string, dto: UpdateSlaPolicyDto) { const item = await this.find(this.policies, id, 'Política SLA'); if (dto.name) { await this.ensureUnique(this.policies, dto.name, id); item.name = dto.name.trim() }; if (dto.priorityId) item.priority = await this.find(this.priorities, dto.priorityId, 'Prioridad'); if (dto.responseHours) item.responseHours = dto.responseHours; if (dto.resolutionHours) item.resolutionHours = dto.resolutionHours; return this.serializePolicy(await this.policies.save(item)) }
+  async createPolicy(dto: CreateSlaPolicyDto) {
+    assertSlaHours(dto.responseHours, dto.resolutionHours)
+    await this.ensureUnique(this.policies, dto.name)
+    const priority = await this.find(this.priorities, dto.priorityId, 'Prioridad')
+    if (await this.policies.exists({ where: { priority: { id: priority.id } } })) throw new ConflictException('Ya existe una política SLA para esa prioridad')
+    return this.serializePolicy(await this.policies.save(this.policies.create({ name: dto.name.trim(), priority, responseHours: dto.responseHours, resolutionHours: dto.resolutionHours })))
+  }
+  async updatePolicy(id: string, dto: UpdateSlaPolicyDto) {
+    const item = await this.find(this.policies, id, 'Política SLA')
+    if (dto.name) { await this.ensureUnique(this.policies, dto.name, id); item.name = dto.name.trim() }
+    if (dto.priorityId) item.priority = await this.find(this.priorities, dto.priorityId, 'Prioridad')
+    const responseHours = dto.responseHours !== undefined ? dto.responseHours : item.responseHours
+    const resolutionHours = dto.resolutionHours !== undefined ? dto.resolutionHours : item.resolutionHours
+    if (dto.responseHours !== undefined || dto.resolutionHours !== undefined) {
+      assertSlaHours(responseHours, resolutionHours)
+      item.responseHours = responseHours
+      item.resolutionHours = resolutionHours
+    }
+    return this.serializePolicy(await this.policies.save(item))
+  }
   serializePolicy(item: SlaPolicy) { return { id: item.id, name: item.name, priorityId: item.priority.id, priorityName: item.priority.name, responseHours: item.responseHours, resolutionHours: item.resolutionHours, status: item.status } }
 
   async listCompanies(query: CompaniesQueryDto) {

@@ -23,6 +23,7 @@ import type {
   TicketsByCompanyItem,
   TicketsByStatusItem,
 } from '@/types/report.types'
+import { validateDateRange } from '@/utils/validation'
 
 type ReportTab = 'status' | 'agent' | 'category' | 'sla' | 'company'
 
@@ -163,6 +164,12 @@ export function ReportsPlaceholderPage() {
 
   const handleApplyCustomRange = () => {
     if (!startDate || !endDate) return
+    const rangeError = validateDateRange(startDate, endDate)
+    if (rangeError) {
+      setError(rangeError)
+      return
+    }
+    setError('')
     void loadSlaCompliance({ startDate, endDate })
   }
 
