@@ -1,7 +1,6 @@
 import { Type } from 'class-transformer'
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger'
 import {
-  IsEmail,
   IsEnum,
   IsHexColor,
   IsInt,
@@ -14,8 +13,8 @@ import {
   Validate,
 } from 'class-validator'
 import { LIMITS } from '../common/limits'
-import { maxLengthMessage, minLengthMessage, requiredMessage, SlaHoursOrderConstraint, Trim } from '../common/validation'
-import { CatalogStatus, CompanyTier, PriorityLevel } from '../database/entities'
+import { maxLengthMessage, minLengthMessage, SlaHoursOrderConstraint, Trim } from '../common/validation'
+import { CatalogStatus, PriorityLevel } from '../database/entities'
 
 export class CatalogQueryDto {
   @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsInt() page?: number
@@ -93,42 +92,3 @@ export class CreateSlaPolicyDto {
 
 export class UpdateSlaPolicyDto extends PartialType(CreateSlaPolicyDto) {}
 
-export class CompaniesQueryDto extends CatalogQueryDto {
-  @ApiPropertyOptional() @IsOptional() @Trim() @IsString() @MaxLength(LIMITS.COMPANY_INDUSTRY) industry?: string
-  @ApiPropertyOptional() @IsOptional() @Trim() @IsString() @MaxLength(LIMITS.COMPANY_REGION) region?: string
-  @ApiPropertyOptional({ enum: CompanyTier }) @IsOptional() @IsEnum(CompanyTier) tier?: CompanyTier
-}
-
-export class CreateCompanyDto {
-  @ApiProperty()
-  @Trim()
-  @IsString()
-  @MinLength(1, { message: requiredMessage('El nombre') })
-  @MaxLength(LIMITS.COMPANY_NAME, { message: maxLengthMessage('El nombre', LIMITS.COMPANY_NAME) })
-  name: string
-
-  @ApiProperty()
-  @Trim()
-  @IsString()
-  @MinLength(1, { message: requiredMessage('El giro') })
-  @MaxLength(LIMITS.COMPANY_INDUSTRY, { message: maxLengthMessage('El giro', LIMITS.COMPANY_INDUSTRY) })
-  industry: string
-
-  @ApiProperty()
-  @Trim()
-  @IsString()
-  @MinLength(1, { message: requiredMessage('La región') })
-  @MaxLength(LIMITS.COMPANY_REGION, { message: maxLengthMessage('La región', LIMITS.COMPANY_REGION) })
-  region: string
-
-  @ApiProperty({ enum: CompanyTier }) @IsEnum(CompanyTier) tier: CompanyTier
-
-  @ApiProperty() @IsEmail({}, { message: 'El correo de contacto no es válido' }) @MaxLength(LIMITS.EMAIL) contactEmail: string
-
-  @ApiProperty()
-  @Trim()
-  @IsString()
-  @MinLength(1, { message: requiredMessage('El teléfono') })
-  @MaxLength(LIMITS.COMPANY_PHONE, { message: maxLengthMessage('El teléfono', LIMITS.COMPANY_PHONE) })
-  contactPhone: string
-}

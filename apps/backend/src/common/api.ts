@@ -8,6 +8,7 @@ import {
   HttpStatus,
   Injectable,
   NestInterceptor,
+  StreamableFile,
 } from '@nestjs/common'
 import { Response } from 'express'
 import { Observable } from 'rxjs'
@@ -40,6 +41,7 @@ export class ApiResponseInterceptor implements NestInterceptor {
   intercept(_context: ExecutionContext, next: CallHandler): Observable<unknown> {
     return next.handle().pipe(
       map((payload: unknown) => {
+        if (payload instanceof StreamableFile) return payload
         if (payload && typeof payload === 'object' && '__apiResult' in payload) {
           const api = payload as ApiResult<unknown>
           return { success: true, message: api.message, data: api.data, meta: api.meta }

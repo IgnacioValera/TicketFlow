@@ -5,9 +5,10 @@ import { randomUUID } from 'crypto'
 import { mkdirSync } from 'fs'
 import { unlink, writeFile } from 'fs/promises'
 import { join } from 'path'
-import { Brackets, DataSource, Repository } from 'typeorm'
+import { Brackets, DataSource, In, Repository } from 'typeorm'
 import { pagination, parsePagination } from '../common/api'
-import { CatalogStatus, Category, Company, Priority, RoleCode, SatisfactionSurvey, SlaPolicy, Ticket, TicketAttachment, TicketComment, TicketCounter, TicketHistory, TicketStatus, User, UserStatus } from '../database/entities'
+import { isPortalRole } from '../common/roles'
+import { CatalogStatus, Category, Client, ClientStatus, Priority, RoleCode, SatisfactionSurvey, SlaPolicy, Ticket, TicketAttachment, TicketComment, TicketCounter, TicketHistory, TicketStatus, User, UserStatus } from '../database/entities'
 import { AssignTicketDto, ChangeStatusDto, CreateCommentDto, CreateTicketDto, EscalateTicketDto, SubmitSurveyDto, TicketsQueryDto, UpdateTicketDto } from './dto'
 import { removeTempUpload, validateUploadedFile } from './file-validation'
 import { assertStatusReason, assertTicketMutable, assertTransition, calculateSla, hasPermission } from './ticket-rules'
@@ -19,7 +20,7 @@ export class TicketsService {
     @InjectRepository(Category) private readonly categories: Repository<Category>,
     @InjectRepository(Priority) private readonly priorities: Repository<Priority>,
     @InjectRepository(SlaPolicy) private readonly policies: Repository<SlaPolicy>,
-    @InjectRepository(Company) private readonly companies: Repository<Company>,
+    @InjectRepository(Client) private readonly clients: Repository<Client>,
     @InjectRepository(User) private readonly users: Repository<User>,
     @InjectRepository(TicketComment) private readonly comments: Repository<TicketComment>,
     @InjectRepository(TicketAttachment) private readonly attachments: Repository<TicketAttachment>,
@@ -35,9 +36,9 @@ export class TicketsService {
       .leftJoinAndSelect('ticket.category', 'category').leftJoinAndSelect('ticket.priority', 'priority')
       .leftJoinAndSelect('ticket.requester', 'requester').leftJoinAndSelect('requester.role', 'requesterRole')
       .leftJoinAndSelect('ticket.assignee', 'assignee').leftJoinAndSelect('assignee.role', 'assigneeRole')
-      .leftJoinAndSelect('ticket.company', 'company')
+      .leftJoinAndSelect('ticket.client', 'client')
 
-    if (user.role.code === RoleCode.REQUESTER) qb.andWhere('requester.id = :currentUserId', { currentUserId: user.id })
+    if (isPortalRole(user.role.code)) qb.andWhere('requester.id = :currentUserId', { currentUserId: user.id })
     else if (user.role.code === RoleCode.AGENT) qb.andWhere('assignee.id = :currentUserId', { currentUserId: user.id })
     else if (query.mine) qb.andWhere('(requester.id = :currentUserId OR assignee.id = :currentUserId)', { currentUserId: user.id })
     if (query.status) qb.andWhere('ticket.status = :status', { status: query.status })
@@ -54,16 +55,17 @@ export class TicketsService {
   }
 
   async create(dto: CreateTicketDto, user: User) {
-    const [category, priority, policy, company] = await Promise.all([
+    const clientId = dto.clientId ?? dto.companyId
+    const [category, priority, policy, client] = await Promise.all([
       this.categories.findOneBy({ id: dto.categoryId, status: CatalogStatus.ACTIVE }),
       this.priorities.findOneBy({ id: dto.priorityId, status: CatalogStatus.ACTIVE }),
       this.policies.findOne({ where: { priority: { id: dto.priorityId }, status: CatalogStatus.ACTIVE }, relations: { priority: true } }),
-      dto.companyId ? this.companies.findOneBy({ id: dto.companyId, status: CatalogStatus.ACTIVE }) : Promise.resolve(null),
+      clientId ? this.clients.findOne({ where: { id: clientId, status: In([ClientStatus.ACTIVE, ClientStatus.PROSPECT]) } }) : Promise.resolve(null),
     ])
     if (!category) throw new UnprocessableEntityException('Categoría no encontrada o inactiva')
     if (!priority) throw new UnprocessableEntityException('Prioridad no encontrada o inactiva')
     if (!policy) throw new UnprocessableEntityException('La prioridad no tiene una política SLA activa')
-    if (dto.companyId && !company) throw new UnprocessableEntityException('Empresa no encontrada o inactiva')
+    if (clientId && !client) throw new UnprocessableEntityException('Cliente no encontrado o inactivo')
 
     return this.dataSource.transaction(async (manager) => {
       const year = new Date().getFullYear()
@@ -74,7 +76,7 @@ export class TicketsService {
       const created = new Date()
       const ticket = await manager.getRepository(Ticket).save(manager.getRepository(Ticket).create({
         folio: `HD-${year}-${String(counter.value).padStart(4, '0')}`, title: dto.title.trim(), description: dto.description.trim(),
-        status: TicketStatus.OPEN, category, priority, requester: user, assignee: null, company,
+        status: TicketStatus.OPEN, category, priority, requester: user, assignee: null, client,
         slaCreatedAt: created, slaDueAt: new Date(created.getTime() + policy.resolutionHours * 3600000), resolutionHours: policy.resolutionHours, closedAt: null,
       }))
       await manager.getRepository(TicketHistory).save(manager.getRepository(TicketHistory).create({ ticket, changedBy: user, eventType: 'CREATED', oldStatus: null, newStatus: TicketStatus.OPEN, reason: null, details: null }))
@@ -149,7 +151,7 @@ export class TicketsService {
     return this.serialize(await this.findVisible(id, user, true), true)
   }
 
-  async listComments(id: string, user: User) { const ticket = await this.findVisible(id, user); const where = this.comments.createQueryBuilder('comment').leftJoinAndSelect('comment.author', 'author').where('comment.ticket_id = :id', { id }); if (user.role.code === RoleCode.REQUESTER) where.andWhere('comment.isInternal = false'); return (await where.orderBy('comment.createdAt', 'ASC').getMany()).map((comment) => this.serializeComment(comment, ticket.id)) }
+  async listComments(id: string, user: User) { const ticket = await this.findVisible(id, user); const where = this.comments.createQueryBuilder('comment').leftJoinAndSelect('comment.author', 'author').where('comment.ticket_id = :id', { id }); if (isPortalRole(user.role.code)) where.andWhere('comment.isInternal = false'); return (await where.orderBy('comment.createdAt', 'ASC').getMany()).map((comment) => this.serializeComment(comment, ticket.id)) }
   async addComment(id: string, dto: CreateCommentDto, user: User) {
     const ticket = await this.findVisible(id, user)
     assertTicketMutable(ticket)
@@ -206,10 +208,10 @@ export class TicketsService {
   async submitSurvey(id: string, dto: SubmitSurveyDto, user: User) { const ticket = await this.findVisible(id, user); if (ticket.requester.id !== user.id) throw new ForbiddenException('Sólo el solicitante puede responder la encuesta'); if (ticket.status !== TicketStatus.CLOSED) throw new UnprocessableEntityException('La encuesta está disponible cuando el ticket está cerrado'); if (await this.surveys.exists({ where: { ticket: { id } } })) throw new ConflictException('La encuesta ya fue respondida'); const survey = await this.surveys.save(this.surveys.create({ ticket, submittedBy: user, rating: dto.rating, comment: dto.comment?.trim() ?? null })); return { id: survey.id, ticketId: id, rating: survey.rating, comment: survey.comment ?? undefined, submittedAt: survey.submittedAt.toISOString() } }
 
   private async findVisible(id: string, user: User, relations = false) { const ticket = await this.tickets.findOne({ where: { id }, relations: relations ? { histories: true, comments: true, attachments: true, survey: true } : {} }); if (!ticket) throw new NotFoundException('Ticket no encontrado'); await this.assertVisible(ticket, user); return ticket }
-  private async assertVisible(ticket: Ticket, user: User) { if (this.isElevated(user)) return; if (user.role.code === RoleCode.REQUESTER && ticket.requester.id === user.id) return; if (user.role.code === RoleCode.AGENT && ticket.assignee?.id === user.id) return; throw new ForbiddenException('No tienes acceso a este ticket') }
+  private async assertVisible(ticket: Ticket, user: User) { if (this.isElevated(user)) return; if (isPortalRole(user.role.code) && ticket.requester.id === user.id) return; if (user.role.code === RoleCode.AGENT && ticket.assignee?.id === user.id) return; throw new ForbiddenException('No tienes acceso a este ticket') }
   private isElevated(user: User) { return user.role.code === RoleCode.ADMIN || user.role.code === RoleCode.SUPERVISOR }
   private async addHistory(ticket: Ticket, user: User, oldStatus: TicketStatus | null, newStatus: TicketStatus, reason?: string) { await this.history.save(this.history.create({ ticket, changedBy: user, eventType: 'STATUS_CHANGED', oldStatus, newStatus, reason: reason ?? null, details: null })) }
   private serializeComment(comment: TicketComment, ticketId: string) { return { id: comment.id, ticketId, userId: comment.author.id, authorName: comment.author.fullName, body: comment.body, isInternal: comment.isInternal, createdAt: comment.createdAt.toISOString() } }
   private serializeAttachment(item: TicketAttachment, ticketId: string) { return { id: item.id, ticketId, fileName: item.fileName, mimeType: item.mimeType, sizeBytes: item.sizeBytes, fileUrl: `${this.config.get('APP_URL', 'http://localhost:8000')}/uploads/${item.storedName}`, uploadedBy: item.uploader.id, uploadedByName: item.uploader.fullName, createdAt: item.createdAt.toISOString() } }
-  serialize(ticket: Ticket, includeRelations = false) { const data: Record<string, unknown> = { id: ticket.id, folio: ticket.folio, title: ticket.title, description: ticket.description, status: ticket.status, categoryId: ticket.category.id, categoryName: ticket.category.name, priorityId: ticket.priority.id, priorityName: ticket.priority.name, priorityColor: ticket.priority.color, requesterId: ticket.requester.id, requesterName: ticket.requester.fullName, assigneeId: ticket.assignee?.id ?? null, assigneeName: ticket.assignee?.fullName ?? null, companyId: ticket.company?.id ?? null, companyName: ticket.company?.name ?? null, slaDueAt: ticket.slaDueAt.toISOString(), slaCreatedAt: ticket.slaCreatedAt.toISOString(), resolutionHours: ticket.resolutionHours, closedAt: ticket.closedAt?.toISOString() ?? null, createdAt: ticket.createdAt.toISOString() }; if (includeRelations) { data.statusHistory = (ticket.histories ?? []).sort((a,b) => a.createdAt.getTime()-b.createdAt.getTime()).map((h) => ({ id: h.id, ticketId: ticket.id, oldStatus: h.oldStatus, newStatus: h.newStatus, changedBy: h.changedBy.id, changedByName: h.changedBy.fullName, reason: h.reason ?? undefined, createdAt: h.createdAt.toISOString() })); data.comments = (ticket.comments ?? []).filter((c) => !c.isInternal).map((c) => this.serializeComment(c, ticket.id)); data.attachments = (ticket.attachments ?? []).map((a) => this.serializeAttachment(a, ticket.id)); data.survey = ticket.survey ? { id: ticket.survey.id, ticketId: ticket.id, rating: ticket.survey.rating, comment: ticket.survey.comment ?? undefined, submittedAt: ticket.survey.submittedAt.toISOString() } : null }; return data }
+  serialize(ticket: Ticket, includeRelations = false) { const data: Record<string, unknown> = { id: ticket.id, folio: ticket.folio, title: ticket.title, description: ticket.description, status: ticket.status, categoryId: ticket.category.id, categoryName: ticket.category.name, priorityId: ticket.priority.id, priorityName: ticket.priority.name, priorityColor: ticket.priority.color, requesterId: ticket.requester.id, requesterName: ticket.requester.fullName, assigneeId: ticket.assignee?.id ?? null, assigneeName: ticket.assignee?.fullName ?? null, clientId: ticket.client?.id ?? null, clientName: ticket.client?.name ?? null, companyId: ticket.client?.id ?? null, companyName: ticket.client?.name ?? null, slaDueAt: ticket.slaDueAt.toISOString(), slaCreatedAt: ticket.slaCreatedAt.toISOString(), resolutionHours: ticket.resolutionHours, closedAt: ticket.closedAt?.toISOString() ?? null, createdAt: ticket.createdAt.toISOString() }; if (includeRelations) { data.statusHistory = (ticket.histories ?? []).sort((a,b) => a.createdAt.getTime()-b.createdAt.getTime()).map((h) => ({ id: h.id, ticketId: ticket.id, oldStatus: h.oldStatus, newStatus: h.newStatus, changedBy: h.changedBy.id, changedByName: h.changedBy.fullName, reason: h.reason ?? undefined, createdAt: h.createdAt.toISOString() })); data.comments = (ticket.comments ?? []).filter((c) => !c.isInternal).map((c) => this.serializeComment(c, ticket.id)); data.attachments = (ticket.attachments ?? []).map((a) => this.serializeAttachment(a, ticket.id)); data.survey = ticket.survey ? { id: ticket.survey.id, ticketId: ticket.id, rating: ticket.survey.rating, comment: ticket.survey.comment ?? undefined, submittedAt: ticket.survey.submittedAt.toISOString() } : null }; return data }
 }

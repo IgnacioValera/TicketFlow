@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
-import { Category, Company, Priority, SlaPolicy, Ticket } from '../database/entities'
+import { Category, Priority, SlaPolicy } from '../database/entities'
 import { CatalogsService } from './catalogs.service'
-import { CategoriesController, CompaniesController, PrioritiesController, SlaPoliciesController } from './catalogs.controller'
-@Module({ imports: [TypeOrmModule.forFeature([Category, Priority, SlaPolicy, Company, Ticket])], providers: [CatalogsService], controllers: [CategoriesController, PrioritiesController, SlaPoliciesController, CompaniesController], exports: [CatalogsService] })
+import { CategoriesController, PrioritiesController, SlaPoliciesController } from './catalogs.controller'
+@Module({ imports: [TypeOrmModule.forFeature([Category, Priority, SlaPolicy])], providers: [CatalogsService], controllers: [CategoriesController, PrioritiesController, SlaPoliciesController], exports: [CatalogsService] })
 export class CatalogsModule {}

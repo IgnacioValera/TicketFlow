@@ -3,8 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { Brackets, Repository } from 'typeorm'
 import { pagination, parsePagination } from '../common/api'
 import { assertSlaHours } from '../common/validation'
-import { CatalogStatus, Category, Company, Priority, SlaPolicy, Ticket } from '../database/entities'
-import { CatalogQueryDto, CompaniesQueryDto, CreateCategoryDto, CreatePriorityDto, CreateSlaPolicyDto, UpdateCategoryDto, UpdatePriorityDto, UpdateSlaPolicyDto } from './dto'
+import { CatalogStatus, Category, Priority, SlaPolicy } from '../database/entities'
+import { CatalogQueryDto, CreateCategoryDto, CreatePriorityDto, CreateSlaPolicyDto, UpdateCategoryDto, UpdatePriorityDto, UpdateSlaPolicyDto } from './dto'
 
 @Injectable()
 export class CatalogsService {
@@ -12,8 +12,6 @@ export class CatalogsService {
     @InjectRepository(Category) private readonly categories: Repository<Category>,
     @InjectRepository(Priority) private readonly priorities: Repository<Priority>,
     @InjectRepository(SlaPolicy) private readonly policies: Repository<SlaPolicy>,
-    @InjectRepository(Company) private readonly companies: Repository<Company>,
-    @InjectRepository(Ticket) private readonly tickets: Repository<Ticket>,
   ) {}
 
   async listCategories(query: CatalogQueryDto) { return this.listCatalog(this.categories, query, 'category') }
@@ -55,20 +53,6 @@ export class CatalogsService {
     return this.serializePolicy(await this.policies.save(item))
   }
   serializePolicy(item: SlaPolicy) { return { id: item.id, name: item.name, priorityId: item.priority.id, priorityName: item.priority.name, responseHours: item.responseHours, resolutionHours: item.resolutionHours, status: item.status } }
-
-  async listCompanies(query: CompaniesQueryDto) {
-    const { page, perPage, skip } = parsePagination(query.page, query.perPage)
-    const qb = this.companies.createQueryBuilder('company')
-    if (query.industry) qb.andWhere('company.industry = :industry', { industry: query.industry })
-    if (query.region) qb.andWhere('company.region = :region', { region: query.region })
-    if (query.tier) qb.andWhere('company.tier = :tier', { tier: query.tier })
-    if (query.search) qb.andWhere('LOWER(company.name) LIKE :q', { q: `%${query.search.toLowerCase()}%` })
-    const [items, total] = await qb.orderBy('company.name', 'ASC').skip(skip).take(perPage).getManyAndCount()
-    const counts = await this.tickets.createQueryBuilder('ticket').select('ticket.company_id', 'companyId').addSelect('COUNT(*)', 'count').where('ticket.company_id IS NOT NULL').andWhere('ticket.status NOT IN (:...closed)', { closed: ['CLOSED', 'CANCELLED'] }).groupBy('ticket.company_id').getRawMany<{ companyId: string; count: string }>()
-    const map = new Map(counts.map((row) => [row.companyId, Number(row.count)]))
-    return { items: items.map((item) => ({ ...item, activeTickets: map.get(item.id) ?? 0 })), meta: pagination(page, perPage, total) }
-  }
-  async findCompany(id: string) { const item = await this.find(this.companies, id, 'Empresa'); const activeTickets = await this.tickets.count({ where: { company: { id } } }); return { ...item, activeTickets } }
 
   private async listCatalog<T extends Category | Priority>(repository: Repository<T>, query: CatalogQueryDto, alias: string) { const { page, perPage, skip } = parsePagination(query.page, query.perPage); const qb = repository.createQueryBuilder(alias); if (query.status) qb.andWhere(`${alias}.status = :status`, { status: query.status }); if (query.search) qb.andWhere(`(LOWER(${alias}.name) LIKE :q OR LOWER(${alias}.description) LIKE :q)`, { q: `%${query.search.toLowerCase()}%` }); const [items, total] = await qb.orderBy(`${alias}.name`, 'ASC').skip(skip).take(perPage).getManyAndCount(); return { items, meta: pagination(page, perPage, total) } }
   private async ensureUnique<T extends { id: string; name: string }>(repository: Repository<T>, name: string, excludeId?: string) { const qb = repository.createQueryBuilder('item').where('LOWER(item.name) = LOWER(:name)', { name: name.trim() }); if (excludeId) qb.andWhere('item.id <> :excludeId', { excludeId }); if (await qb.getExists()) throw new ConflictException('Ya existe un registro con ese nombre') }

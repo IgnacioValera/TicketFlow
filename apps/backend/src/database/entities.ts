@@ -13,12 +13,20 @@ import {
   UpdateDateColumn,
 } from 'typeorm'
 
-export enum RoleCode { ADMIN = 'ADMIN', SUPERVISOR = 'SUPERVISOR', AGENT = 'AGENT', REQUESTER = 'REQUESTER' }
+export enum RoleCode { ADMIN = 'ADMIN', SALES = 'SALES', SUPERVISOR = 'SUPERVISOR', AGENT = 'AGENT', CLIENT = 'CLIENT', REQUESTER = 'REQUESTER' }
 export enum UserStatus { ACTIVE = 'ACTIVE', INACTIVE = 'INACTIVE', LOCKED = 'LOCKED' }
 export enum CatalogStatus { ACTIVE = 'ACTIVE', INACTIVE = 'INACTIVE' }
 export enum PriorityLevel { LOW = 'LOW', MEDIUM = 'MEDIUM', HIGH = 'HIGH', CRITICAL = 'CRITICAL' }
 export enum CompanyTier { BRONZE = 'BRONZE', SILVER = 'SILVER', GOLD = 'GOLD', PLATINUM = 'PLATINUM' }
+export enum ClientStatus { ACTIVE = 'ACTIVE', INACTIVE = 'INACTIVE', PROSPECT = 'PROSPECT' }
+export enum ClientSegment { ENTERPRISE = 'ENTERPRISE', MID_MARKET = 'MID_MARKET', SMB = 'SMB' }
 export enum TicketStatus { OPEN = 'OPEN', ASSIGNED = 'ASSIGNED', IN_PROGRESS = 'IN_PROGRESS', WAITING_USER = 'WAITING_USER', ESCALATED = 'ESCALATED', RESOLVED = 'RESOLVED', CLOSED = 'CLOSED', CANCELLED = 'CANCELLED' }
+export enum OpportunityStage { NEW = 'NEW', QUALIFICATION = 'QUALIFICATION', PROPOSAL = 'PROPOSAL', NEGOTIATION = 'NEGOTIATION', WON = 'WON', LOST = 'LOST' }
+export enum ActivityType { CALL = 'CALL', MEETING = 'MEETING', TASK = 'TASK', NOTE = 'NOTE' }
+export enum ActivityStatus { PENDING = 'PENDING', COMPLETED = 'COMPLETED', CANCELLED = 'CANCELLED' }
+export enum SurveyStatus { DRAFT = 'DRAFT', PUBLISHED = 'PUBLISHED', CLOSED = 'CLOSED' }
+export enum SurveyTrigger { MANUAL = 'MANUAL', OPPORTUNITY_WON = 'OPPORTUNITY_WON' }
+export enum SurveyQuestionType { TEXT = 'TEXT', SINGLE_CHOICE = 'SINGLE_CHOICE', MULTIPLE_CHOICE = 'MULTIPLE_CHOICE', NPS = 'NPS', RATING = 'RATING', YES_NO = 'YES_NO' }
 
 @Entity('permissions')
 export class Permission {
@@ -90,16 +98,21 @@ export class SlaPolicy {
   @Column({ type: 'enum', enum: CatalogStatus, default: CatalogStatus.ACTIVE }) status: CatalogStatus
 }
 
-@Entity('companies')
-export class Company {
+@Entity('clients')
+export class Client {
   @PrimaryGeneratedColumn('uuid') id: string
   @Index({ unique: true }) @Column({ length: 160 }) name: string
   @Column({ length: 100, default: '' }) industry: string
   @Column({ length: 100, default: '' }) region: string
   @Column({ type: 'enum', enum: CompanyTier, default: CompanyTier.BRONZE }) tier: CompanyTier
-  @Column({ name: 'contact_email', length: 200, default: '' }) contactEmail: string
-  @Column({ name: 'contact_phone', length: 40, default: '' }) contactPhone: string
-  @Column({ type: 'enum', enum: CatalogStatus, default: CatalogStatus.ACTIVE }) status: CatalogStatus
+  @Column({ length: 200, default: '' }) email: string
+  @Column({ length: 40, default: '' }) phone: string
+  @Column({ type: 'enum', enum: ClientStatus, enumName: 'client_status_enum', default: ClientStatus.ACTIVE }) status: ClientStatus
+  @Column({ type: 'enum', enum: ClientSegment, enumName: 'client_segment_enum', default: ClientSegment.SMB }) segment: ClientSegment
+  @ManyToOne(() => User, { nullable: true }) @JoinColumn({ name: 'owner_id' }) owner: User | null
+  @Column({ type: 'int', default: 50 }) score: number
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date
 }
 
 @Entity('ticket_counters')
@@ -121,7 +134,7 @@ export class Ticket {
   @ManyToOne(() => Priority, { eager: true, nullable: false }) @JoinColumn({ name: 'priority_id' }) priority: Priority
   @ManyToOne(() => User, { eager: true, nullable: false }) @JoinColumn({ name: 'requester_id' }) requester: User
   @ManyToOne(() => User, { eager: true, nullable: true }) @JoinColumn({ name: 'assignee_id' }) assignee: User | null
-  @ManyToOne(() => Company, { eager: true, nullable: true }) @JoinColumn({ name: 'company_id' }) company: Company | null
+  @ManyToOne(() => Client, { eager: true, nullable: true }) @JoinColumn({ name: 'client_id' }) client: Client | null
   @Column({ name: 'sla_created_at', type: 'timestamptz' }) slaCreatedAt: Date
   @Column({ name: 'sla_due_at', type: 'timestamptz' }) slaDueAt: Date
   @Column({ name: 'resolution_hours', type: 'int' }) resolutionHours: number
@@ -192,4 +205,136 @@ export class KnowledgeArticle {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date
 }
 
-export const ENTITIES = [Permission, Role, User, RefreshToken, Category, Priority, SlaPolicy, Company, TicketCounter, Ticket, TicketComment, TicketAttachment, TicketHistory, SatisfactionSurvey, KnowledgeArticle]
+@Entity('crm_contacts')
+export class CrmContact {
+  @PrimaryGeneratedColumn('uuid') id: string
+  @ManyToOne(() => Client, { nullable: false, onDelete: 'CASCADE' }) @JoinColumn({ name: 'client_id' }) client: Client
+  @Column({ name: 'first_name', length: 80 }) firstName: string
+  @Column({ name: 'last_name', length: 80 }) lastName: string
+  @Column({ length: 200 }) email: string
+  @Column({ length: 40, default: '' }) phone: string
+  @Column({ name: 'job_title', length: 120, default: '' }) jobTitle: string
+  @Column({ name: 'is_primary', default: false }) isPrimary: boolean
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date
+}
+
+@Entity('crm_opportunities')
+export class CrmOpportunity {
+  @PrimaryGeneratedColumn('uuid') id: string
+  @ManyToOne(() => Client, { nullable: false, onDelete: 'CASCADE' }) @JoinColumn({ name: 'client_id' }) client: Client
+  @ManyToOne(() => CrmContact, { nullable: true, onDelete: 'SET NULL' }) @JoinColumn({ name: 'contact_id' }) contact: CrmContact | null
+  @ManyToOne(() => User, { nullable: true }) @JoinColumn({ name: 'owner_id' }) owner: User | null
+  @Column({ length: 200 }) title: string
+  @Column({ type: 'double precision', default: 0 }) amount: number
+  @Column({ length: 3, default: 'MXN' }) currency: string
+  @Column({ type: 'int', default: 10 }) probability: number
+  @Column({ type: 'enum', enum: OpportunityStage, enumName: 'opportunity_stage_enum', default: OpportunityStage.NEW }) stage: OpportunityStage
+  @Column({ name: 'expected_close_date', type: 'date', nullable: true }) expectedCloseDate: string | null
+  @Column({ name: 'lost_reason', type: 'text', nullable: true }) lostReason: string | null
+  @Column({ type: 'text', default: '' }) notes: string
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date
+  @OneToMany(() => CrmOpportunityStageHistory, (history) => history.opportunity) stageHistory: CrmOpportunityStageHistory[]
+}
+
+@Entity('crm_opportunity_stage_history')
+export class CrmOpportunityStageHistory {
+  @PrimaryGeneratedColumn('uuid') id: string
+  @ManyToOne(() => CrmOpportunity, (opportunity) => opportunity.stageHistory, { onDelete: 'CASCADE', nullable: false }) @JoinColumn({ name: 'opportunity_id' }) opportunity: CrmOpportunity
+  @ManyToOne(() => User, { nullable: false }) @JoinColumn({ name: 'changed_by' }) changedBy: User
+  @Column({ name: 'old_stage', type: 'enum', enum: OpportunityStage, enumName: 'opportunity_stage_enum', nullable: true }) oldStage: OpportunityStage | null
+  @Column({ name: 'new_stage', type: 'enum', enum: OpportunityStage, enumName: 'opportunity_stage_enum' }) newStage: OpportunityStage
+  @Column({ type: 'text', nullable: true }) reason: string | null
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date
+}
+
+@Entity('crm_activities')
+export class CrmActivity {
+  @PrimaryGeneratedColumn('uuid') id: string
+  @ManyToOne(() => Client, { nullable: false, onDelete: 'CASCADE' }) @JoinColumn({ name: 'client_id' }) client: Client
+  @ManyToOne(() => CrmOpportunity, { nullable: true, onDelete: 'SET NULL' }) @JoinColumn({ name: 'opportunity_id' }) opportunity: CrmOpportunity | null
+  @ManyToOne(() => CrmContact, { nullable: true, onDelete: 'SET NULL' }) @JoinColumn({ name: 'contact_id' }) contact: CrmContact | null
+  @ManyToOne(() => User, { nullable: true }) @JoinColumn({ name: 'owner_id' }) owner: User | null
+  @Column({ type: 'enum', enum: ActivityType, enumName: 'crm_activity_type_enum' }) type: ActivityType
+  @Column({ type: 'enum', enum: ActivityStatus, enumName: 'crm_activity_status_enum', default: ActivityStatus.PENDING }) status: ActivityStatus
+  @Column({ length: 200 }) subject: string
+  @Column({ type: 'text', default: '' }) body: string
+  @Column({ name: 'due_at', type: 'timestamptz', nullable: true }) dueAt: Date | null
+  @Column({ name: 'completed_at', type: 'timestamptz', nullable: true }) completedAt: Date | null
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date
+}
+
+@Entity('crm_surveys')
+export class CrmSurvey {
+  @PrimaryGeneratedColumn('uuid') id: string
+  @Column({ length: 200 }) title: string
+  @Column({ type: 'text', default: '' }) description: string
+  @Column({ type: 'enum', enum: SurveyStatus, enumName: 'crm_survey_status_enum', default: SurveyStatus.DRAFT }) status: SurveyStatus
+  @Column({ type: 'enum', enum: SurveyTrigger, enumName: 'crm_survey_trigger_enum', default: SurveyTrigger.MANUAL }) trigger: SurveyTrigger
+  @ManyToOne(() => User, { nullable: false }) @JoinColumn({ name: 'created_by' }) createdBy: User
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date
+  @OneToMany(() => CrmSurveyQuestion, (question) => question.survey) questions: CrmSurveyQuestion[]
+}
+
+@Entity('crm_survey_questions')
+export class CrmSurveyQuestion {
+  @PrimaryGeneratedColumn('uuid') id: string
+  @ManyToOne(() => CrmSurvey, (survey) => survey.questions, { onDelete: 'CASCADE', nullable: false }) @JoinColumn({ name: 'survey_id' }) survey: CrmSurvey
+  @Column({ type: 'text' }) prompt: string
+  @Column({ type: 'enum', enum: SurveyQuestionType, enumName: 'crm_question_type_enum' }) type: SurveyQuestionType
+  @Column({ default: true }) required: boolean
+  @Column({ type: 'int', default: 0 }) position: number
+  @OneToMany(() => CrmSurveyQuestionOption, (option) => option.question) options: CrmSurveyQuestionOption[]
+}
+
+@Entity('crm_survey_question_options')
+export class CrmSurveyQuestionOption {
+  @PrimaryGeneratedColumn('uuid') id: string
+  @ManyToOne(() => CrmSurveyQuestion, (question) => question.options, { onDelete: 'CASCADE', nullable: false }) @JoinColumn({ name: 'question_id' }) question: CrmSurveyQuestion
+  @Column({ length: 200 }) label: string
+  @Column({ length: 80, default: '' }) value: string
+  @Column({ type: 'int', default: 0 }) position: number
+}
+
+@Entity('crm_survey_invitations')
+export class CrmSurveyInvitation {
+  @PrimaryGeneratedColumn('uuid') id: string
+  @ManyToOne(() => CrmSurvey, { nullable: false, onDelete: 'CASCADE' }) @JoinColumn({ name: 'survey_id' }) survey: CrmSurvey
+  @ManyToOne(() => CrmOpportunity, { nullable: true, onDelete: 'CASCADE' }) @JoinColumn({ name: 'opportunity_id' }) opportunity: CrmOpportunity | null
+  @ManyToOne(() => CrmContact, { nullable: true, onDelete: 'SET NULL' }) @JoinColumn({ name: 'contact_id' }) contact: CrmContact | null
+  @ManyToOne(() => Client, { nullable: true, onDelete: 'CASCADE' }) @JoinColumn({ name: 'client_id' }) client: Client | null
+  @Index({ unique: true }) @Column({ name: 'token_hash', length: 64 }) tokenHash: string
+  @Column({ name: 'expires_at', type: 'timestamptz' }) expiresAt: Date
+  @Column({ name: 'used_at', type: 'timestamptz', nullable: true }) usedAt: Date | null
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date
+}
+
+@Entity('crm_survey_responses')
+export class CrmSurveyResponse {
+  @PrimaryGeneratedColumn('uuid') id: string
+  @OneToOne(() => CrmSurveyInvitation, { nullable: false, onDelete: 'CASCADE' }) @JoinColumn({ name: 'invitation_id' }) invitation: CrmSurveyInvitation
+  @ManyToOne(() => CrmSurvey, { nullable: false, onDelete: 'CASCADE' }) @JoinColumn({ name: 'survey_id' }) survey: CrmSurvey
+  @Column({ name: 'nps_score', type: 'smallint', nullable: true }) npsScore: number | null
+  @CreateDateColumn({ name: 'submitted_at', type: 'timestamptz' }) submittedAt: Date
+  @OneToMany(() => CrmSurveyAnswer, (answer) => answer.response) answers: CrmSurveyAnswer[]
+}
+
+@Entity('crm_survey_answers')
+export class CrmSurveyAnswer {
+  @PrimaryGeneratedColumn('uuid') id: string
+  @ManyToOne(() => CrmSurveyResponse, (response) => response.answers, { onDelete: 'CASCADE', nullable: false }) @JoinColumn({ name: 'response_id' }) response: CrmSurveyResponse
+  @ManyToOne(() => CrmSurveyQuestion, { nullable: false, onDelete: 'CASCADE' }) @JoinColumn({ name: 'question_id' }) question: CrmSurveyQuestion
+  @Column({ name: 'text_value', type: 'text', nullable: true }) textValue: string | null
+  @Column({ name: 'number_value', type: 'smallint', nullable: true }) numberValue: number | null
+  @Column({ name: 'option_ids', type: 'jsonb', nullable: true }) optionIds: string[] | null
+}
+
+export const ENTITIES = [
+  Permission, Role, User, RefreshToken, Category, Priority, SlaPolicy, Client, TicketCounter, Ticket,
+  TicketComment, TicketAttachment, TicketHistory, SatisfactionSurvey, KnowledgeArticle,
+  CrmContact, CrmOpportunity, CrmOpportunityStageHistory, CrmActivity, CrmSurvey, CrmSurveyQuestion,
+  CrmSurveyQuestionOption, CrmSurveyInvitation, CrmSurveyResponse, CrmSurveyAnswer,
+]

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, SelectQueryBuilder } from 'typeorm'
 import { assertDateRange } from '../common/validation'
+import { isPortalRole } from '../common/roles'
 import { RoleCode, Ticket, TicketStatus, User } from '../database/entities'
 
 @Injectable()
@@ -34,7 +35,7 @@ export class AnalyticsService {
   async slaCompliance(user: User, startDate?: string, endDate?: string) {
     assertDateRange(startDate, endDate)
     const qb = this.scoped(user).andWhere(`ticket.status IN ('RESOLVED','CLOSED')`); if (startDate) qb.andWhere('ticket.closed_at >= :startDate', { startDate }); if (endDate) qb.andWhere('ticket.closed_at < (:endDate::date + INTERVAL \'1 day\')', { endDate }); const row = await qb.select(`COUNT(*) FILTER (WHERE ticket.closed_at <= ticket.sla_due_at)`, 'withinSla').addSelect(`COUNT(*) FILTER (WHERE ticket.closed_at > ticket.sla_due_at)`, 'outOfSla').getRawOne<{ withinSla: string; outOfSla: string }>(); const withinSla = Number(row?.withinSla ?? 0), outOfSla = Number(row?.outOfSla ?? 0), total = withinSla + outOfSla; return { periodLabel: startDate || endDate ? `${startDate ?? 'inicio'} - ${endDate ?? 'hoy'}` : 'Histórico', withinSla, outOfSla, withinPercentage: total ? Math.round(withinSla / total * 1000) / 10 : 0, outPercentage: total ? Math.round(outOfSla / total * 1000) / 10 : 0 } }
-  async byCompany(user: User) { const rows = await this.scoped(user).leftJoin('ticket.company', 'company').select('company.name', 'company').addSelect('company.industry', 'industry').addSelect('company.region', 'region').addSelect('COUNT(*)', 'tickets').where('ticket.company_id IS NOT NULL').groupBy('company.id').orderBy('COUNT(*)', 'DESC').getRawMany<Record<string,string>>(); return rows.map((r) => ({ company: r.company, industry: r.industry, region: r.region, tickets: Number(r.tickets) })) }
+  async byCompany(user: User) { const rows = await this.scoped(user).leftJoin('ticket.client', 'client').select('client.name', 'company').addSelect('client.industry', 'industry').addSelect('client.region', 'region').addSelect('COUNT(*)', 'tickets').where('ticket.client_id IS NOT NULL').groupBy('client.id').orderBy('COUNT(*)', 'DESC').getRawMany<Record<string,string>>(); return rows.map((r) => ({ company: r.company, industry: r.industry, region: r.region, tickets: Number(r.tickets) })) }
 
-  private scoped(user: User, forceOwn = false): SelectQueryBuilder<Ticket> { const qb = this.tickets.createQueryBuilder('ticket'); if (user.role.code === RoleCode.AGENT || forceOwn) qb.andWhere('ticket.assignee_id = :userId', { userId: user.id }); else if (user.role.code === RoleCode.REQUESTER) qb.andWhere('ticket.requester_id = :userId', { userId: user.id }); return qb }
+  private scoped(user: User, forceOwn = false): SelectQueryBuilder<Ticket> { const qb = this.tickets.createQueryBuilder('ticket'); if (user.role.code === RoleCode.AGENT || forceOwn) qb.andWhere('ticket.assignee_id = :userId', { userId: user.id }); else if (isPortalRole(user.role.code)) qb.andWhere('ticket.requester_id = :userId', { userId: user.id }); return qb }
 }
