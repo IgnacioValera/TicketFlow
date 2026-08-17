@@ -1,6 +1,7 @@
-import { apiDelete, apiGet, apiPost, apiPut } from '@/services/apiClient'
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '@/services/apiClient'
 import type { ApiResponse } from '@/types/api.types'
 import type {
+  CatalogStatus,
   CategoriesListParams,
   Category,
   CreateCategoryPayload,
@@ -27,5 +28,13 @@ export async function updateCategory(
 
 export async function deactivateCategory(id: string): Promise<Category> {
   const response = await apiDelete<Category>(`/categories/${id}`)
+  return response.data
+}
+
+export async function updateCategoryStatus(
+  id: string,
+  status: CatalogStatus,
+): Promise<Category> {
+  const response = await apiPatch<Category>(`/categories/${id}/status`, { status })
   return response.data
 }

@@ -28,6 +28,14 @@ export type AppIconName =
   | 'tools'
   | 'flag'
   | 'pause'
+  | 'edit'
+  | 'eye'
+  | 'eye-off'
+  | 'key'
+  | 'lock'
+  | 'copy'
+  | 'trash'
+  | 'grip'
 
 const paths: Record<AppIconName, string[]> = {
   dashboard: ['M4 13h6V4H4z', 'M14 20h6v-9h-6z', 'M14 4h6v3h-6z', 'M4 17h6v3H4z'],
@@ -70,6 +78,19 @@ const paths: Record<AppIconName, string[]> = {
   tools: ['M14 7l3-3 3 3-3 3', 'M5 19l8-8', 'M4 17l3 3'],
   flag: ['M5 21V4', 'M5 5h11l-2 4 2 4H5'],
   pause: ['M8 5v14', 'M16 5v14'],
+  edit: ['M12 20h9', 'M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z'],
+  eye: ['M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z', 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z'],
+  'eye-off': [
+    'M3 3l18 18',
+    'M10.6 10.6A3 3 0 0 0 12 15a3 3 0 0 0 2.4-4.4',
+    'M9.9 5.1A10.6 10.6 0 0 1 12 5c6.5 0 10 7 10 7a18.5 18.5 0 0 1-3.2 3.9',
+    'M6.1 6.1C3.5 8 2 12 2 12s3.5 7 10 7a10.4 10.4 0 0 0 4.2-.9',
+  ],
+  key: ['M21 2l-2 2m-7.5 7.5L21 2', 'M11 8a5 5 0 1 0 5 5'],
+  lock: ['M7 11V8a5 5 0 0 1 10 0v3', 'M6 11h12v10H6z'],
+  copy: ['M9 9h10v12H9z', 'M5 15V3h10'],
+  trash: ['M4 7h16', 'M9 7V4h6v3', 'M6 7l1 14h10l1-14'],
+  grip: ['M8 6h.01', 'M8 12h.01', 'M8 18h.01', 'M16 6h.01', 'M16 12h.01', 'M16 18h.01'],
 }
 
 export function AppIcon({

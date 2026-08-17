@@ -47,15 +47,14 @@ export function DashboardPlaceholderPage() {
 
   return (
     <div className="space-y-6">
-      <header className="relative overflow-hidden rounded-[22px] border border-[#e1dae4] bg-[#302938] p-6 text-white shadow-[0_16px_45px_rgba(48,41,56,.14)]">
-        <div className="absolute -right-16 -top-20 h-52 w-52 rounded-full bg-[#7d5ce1]/25 blur-3xl" />
-        <p className="relative text-xs font-bold uppercase tracking-[0.18em] text-white/45">
+      <header className="rounded border border-slate-200 bg-[#163a5f] p-5 text-white">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/50">
           Resumen operativo
         </p>
-        <h1 className="relative mt-1 text-2xl font-extrabold tracking-tight md:text-3xl">
-          Dashboard
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">
+          Panel
         </h1>
-        <p className="relative mt-2 text-sm text-white/60">
+        <p className="mt-2 text-sm text-white/70">
           {scope === 'OWN'
             ? 'Vista limitada para agente: solo tus indicadores.'
             : 'Vista global del estado operativo de la mesa de ayuda.'}

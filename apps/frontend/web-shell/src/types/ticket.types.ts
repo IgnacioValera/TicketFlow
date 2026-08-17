@@ -78,6 +78,8 @@ export interface Ticket {
   assigneeName?: string | null
   companyId?: string | null
   companyName?: string | null
+  clientId?: string | null
+  clientName?: string | null
   slaDueAt: string
   slaCreatedAt: string
   resolutionHours: number
@@ -95,6 +97,7 @@ export interface CreateTicketPayload {
   categoryId: string
   priorityId: string
   companyId?: string
+  clientId?: string
 }
 
 export interface UpdateTicketPayload {

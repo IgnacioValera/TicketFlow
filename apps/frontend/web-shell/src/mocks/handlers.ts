@@ -19,6 +19,7 @@ const mockUsers: User[] = [
     role: 'ADMIN',
     status: 'ACTIVE',
     permissions: ROLE_PERMISSIONS.ADMIN,
+    mustChangePassword: false,
   },
   {
     id: '2',
@@ -27,6 +28,7 @@ const mockUsers: User[] = [
     role: 'AGENT',
     status: 'ACTIVE',
     permissions: ROLE_PERMISSIONS.AGENT,
+    mustChangePassword: false,
   },
   {
     id: '3',
@@ -35,22 +37,46 @@ const mockUsers: User[] = [
     role: 'SUPERVISOR',
     status: 'ACTIVE',
     permissions: ROLE_PERMISSIONS.SUPERVISOR,
+    mustChangePassword: false,
   },
   {
     id: '4',
     fullName: 'Usuario Solicitante',
     email: 'requester@helpdesk.com',
-    role: 'REQUESTER',
+    role: 'CLIENT',
     status: 'ACTIVE',
-    permissions: ROLE_PERMISSIONS.REQUESTER,
+    permissions: ROLE_PERMISSIONS.CLIENT,
+    mustChangePassword: false,
   },
   {
     id: '5',
     fullName: 'Usuario Inactivo',
     email: 'inactive@helpdesk.com',
-    role: 'REQUESTER',
+    role: 'CLIENT',
     status: 'INACTIVE',
-    permissions: ROLE_PERMISSIONS.REQUESTER,
+    permissions: ROLE_PERMISSIONS.CLIENT,
+    mustChangePassword: false,
+  },
+]
+
+const mockKnowledge: Array<{
+  id: string
+  title: string
+  content: string
+  tags: string
+  topic: string
+  category: { id: string; name: string } | null
+  updatedAt: string
+}> = [
+  {
+    id: 'k1',
+    title: 'Cómo restablecer la contraseña',
+    content:
+      'Si olvidaste tu contraseña, selecciona “¿Olvidaste tu contraseña?” en la pantalla de inicio de sesión. TicketFlow te indicará que debes solicitar el restablecimiento a un administrador.',
+    tags: 'contraseña, acceso, cuenta, administrador',
+    topic: 'Accesos',
+    category: { id: '3', name: 'Accesos' },
+    updatedAt: '2026-08-17T12:00:00.000Z',
   },
 ]
 
@@ -327,7 +353,7 @@ export const handlers = [
     }
     if (user.status !== 'ACTIVE') {
       return HttpResponse.json(
-        { success: false, message: 'Usuario inactivo o bloqueado', data: null, meta: null },
+        { success: false, message: 'La cuenta se encuentra inactiva', data: null, meta: null },
         { status: 403 },
       )
     }
@@ -355,6 +381,36 @@ export const handlers = [
   http.post('*/auth/logout', async () =>
     HttpResponse.json({ success: true, message: 'Sesión cerrada', data: null, meta: null }),
   ),
+
+  http.post('*/auth/change-password', async ({ request }) => {
+    const actor = findUserByToken(request.headers.get('Authorization'))
+    if (!actor) {
+      return HttpResponse.json(
+        { success: false, message: 'No autenticado', data: null, meta: null },
+        { status: 401 },
+      )
+    }
+    const body = (await request.json()) as { currentPassword: string; newPassword: string }
+    if (body.currentPassword !== 'password' && body.currentPassword !== 'Tf-A7k9!mQ2') {
+      return HttpResponse.json(
+        { success: false, message: 'La contraseña actual no es correcta.', data: null, meta: null },
+        { status: 401 },
+      )
+    }
+    if (body.currentPassword === body.newPassword) {
+      return HttpResponse.json(
+        { success: false, message: 'La contraseña nueva debe ser diferente de la actual.', data: null, meta: null },
+        { status: 400 },
+      )
+    }
+    actor.mustChangePassword = false
+    return HttpResponse.json({
+      success: true,
+      message: 'Tu contraseña se actualizó correctamente.',
+      data: null,
+      meta: null,
+    })
+  }),
 
   http.get('*/auth/me', async ({ request }) => {
     const user = findUserByToken(request.headers.get('Authorization'))
@@ -469,6 +525,36 @@ export const handlers = [
       success: true,
       message: 'Estado actualizado',
       data: mockUsers[index],
+      meta: null,
+    })
+  }),
+
+  http.post('*/users/:id/reset-password', async ({ params, request }) => {
+    const actor = findUserByToken(request.headers.get('Authorization'))
+    if (actor?.role !== 'ADMIN') {
+      return HttpResponse.json(
+        { success: false, message: 'No tienes permisos para realizar esta acción', data: null, meta: null },
+        { status: 403 },
+      )
+    }
+    const user = mockUsers.find((item) => item.id === params.id)
+    if (!user) {
+      return HttpResponse.json(
+        { success: false, message: 'Usuario no encontrado', data: null, meta: null },
+        { status: 404 },
+      )
+    }
+    if (user.status !== 'ACTIVE') {
+      return HttpResponse.json(
+        { success: false, message: 'No se puede restablecer la contraseña de un usuario inactivo', data: null, meta: null },
+        { status: 409 },
+      )
+    }
+    user.mustChangePassword = true
+    return HttpResponse.json({
+      success: true,
+      message: 'La contraseña se restableció correctamente.',
+      data: { temporaryPassword: 'Tf-A7k9!mQ2' },
       meta: null,
     })
   }),
@@ -601,6 +687,32 @@ export const handlers = [
     return HttpResponse.json({
       success: true,
       message: 'Categoria desactivada',
+      data: updatedCategory,
+      meta: null,
+    })
+  }),
+
+  http.patch('*/api/v1/categories/:id/status', async ({ params, request }) => {
+    const body = (await request.json()) as { status: Category['status'] }
+    const index = mockCategories.findIndex((category) => category.id === params.id)
+
+    if (index === -1) {
+      return HttpResponse.json(
+        { success: false, message: 'No encontrado', data: null, meta: null },
+        { status: 404 },
+      )
+    }
+
+    const updatedCategory: Category = {
+      ...mockCategories[index],
+      status: body.status,
+    }
+
+    mockCategories[index] = updatedCategory
+
+    return HttpResponse.json({
+      success: true,
+      message: 'Estado de categoría actualizado',
       data: updatedCategory,
       meta: null,
     })
@@ -959,6 +1071,54 @@ export const handlers = [
   ),
 
   ...createTicketHandlers(mockUsers),
+
+  http.get('*/knowledge-articles', async ({ request }) => {
+    const url = new URL(request.url)
+    const search = (url.searchParams.get('search') ?? '').toLowerCase()
+    const filtered = mockKnowledge.filter((article) => {
+      if (!search) return true
+      return (
+        article.title.toLowerCase().includes(search) ||
+        article.content.toLowerCase().includes(search) ||
+        article.tags.toLowerCase().includes(search)
+      )
+    })
+    return HttpResponse.json({ success: true, message: 'OK', data: filtered, meta: null })
+  }),
+
+  http.post('*/knowledge-articles', async ({ request }) => {
+    const body = (await request.json()) as { title: string; content: string; tags?: string }
+    const article = {
+      id: String(mockKnowledge.length + 1),
+      title: body.title,
+      content: body.content,
+      tags: body.tags ?? '',
+      topic: 'General',
+      category: null,
+      updatedAt: new Date().toISOString(),
+    }
+    mockKnowledge.push(article)
+    return HttpResponse.json({ success: true, message: 'Artículo creado', data: article, meta: null }, { status: 201 })
+  }),
+
+  http.put('*/knowledge-articles/:id', async ({ params, request }) => {
+    const body = (await request.json()) as { title?: string; content?: string; tags?: string }
+    const index = mockKnowledge.findIndex((article) => article.id === params.id)
+    if (index === -1) {
+      return HttpResponse.json({ success: false, message: 'Artículo no encontrado', data: null, meta: null }, { status: 404 })
+    }
+    mockKnowledge[index] = { ...mockKnowledge[index], ...body, updatedAt: new Date().toISOString() }
+    return HttpResponse.json({ success: true, message: 'Artículo actualizado', data: mockKnowledge[index], meta: null })
+  }),
+
+  http.delete('*/knowledge-articles/:id', async ({ params }) => {
+    const index = mockKnowledge.findIndex((article) => article.id === params.id)
+    if (index === -1) {
+      return HttpResponse.json({ success: false, message: 'Artículo no encontrado', data: null, meta: null }, { status: 404 })
+    }
+    const [removed] = mockKnowledge.splice(index, 1)
+    return HttpResponse.json({ success: true, message: 'Artículo desactivado', data: removed, meta: null })
+  }),
 ]
 
 export async function enableMocking() {

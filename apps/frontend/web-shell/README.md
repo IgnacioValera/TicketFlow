@@ -19,7 +19,7 @@ cp .env.example .env
 | Variable | Descripción | Ejemplo |
 |----------|-------------|---------|
 | `VITE_API_BASE_URL` | URL base de la API REST | `http://localhost:8000/api/v1` |
-| `VITE_USE_MOCKS` | Activar mocks locales (sin backend) | `true` |
+| `VITE_USE_MOCKS` | Activar mocks locales (sin backend) | `false` |
 
 ## Desarrollo
 
@@ -29,7 +29,7 @@ npm run dev
 
 La aplicación estará disponible en `http://localhost:5173`.
 
-### Usuarios de prueba (modo mock)
+### Usuarios de prueba
 
 | Correo | Contraseña | Rol |
 |--------|------------|-----|
@@ -37,6 +37,8 @@ La aplicación estará disponible en `http://localhost:5173`.
 | agent@helpdesk.com | password | Agente |
 | supervisor@helpdesk.com | password | Supervisor |
 | requester@helpdesk.com | password | Solicitante |
+
+Con `VITE_USE_MOCKS=false`, estos usuarios son creados en PostgreSQL por el seed del backend. Para trabajar sin API se puede cambiar temporalmente la variable a `true`.
 
 ## Scripts
 

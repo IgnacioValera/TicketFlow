@@ -2,17 +2,18 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ErrorState } from '@/components/common/ErrorState'
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
-import { ROLES } from '@/constants/roles'
+import { ASSIGNABLE_ROLES, ROLES } from '@/constants/roles'
+import { LIMITS } from '@/constants/validation'
 import * as usersService from '@/services/users.service'
 import type { UserRole } from '@/types/user.types'
+import { errorMessage, maxLengthAfterTrim, minLengthAfterTrim } from '@/utils/validation'
 
 export function UserEditPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
-  const [role, setRole] = useState<UserRole>('REQUESTER')
-  const [password, setPassword] = useState('')
+  const [role, setRole] = useState<UserRole>('CLIENT')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -44,6 +45,13 @@ export function UserEditPage() {
       setError('Nombre y correo son obligatorios')
       return
     }
+    const nameError =
+      minLengthAfterTrim(fullName, 'El nombre', LIMITS.USER_FULL_NAME_MIN) ||
+      maxLengthAfterTrim(fullName, 'El nombre', LIMITS.USER_FULL_NAME)
+    if (nameError) {
+      setError(nameError)
+      return
+    }
 
     setSubmitting(true)
     try {
@@ -51,11 +59,10 @@ export function UserEditPage() {
         fullName: fullName.trim(),
         email: email.trim(),
         role,
-        ...(password ? { password } : {}),
       })
       navigate('/users')
     } catch (err: unknown) {
-      setError((err as { message?: string }).message || 'Error al actualizar usuario')
+      setError(errorMessage(err, 'Error al actualizar usuario'))
     } finally {
       setSubmitting(false)
     }
@@ -70,14 +77,14 @@ export function UserEditPage() {
         <Link to="/users" className="text-sm text-brand-teal hover:underline">
           ← Volver al listado
         </Link>
-        <p className="mt-4 text-xs font-bold uppercase tracking-[0.18em] text-[#8c8191]">
+        <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
           Administración
         </p>
-        <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-brand-navy md:text-3xl">
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-text md:text-3xl">
           Editar usuario
         </h1>
-        <p className="mt-2 text-sm text-[#766c7c]">
-          Actualiza identidad, rol o credenciales de acceso.
+        <p className="mt-2 text-sm text-muted">
+          Actualiza identidad y rol. El restablecimiento de contraseña se realiza desde el listado.
         </p>
       </div>
 
@@ -89,7 +96,7 @@ export function UserEditPage() {
 
       <form
         onSubmit={(e) => void handleSubmit(e)}
-        className="space-y-5 rounded-2xl border border-brand-slate/40 bg-white p-6 shadow-[0_12px_35px_rgba(61,45,69,.06)] md:p-8"
+        className="ui-card space-y-5 p-6 md:p-8"
       >
         <div>
           <label htmlFor="fullName" className="mb-1 block text-sm font-medium">
@@ -100,6 +107,7 @@ export function UserEditPage() {
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
+            maxLength={LIMITS.USER_FULL_NAME}
           />
         </div>
         <div>
@@ -112,6 +120,7 @@ export function UserEditPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
+            maxLength={LIMITS.EMAIL}
           />
         </div>
         <div>
@@ -124,25 +133,12 @@ export function UserEditPage() {
             onChange={(e) => setRole(e.target.value as UserRole)}
             className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
           >
-            {(Object.keys(ROLES) as UserRole[]).map((r) => (
+            {ASSIGNABLE_ROLES.map((r) => (
               <option key={r} value={r}>
                 {ROLES[r]}
               </option>
             ))}
           </select>
-        </div>
-        <div>
-          <label htmlFor="password" className="mb-1 block text-sm font-medium">
-            Nueva contraseña (opcional)
-          </label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
-            placeholder="Dejar vacío para no cambiar"
-          />
         </div>
         <div className="flex gap-3 pt-2">
           <button

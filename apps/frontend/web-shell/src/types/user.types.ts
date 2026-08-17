@@ -1,4 +1,4 @@
-export type UserRole = 'ADMIN' | 'SUPERVISOR' | 'AGENT' | 'REQUESTER'
+export type UserRole = 'ADMIN' | 'SALES' | 'SUPERVISOR' | 'AGENT' | 'CLIENT' | 'REQUESTER'
 
 export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'LOCKED'
 
@@ -9,6 +9,7 @@ export interface User {
   role: UserRole
   status: UserStatus
   permissions: string[]
+  mustChangePassword?: boolean
   lastLoginAt?: string | null
   createdAt?: string
 }
@@ -35,7 +36,6 @@ export interface UpdateUserPayload {
   fullName?: string
   email?: string
   role?: UserRole
-  password?: string
 }
 
 export interface UsersListParams {

@@ -361,7 +361,7 @@ function enrichTicket(store: TicketStore): Ticket {
 }
 
 function filterByRole(stores: TicketStore[], user: User): TicketStore[] {
-  if (user.role === 'REQUESTER') {
+  if (user.role === 'CLIENT' || user.role === 'REQUESTER') {
     return stores.filter((s) => s.ticket.requesterId === user.id)
   }
   if (user.role === 'AGENT') {
@@ -701,7 +701,7 @@ export function createTicketHandlers(mockUsers: User[]) {
           { status: 404 },
         )
       let comments = store.comments
-      if (user?.role === 'REQUESTER') comments = comments.filter((c) => !c.isInternal)
+      if (user?.role === 'CLIENT' || user?.role === 'REQUESTER') comments = comments.filter((c) => !c.isInternal)
       return HttpResponse.json({ success: true, message: 'OK', data: comments, meta: null })
     }),
 
@@ -714,7 +714,7 @@ export function createTicketHandlers(mockUsers: User[]) {
           { status: 404 },
         )
       const body = (await request.json()) as { body: string; isInternal?: boolean }
-      const isInternal = user.role === 'REQUESTER' ? false : Boolean(body.isInternal)
+      const isInternal = user.role === 'CLIENT' || user.role === 'REQUESTER' ? false : Boolean(body.isInternal)
       const comment: TicketComment = {
         id: `c-${Date.now()}`,
         ticketId: store.ticket.id,

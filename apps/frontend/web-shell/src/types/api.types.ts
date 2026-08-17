@@ -14,7 +14,7 @@ export interface PaginationMeta {
 
 export interface ApiError {
   success: false
-  message: string
+  message: string | string[]
   data: null
   meta: null
   status?: number

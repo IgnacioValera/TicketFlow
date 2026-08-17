@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ticketflow
+      POSTGRES_USER: ticketflow
+      POSTGRES_PASSWORD: ticketflow_dev_password
+    ports:
+      - "55432:5432"
+    volumes:
+      - ticketflow_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ticketflow -d ticketflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build: ./apps/backend
+    environment:
+      NODE_ENV: production
+      PORT: 8000
+      APP_URL: http://localhost:8000
+      FRONTEND_URL: http://localhost:5173
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: ticketflow
+      DB_PASSWORD: ticketflow_dev_password
+      DB_DATABASE: ticketflow
+      DB_SSL: "false"
+      JWT_ACCESS_SECRET: ticketflow-access-secret-change-this-in-production-2026
+      JWT_REFRESH_SECRET: ticketflow-refresh-secret-change-this-in-production-2026
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      UPLOAD_DIR: uploads
+      MAX_FILE_SIZE_MB: 5
+    ports:
+      - "8000:8000"
+    volumes:
+      - ticketflow_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./apps/frontend/web-shell
+      args:
+        VITE_API_BASE_URL: http://localhost:8000/api/v1
+        VITE_USE_MOCKS: "false"
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  ticketflow_postgres_data:
+  ticketflow_uploads:
+
+
+

@@ -1,29 +1,42 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-brand-teal: #6f4fd8;
-  --color-brand-cream: #fff0e6;
-  --color-brand-slate: #b8afbe;
-  --color-brand-navy: #2d2833;
-  --color-brand-scarlet: #d85e53;
+  --color-primary: #2563d9;
+  --color-primary-hover: #1d4fb8;
+  --color-sidebar: #143b63;
+  --color-sidebar-active: #1e4e7a;
+  --color-page: #f5f7fa;
+  --color-surface: #ffffff;
+  --color-border: #d9e2ec;
+  --color-text: #172033;
+  --color-muted: #64748b;
+  --color-success: #198754;
+  --color-warning: #d97706;
+  --color-danger: #d64545;
 
-  --color-sla-green: #22c55e;
-  --color-sla-yellow: #eab308;
-  --color-sla-orange: #f97316;
-  --color-sla-red: #ef4444;
+  --color-brand-teal: #2563d9;
+  --color-brand-cream: #f5f7fa;
+  --color-brand-slate: #94a3b8;
+  --color-brand-navy: #172033;
+  --color-brand-scarlet: #d64545;
 
-  --color-priority-low: #94a3b8;
-  --color-priority-medium: #6f4fd8;
-  --color-priority-high: #f97316;
-  --color-priority-critical: #db3a34;
+  --color-sla-green: #198754;
+  --color-sla-yellow: #d97706;
+  --color-sla-orange: #d97706;
+  --color-sla-red: #d64545;
 
-  --color-status-open: #7d5ce1;
-  --color-status-assigned: #4f4655;
-  --color-status-in-progress: #d96b52;
-  --color-status-waiting-user: #eab308;
-  --color-status-escalated: #db3a34;
-  --color-status-resolved: #22c55e;
-  --color-status-closed: #acb0bd;
+  --color-priority-low: #64748b;
+  --color-priority-medium: #0f766e;
+  --color-priority-high: #d97706;
+  --color-priority-critical: #dc2626;
+
+  --color-status-open: #2563d9;
+  --color-status-assigned: #475569;
+  --color-status-in-progress: #1d4fb8;
+  --color-status-waiting-user: #d97706;
+  --color-status-escalated: #d64545;
+  --color-status-resolved: #198754;
+  --color-status-closed: #64748b;
   --color-status-cancelled: #64748b;
 }
 
@@ -37,8 +50,8 @@
     sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: var(--color-brand-navy);
-  background-color: #f6f4f1;
+  color: var(--color-text);
+  background-color: var(--color-page);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -52,33 +65,91 @@ body {
 
 button,
 a,
+[role='button'],
+[role='tab'],
+[role='menuitem'],
+summary,
+label:has(input[type='checkbox']),
+label:has(input[type='radio']),
+select {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled='true'],
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+}
+
+input:not([type='checkbox']):not([type='radio']):not([type='button']):not([type='submit']):not(
+    [type='reset']
+  ):not([type='file']):not([type='color']),
+textarea {
+  cursor: text;
+}
+
+input[type='checkbox'],
+input[type='radio'],
+input[type='color'] {
+  cursor: pointer;
+}
+
+input[type='checkbox']:disabled,
+input[type='radio']:disabled {
+  cursor: not-allowed;
+}
+
+[draggable='true'] {
+  cursor: grab;
+}
+
+[draggable='true']:active,
+.is-dragging {
+  cursor: grabbing;
+}
+
+button,
+a,
 input,
 select,
-textarea {
+textarea,
+[role='tab'],
+.ui-card {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
   transition-duration: 160ms;
+  transition-timing-function: ease;
 }
 
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 select:focus-visible,
-textarea:focus-visible {
-  outline: 3px solid rgba(111, 79, 216, 0.2);
+textarea:focus-visible,
+[role='tab']:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-primary) 35%, transparent);
   outline-offset: 2px;
 }
 
-main input:not([type='checkbox']):not([type='radio']),
+main input:not([type='checkbox']):not([type='radio']):not([type='color']),
 main select,
 main textarea {
-  border-color: #d9d1dd;
-  background-color: #fffefd;
+  border-color: var(--color-border);
+  background-color: var(--color-surface);
 }
 
-main input:not([type='checkbox']):not([type='radio']):focus,
+main input:not([type='checkbox']):not([type='radio']):not([type='color']):focus,
 main select:focus,
 main textarea:focus {
-  border-color: #7d5ce1;
-  box-shadow: 0 0 0 3px rgba(111, 79, 216, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 16%, transparent);
+}
+
+.ui-card {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: 8px;
 }
 
 @keyframes ticket-flow-dash {
@@ -89,15 +160,15 @@ main textarea:focus {
 @keyframes ticket-flow-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(217, 107, 82, 0.2);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 22%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 10px rgba(217, 107, 82, 0);
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--color-primary) 0%, transparent);
   }
 }
 .ticket-flow-canvas {
-  background-color: #faf8f5;
-  background-image: radial-gradient(circle, rgba(94, 79, 104, 0.16) 1px, transparent 1px);
+  background-color: var(--color-page);
+  background-image: radial-gradient(circle, rgba(23, 32, 51, 0.1) 1px, transparent 1px);
   background-size: 22px 22px;
 }
 .ticket-flow-line-active {

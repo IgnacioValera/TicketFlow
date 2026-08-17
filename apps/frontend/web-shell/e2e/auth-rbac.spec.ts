@@ -23,7 +23,7 @@ test.describe('Autenticación', () => {
     await page.getByLabel('Correo electrónico').fill('inactive@helpdesk.com')
     await page.getByLabel('Contraseña').fill('password')
     await page.getByRole('button', { name: 'Ingresar' }).click()
-    await expect(page.getByText('Usuario inactivo o bloqueado')).toBeVisible()
+    await expect(page.getByText('La cuenta se encuentra inactiva')).toBeVisible()
   })
 })
 

@@ -40,3 +40,7 @@ export async function getProfile(): Promise<User> {
   const response = await apiGet<User>('/auth/me')
   return response.data
 }
+
+export async function changePassword(payload: { currentPassword: string; newPassword: string }) {
+  return apiPost<null>('/auth/change-password', payload)
+}

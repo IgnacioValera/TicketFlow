@@ -2,10 +2,16 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { ConfirmModal, Modal } from '@/components/common/Modal'
 import { DataTable, type Column } from '@/components/common/DataTable'
 import { ErrorState } from '@/components/common/ErrorState'
+import { FormAlert } from '@/components/common/FormAlert'
+import { PageHeader } from '@/components/common/PageHeader'
+import { TableActionButton } from '@/components/common/TableActionButton'
+import { PrimaryButton, SecondaryButton } from '@/components/common/UiControls'
 import { PERMISSIONS } from '@/constants/permissions'
+import { LIMITS } from '@/constants/validation'
 import { usePermissions } from '@/hooks/usePermissions'
 import * as categoriesService from '@/services/categories.service'
 import type { CatalogStatus, Category } from '@/types/catalog.types'
+import { getErrorMessages } from '@/utils/errors'
 
 const STATUS_LABELS: Record<CatalogStatus, string> = {
   ACTIVE: 'Activa',
@@ -40,8 +46,11 @@ export function CategoriesPage() {
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const [deactivateTarget, setDeactivateTarget] = useState<Category | null>(null)
-  const [deactivating, setDeactivating] = useState(false)
+  const [statusTarget, setStatusTarget] = useState<{
+    category: Category
+    status: CatalogStatus
+  } | null>(null)
+  const [statusSaving, setStatusSaving] = useState(false)
 
   const resetForm = () => {
     setFormState(INITIAL_FORM)
@@ -101,6 +110,18 @@ export function CategoriesPage() {
       setFormError('El nombre es obligatorio')
       return
     }
+    if (name.length > LIMITS.CATEGORY_NAME) {
+      setFormError(`El nombre no puede superar ${LIMITS.CATEGORY_NAME} caracteres`)
+      return
+    }
+    if (formState.description && !description) {
+      setFormError('La descripción no puede contener solo espacios')
+      return
+    }
+    if (description.length > LIMITS.CATALOG_DESCRIPTION) {
+      setFormError(`La descripción no puede superar ${LIMITS.CATALOG_DESCRIPTION} caracteres`)
+      return
+    }
 
     setSaving(true)
     setFormError('')
@@ -109,36 +130,38 @@ export function CategoriesPage() {
       if (editingCategory) {
         await categoriesService.updateCategory(editingCategory.id, {
           name,
-          description,
+          ...(description ? { description } : {}),
         })
       } else {
         await categoriesService.createCategory({
           name,
-          description,
+          ...(description ? { description } : {}),
         })
       }
 
       closeFormModal()
       await loadCategories()
     } catch (err: unknown) {
-      setFormError((err as { message?: string }).message || 'No se pudo guardar la categoría')
+      setFormError(getErrorMessages(err, 'No se pudo guardar la categoría').join(' '))
     } finally {
       setSaving(false)
     }
   }
 
-  const handleDeactivate = async () => {
-    if (!deactivateTarget) return
+  const handleStatusChange = async () => {
+    if (!statusTarget) return
 
-    setDeactivating(true)
+    setStatusSaving(true)
     try {
-      await categoriesService.deactivateCategory(deactivateTarget.id)
-      setDeactivateTarget(null)
+      await categoriesService.updateCategoryStatus(statusTarget.category.id, statusTarget.status)
+      setStatusTarget(null)
       await loadCategories()
     } catch (err: unknown) {
-      setError((err as { message?: string }).message || 'No se pudo desactivar la categoría')
+      setError(
+        (err as { message?: string }).message || 'No se pudo actualizar el estado de la categoría',
+      )
     } finally {
-      setDeactivating(false)
+      setStatusSaving(false)
     }
   }
 
@@ -160,23 +183,28 @@ export function CategoriesPage() {
         header: 'Acciones',
         render: (row) => (
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
+            <TableActionButton
+              label={`Editar categoría ${row.name}`}
+              icon="edit"
               onClick={() => openEditModal(row)}
-              className="text-sm text-brand-teal hover:underline"
               disabled={!canManage}
-            >
-              Editar
-            </button>
-            {row.status === 'ACTIVE' && (
-              <button
-                type="button"
-                onClick={() => setDeactivateTarget(row)}
-                className="text-sm text-amber-700 hover:underline"
+            />
+            {row.status === 'ACTIVE' ? (
+              <TableActionButton
+                label={`Desactivar categoría ${row.name}`}
+                variant="warning"
+                icon="pause"
+                onClick={() => setStatusTarget({ category: row, status: 'INACTIVE' })}
                 disabled={!canManage}
-              >
-                Desactivar
-              </button>
+              />
+            ) : (
+              <TableActionButton
+                label={`Activar categoría ${row.name}`}
+                variant="success"
+                icon="check"
+                onClick={() => setStatusTarget({ category: row, status: 'ACTIVE' })}
+                disabled={!canManage}
+              />
             )}
           </div>
         ),
@@ -187,27 +215,20 @@ export function CategoriesPage() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8c8191]">Catálogos</p>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-brand-navy md:text-3xl">
-            Categorías
-          </h1>
-          <p className="mt-1 text-sm text-[#766c7c]">
-            Organiza los tipos de solicitudes de soporte.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={openCreateModal}
-          disabled={!canManage}
-          className="inline-flex justify-center rounded-xl bg-brand-teal px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(111,79,216,.2)] hover:bg-[#6040c8] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Nueva categoría
-        </button>
+      <div className="mb-6">
+        <PageHeader
+          kicker="Catálogos"
+          title="Categorías"
+          description="Organiza los tipos de solicitudes de soporte."
+          actions={
+            <PrimaryButton onClick={openCreateModal} disabled={!canManage}>
+              Nueva categoría
+            </PrimaryButton>
+          }
+        />
       </div>
 
-      <div className="mb-5 grid gap-3 rounded-2xl border border-[#e2dce5] bg-white p-4 shadow-[0_8px_25px_rgba(61,45,69,.04)] sm:grid-cols-2 lg:grid-cols-4">
+      <div className="ui-card mb-5 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
         <input
           type="search"
           placeholder="Buscar por nombre..."
@@ -252,22 +273,12 @@ export function CategoriesPage() {
         title={editingCategory ? 'Editar categoría' : 'Nueva categoría'}
         footer={
           <>
-            <button
-              type="button"
-              onClick={closeFormModal}
-              disabled={saving}
-              className="rounded-lg border border-brand-slate px-4 py-2 text-sm text-brand-navy hover:bg-brand-cream/50"
-            >
+            <SecondaryButton onClick={closeFormModal} disabled={saving}>
               Cancelar
-            </button>
-            <button
-              type="submit"
-              form="category-form"
-              disabled={saving}
-              className="rounded-lg bg-brand-teal px-4 py-2 text-sm font-medium text-white hover:bg-brand-teal/90 disabled:opacity-50"
-            >
+            </SecondaryButton>
+            <PrimaryButton type="submit" form="category-form" disabled={saving}>
               {saving ? 'Guardando...' : 'Guardar'}
-            </button>
+            </PrimaryButton>
           </>
         }
       >
@@ -276,7 +287,7 @@ export function CategoriesPage() {
           onSubmit={(event) => void handleSubmit(event)}
           className="space-y-4"
         >
-          {formError && <ErrorState message={formError} />}
+          {formError && <FormAlert title="Revisa los datos ingresados" messages={[formError]} />}
 
           <div>
             <label htmlFor="category-name" className="mb-1 block text-sm font-medium">
@@ -287,7 +298,7 @@ export function CategoriesPage() {
               value={formState.name}
               onChange={(e) => setFormState((prev) => ({ ...prev, name: e.target.value }))}
               className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
-              maxLength={80}
+              maxLength={LIMITS.CATEGORY_NAME}
             />
           </div>
 
@@ -300,23 +311,27 @@ export function CategoriesPage() {
               value={formState.description}
               onChange={(e) => setFormState((prev) => ({ ...prev, description: e.target.value }))}
               className="min-h-24 w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
-              maxLength={250}
+              maxLength={LIMITS.CATALOG_DESCRIPTION}
             />
           </div>
         </form>
       </Modal>
 
       <ConfirmModal
-        open={!!deactivateTarget}
-        onClose={() => setDeactivateTarget(null)}
-        onConfirm={() => void handleDeactivate()}
-        title="Desactivar categoría"
+        open={!!statusTarget}
+        onClose={() => {
+          if (!statusSaving) setStatusTarget(null)
+        }}
+        onConfirm={() => void handleStatusChange()}
+        title={statusTarget?.status === 'ACTIVE' ? 'Activar categoría' : 'Desactivar categoría'}
         message={
-          deactivateTarget ? `¿Deseas desactivar la categoría ${deactivateTarget.name}?` : ''
+          statusTarget
+            ? `¿Deseas ${statusTarget.status === 'ACTIVE' ? 'activar' : 'desactivar'} la categoría ${statusTarget.category.name}?`
+            : ''
         }
-        confirmLabel="Desactivar"
-        variant="danger"
-        loading={deactivating}
+        confirmLabel={statusTarget?.status === 'ACTIVE' ? 'Activar' : 'Desactivar'}
+        variant={statusTarget?.status === 'ACTIVE' ? 'primary' : 'danger'}
+        loading={statusSaving}
       />
     </div>
   )

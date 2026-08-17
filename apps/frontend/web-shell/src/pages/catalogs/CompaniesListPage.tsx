@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { DataTable, type Column } from '@/components/common/DataTable'
 import { ErrorState } from '@/components/common/ErrorState'
+import { TableActionButton } from '@/components/common/TableActionButton'
 import * as companiesService from '@/services/companies.service'
 import type { Company, CompanyTier } from '@/types/catalog.types'
 
@@ -16,6 +17,7 @@ const INDUSTRIES = ['Finanzas', 'Retail', 'Tecnologia', 'Salud', 'Manufactura']
 const REGIONS = ['Norte', 'Centro', 'Sur', 'Occidente']
 
 export function CompaniesListPage() {
+  const navigate = useNavigate()
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -70,31 +72,30 @@ export function CompaniesListPage() {
         key: 'actions',
         header: 'Acciones',
         render: (row) => (
-          <Link
-            to={`/catalogs/companies/${row.id}`}
-            className="text-sm text-brand-teal hover:underline"
-          >
-            Ver detalle
-          </Link>
+          <TableActionButton
+            label={`Ver detalle de ${row.name}`}
+            icon="eye"
+            onClick={() => navigate(`/catalogs/companies/${row.id}`)}
+          />
         ),
       },
     ],
-    [],
+    [navigate],
   )
 
   return (
     <div>
       <div className="mb-6">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8c8191]">Catálogos</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">Catálogos</p>
         <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-brand-navy md:text-3xl">
           Empresas clientes
         </h1>
-        <p className="mt-1 text-sm text-[#766c7c]">
+        <p className="mt-1 text-sm text-muted">
           Catálogo de empresas con filtros por industria, región y tier.
         </p>
       </div>
 
-      <div className="mb-5 grid gap-3 rounded-2xl border border-[#e2dce5] bg-white p-4 shadow-[0_8px_25px_rgba(61,45,69,.04)] sm:grid-cols-2 lg:grid-cols-5">
+      <div className="ui-card mb-5 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5">
         <input
           type="search"
           placeholder="Buscar por nombre..."

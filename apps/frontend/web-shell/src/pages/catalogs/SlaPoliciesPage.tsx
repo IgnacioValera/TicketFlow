@@ -2,11 +2,17 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { Modal } from '@/components/common/Modal'
 import { DataTable, type Column } from '@/components/common/DataTable'
 import { ErrorState } from '@/components/common/ErrorState'
+import { FormAlert } from '@/components/common/FormAlert'
+import { PageHeader } from '@/components/common/PageHeader'
+import { TableActionButton } from '@/components/common/TableActionButton'
+import { PrimaryButton, SecondaryButton } from '@/components/common/UiControls'
 import { PERMISSIONS } from '@/constants/permissions'
+import { LIMITS } from '@/constants/validation'
 import { usePermissions } from '@/hooks/usePermissions'
 import * as prioritiesService from '@/services/priorities.service'
 import * as slaPoliciesService from '@/services/sla-policies.service'
 import type { CatalogStatus, Priority, SlaPolicy } from '@/types/catalog.types'
+import { validateSlaHours } from '@/utils/validation'
 
 const STATUS_LABELS: Record<CatalogStatus, string> = {
   ACTIVE: 'Activa',
@@ -124,20 +130,17 @@ export function SlaPoliciesPage() {
       setFormError('El nombre es obligatorio')
       return
     }
+    if (name.length > LIMITS.SLA_NAME) {
+      setFormError(`El nombre no puede superar ${LIMITS.SLA_NAME} caracteres`)
+      return
+    }
     if (!formState.priorityId) {
       setFormError('Selecciona una prioridad')
       return
     }
-    if (!Number.isFinite(responseHours) || responseHours <= 0) {
-      setFormError('Las horas de respuesta deben ser mayores a 0')
-      return
-    }
-    if (!Number.isFinite(resolutionHours) || resolutionHours <= 0) {
-      setFormError('Las horas de resolución deben ser mayores a 0')
-      return
-    }
-    if (resolutionHours < responseHours) {
-      setFormError('La resolución no puede ser menor que la respuesta')
+    const slaError = validateSlaHours(responseHours, resolutionHours)
+    if (slaError) {
+      setFormError(slaError)
       return
     }
 
@@ -190,14 +193,12 @@ export function SlaPoliciesPage() {
         key: 'actions',
         header: 'Acciones',
         render: (row) => (
-          <button
-            type="button"
+          <TableActionButton
+            label={`Editar política SLA ${row.name}`}
+            icon="edit"
             onClick={() => openEditModal(row)}
-            className="text-sm text-brand-teal hover:underline"
             disabled={!canManage}
-          >
-            Editar
-          </button>
+          />
         ),
       },
     ],
@@ -206,27 +207,20 @@ export function SlaPoliciesPage() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8c8191]">Catálogos</p>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-brand-navy md:text-3xl">
-            Políticas SLA
-          </h1>
-          <p className="mt-1 text-sm text-[#766c7c]">
-            Tiempos de respuesta y resolución por prioridad.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={openCreateModal}
-          disabled={!canManage || priorities.length === 0}
-          className="inline-flex justify-center rounded-xl bg-brand-teal px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(111,79,216,.2)] hover:bg-[#6040c8] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Nueva política
-        </button>
+      <div className="mb-6">
+        <PageHeader
+          kicker="Catálogos"
+          title="Políticas SLA"
+          description="Tiempos de respuesta y resolución por prioridad."
+          actions={
+            <PrimaryButton onClick={openCreateModal} disabled={!canManage || priorities.length === 0}>
+              Nueva política
+            </PrimaryButton>
+          }
+        />
       </div>
 
-      <div className="mb-5 grid gap-3 rounded-2xl border border-[#e2dce5] bg-white p-4 shadow-[0_8px_25px_rgba(61,45,69,.04)] sm:grid-cols-2 lg:grid-cols-4">
+      <div className="ui-card mb-5 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
         <input
           type="search"
           placeholder="Buscar por nombre..."
@@ -271,22 +265,12 @@ export function SlaPoliciesPage() {
         title={editingPolicy ? 'Editar política SLA' : 'Nueva política SLA'}
         footer={
           <>
-            <button
-              type="button"
-              onClick={closeFormModal}
-              disabled={saving}
-              className="rounded-lg border border-brand-slate px-4 py-2 text-sm text-brand-navy hover:bg-brand-cream/50"
-            >
+            <SecondaryButton onClick={closeFormModal} disabled={saving}>
               Cancelar
-            </button>
-            <button
-              type="submit"
-              form="sla-policy-form"
-              disabled={saving}
-              className="rounded-lg bg-brand-teal px-4 py-2 text-sm font-medium text-white hover:bg-brand-teal/90 disabled:opacity-50"
-            >
+            </SecondaryButton>
+            <PrimaryButton type="submit" form="sla-policy-form" disabled={saving}>
               {saving ? 'Guardando...' : 'Guardar'}
-            </button>
+            </PrimaryButton>
           </>
         }
       >
@@ -295,7 +279,7 @@ export function SlaPoliciesPage() {
           onSubmit={(event) => void handleSubmit(event)}
           className="space-y-4"
         >
-          {formError && <ErrorState message={formError} />}
+          {formError && <FormAlert title="Revisa los datos ingresados" messages={[formError]} />}
 
           <div>
             <label htmlFor="sla-name" className="mb-1 block text-sm font-medium">
@@ -306,7 +290,7 @@ export function SlaPoliciesPage() {
               value={formState.name}
               onChange={(e) => setFormState((prev) => ({ ...prev, name: e.target.value }))}
               className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
-              maxLength={80}
+              maxLength={LIMITS.SLA_NAME}
             />
           </div>
 

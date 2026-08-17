@@ -3,7 +3,10 @@ import { Link, useParams } from 'react-router-dom'
 import { AppIcon, type AppIconName } from '@/components/common/AppIcon'
 import { ErrorState } from '@/components/common/ErrorState'
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
+import { PageHeader } from '@/components/common/PageHeader'
 import { StatusBadge } from '@/components/common/StatusBadge'
+import { SurfaceCard } from '@/components/common/SurfaceCard'
+import { PrimaryButton } from '@/components/common/UiControls'
 import * as ticketService from '@/services/ticket.service'
 import type {
   Ticket,
@@ -11,6 +14,7 @@ import type {
   TicketStatus,
   TicketStatusHistory,
 } from '@/types/ticket.types'
+import { assignmentDescription, TICKET_FLOW_COPY } from '@/pages/tickets/ticket-flow-copy'
 
 type StageState = 'completed' | 'active' | 'pending' | 'optional' | 'cancelled'
 type ViewMode = 'map' | 'timeline'
@@ -77,10 +81,10 @@ const stateLabel: Record<StageState, string> = {
 }
 
 const slaColor: Record<TicketSlaStatus['level'], string> = {
-  green: '#36a275',
-  yellow: '#d6a33a',
-  orange: '#d96b52',
-  red: '#d4534b',
+  green: 'var(--color-success)',
+  yellow: 'var(--color-warning)',
+  orange: 'var(--color-warning)',
+  red: 'var(--color-danger)',
 }
 
 function formatDate(value?: string) {
@@ -181,26 +185,24 @@ function buildStages(ticket: Ticket, sla: TicketSlaStatus | null): Stage[] {
       id: 'assigned',
       lane: 'main',
       eyebrow: 'Responsabilidad',
-      title: 'Asignación',
+      title: TICKET_FLOW_COPY.assignment,
       subtitle: ticket.assigneeName ?? 'Sin agente',
       time: formatDate(assigned?.createdAt),
       actor: assigned?.changedByName ?? 'Supervisor',
       state: stateByRank(ticket, 4, 'ASSIGNED'),
       icon: 'user-check',
-      description: ticket.assigneeName
-        ? `${ticket.assigneeName} asumió la responsabilidad operativa del caso.`
-        : 'El ticket permanece disponible para asignación.',
+      description: assignmentDescription(ticket.assigneeName),
       technicalEvent: 'TICKET_ASSIGNED',
-      businessRule: 'Sólo supervisor o administrador pueden asignar un agente activo.',
+      businessRule: `${TICKET_FLOW_COPY.only} supervisor o administrador pueden asignar un agente activo.`,
       source: 'Mesa de control',
       duration: formatDuration(createdAt, assigned?.createdAt),
     },
     {
       id: 'diagnosis',
       lane: 'main',
-      eyebrow: 'Atención',
+      eyebrow: TICKET_FLOW_COPY.attention,
       title: 'Diagnóstico',
-      subtitle: ticket.status === 'IN_PROGRESS' ? 'Trabajo activo' : 'Análisis técnico',
+      subtitle: ticket.status === 'IN_PROGRESS' ? 'Trabajo activo' : TICKET_FLOW_COPY.technicalAnalysis,
       time: formatDate(progress?.createdAt),
       actor: progress?.changedByName ?? ticket.assigneeName ?? 'Agente',
       state: stateByRank(ticket, 5, 'IN_PROGRESS'),
@@ -431,91 +433,79 @@ export function TicketFlowPage() {
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8c8191]">
-            Operación / Seguimiento
-          </p>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight md:text-3xl">Flujo visual</h1>
-          <p className="mt-2 max-w-2xl text-sm text-[#756b7b]">
-            Radiografía completa del ticket: decisiones, responsables, reglas, tiempos y rutas
-            alternativas.
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          {!routeId && (
-            <label className="min-w-[320px]">
-              <span className="sr-only">Seleccionar ticket</span>
-              <select
-                value={selectedTicketId}
-                onChange={(event) => void handleTicketChange(event.target.value)}
-                className="w-full rounded-xl border border-[#d9d1dd] bg-white px-3.5 py-2.5 text-sm font-semibold shadow-sm"
-              >
-                {availableTickets.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.folio} · {item.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <button
-            type="button"
-            onClick={() => void loadTicket(ticket.id)}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#6f4fd8] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_22px_rgba(111,79,216,.22)] hover:bg-[#6040c8]"
-          >
-            <AppIcon name="refresh" className="h-4 w-4" />
-            Actualizar
-          </button>
-        </div>
-      </header>
+      <PageHeader
+        kicker="Mesa de ayuda"
+        title="Flujo visual"
+        description="Radiografía completa del ticket: decisiones, responsables, reglas, tiempos y rutas alternativas."
+        actions={
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {!routeId && (
+              <label className="min-w-[280px]">
+                <span className="sr-only">Seleccionar ticket</span>
+                <select
+                  value={selectedTicketId}
+                  onChange={(event) => void handleTicketChange(event.target.value)}
+                  className="w-full rounded border border-border bg-surface px-3.5 py-2 text-sm font-medium"
+                >
+                  {availableTickets.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.folio} · {item.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <PrimaryButton onClick={() => void loadTicket(ticket.id)}>
+              <AppIcon name="refresh" className="mr-2 h-4 w-4" />
+              Actualizar
+            </PrimaryButton>
+          </div>
+        }
+      />
 
-      <section className="relative overflow-hidden rounded-[22px] border border-[#ded7e2] bg-[#302938] p-5 text-white shadow-[0_16px_45px_rgba(48,41,56,.14)] md:p-6">
-        <div className="absolute -right-12 -top-20 h-56 w-56 rounded-full bg-[#7d5ce1]/25 blur-3xl" />
-        <div className="relative grid gap-5 xl:grid-cols-[1fr_auto]">
+      <SurfaceCard className="p-5 md:p-6">
+        <div className="grid gap-5 xl:grid-cols-[1fr_auto]">
           <div className="flex min-w-0 items-start gap-4">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[14px] bg-[#7654dc] shadow-lg">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded bg-primary text-white">
               <AppIcon name="flow" />
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-sm font-bold text-[#d9cdfb]">{ticket.folio}</span>
-                <StatusBadge status={ticket.status} className="bg-white/10 text-white" />
-                <span className="rounded-full bg-[#d96b52]/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#ffb6a6]">
+                <span className="font-mono text-sm font-semibold text-primary">{ticket.folio}</span>
+                <StatusBadge status={ticket.status} />
+                <span className="rounded-full bg-page px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-text">
                   {ticket.priorityName}
                 </span>
               </div>
-              <h2 className="mt-2 truncate text-xl font-bold">{ticket.title}</h2>
-              <p className="mt-1 text-sm text-white/55">
+              <h2 className="mt-2 truncate text-xl font-semibold text-text">{ticket.title}</h2>
+              <p className="mt-1 text-sm text-muted">
                 {ticket.requesterName} · {ticket.assigneeName ?? 'Sin agente'} ·{' '}
                 {ticket.categoryName}
               </p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:min-w-[520px]">
-            <DarkMetric label="Avance" value={`${progressPercent}%`} />
-            <DarkMetric label="Tiempo total" value={totalElapsed} />
-            <DarkMetric label="1ª asignación" value={responseTime} />
-            <DarkMetric label="Eventos" value={String(ticket.statusHistory?.length ?? 0)} />
+            <FlowMetric label="Avance" value={`${progressPercent}%`} />
+            <FlowMetric label="Tiempo total" value={totalElapsed} />
+            <FlowMetric label="1ª asignación" value={responseTime} />
+            <FlowMetric label="Eventos" value={String(ticket.statusHistory?.length ?? 0)} />
           </div>
         </div>
-        <div className="relative mt-5 flex flex-col gap-2 border-t border-white/10 pt-4 sm:flex-row sm:items-center">
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+        <div className="mt-5 flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:items-center">
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-page">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-[#8b6be5] via-[#d96b52] to-[#e8b14e]"
+              className="h-full rounded-full bg-primary"
               style={{ width: `${Math.max(4, progressPercent)}%` }}
             />
           </div>
-          <span className="text-xs font-semibold text-white/55">
-            {completedStages} etapas registradas
-          </span>
+          <span className="text-xs font-medium text-muted">{completedStages} etapas registradas</span>
           {sla && (
-            <span className="text-xs font-bold" style={{ color: slaColor[sla.level] }}>
+            <span className="text-xs font-semibold" style={{ color: slaColor[sla.level] }}>
               SLA {remainingMs > 0 ? `${Math.floor(remainingMs / 3600000)} h restantes` : 'vencido'}
             </span>
           )}
         </div>
-      </section>
+      </SurfaceCard>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <InsightCard
@@ -523,7 +513,7 @@ export function TicketFlowPage() {
           label="SLA consumido"
           value={`${consumed}%`}
           detail={sla ? `Límite ${formatDate(sla.dueAt)}` : 'Sin política'}
-          tone={sla ? slaColor[sla.level] : '#7d5ce1'}
+          tone={sla ? slaColor[sla.level] : 'var(--color-primary)'}
         />
         <InsightCard
           icon="users"
@@ -538,38 +528,38 @@ export function TicketFlowPage() {
             ).size,
           )}
           detail="Solicitante, agente y equipo"
-          tone="#6f4fd8"
+          tone="var(--color-primary)"
         />
         <InsightCard
           icon="mail"
-          label="Conversación"
+          label={TICKET_FLOW_COPY.conversation}
           value={String(ticket.comments?.length ?? 0)}
           detail={`${ticket.comments?.filter((comment) => comment.isInternal).length ?? 0} comentarios internos`}
-          tone="#d96b52"
+          tone="var(--color-warning)"
         />
         <InsightCard
           icon="inbox"
           label="Evidencias"
           value={String(ticket.attachments?.length ?? 0)}
           detail="Archivos adjuntos al caso"
-          tone="#45a77e"
+          tone="var(--color-success)"
         />
       </section>
 
       <div className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="overflow-hidden rounded-2xl border border-[#e2dce5] bg-white shadow-[0_14px_40px_rgba(61,45,69,.06)]">
-          <div className="flex flex-col gap-3 border-b border-[#e7e1e9] bg-[#fffdfb] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <SurfaceCard className="overflow-hidden">
+          <div className="flex flex-col gap-3 border-b border-border bg-page/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#d96b52] shadow-[0_0_0_5px_rgba(217,107,82,.1)]" />
+              <span className="h-2.5 w-2.5 rounded-full bg-primary" />
               <div>
-                <p className="text-sm font-bold">Recorrido operativo</p>
-                <p className="text-[11px] text-[#847a8a]">
+                <p className="text-sm font-semibold">Recorrido operativo</p>
+                <p className="text-[11px] text-muted">
                   La línea superior es el camino principal; la inferior concentra excepciones.
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <div className="flex rounded-lg bg-[#f2eef4] p-1">
+              <div className="flex rounded bg-page p-1">
                 <ModeButton
                   active={viewMode === 'map'}
                   label="Mapa"
@@ -577,30 +567,30 @@ export function TicketFlowPage() {
                 />
                 <ModeButton
                   active={viewMode === 'timeline'}
-                  label="Cronología"
+                  label={TICKET_FLOW_COPY.timeline}
                   onClick={() => setViewMode('timeline')}
                 />
               </div>
               {viewMode === 'map' && (
-                <div className="flex items-center gap-1 rounded-lg border border-[#ddd6e1] bg-white p-1">
+                <div className="flex items-center gap-1 rounded border border-border bg-surface p-1">
                   <button
                     type="button"
                     onClick={() => setSafeZoom(zoom - 0.1)}
-                    className="grid h-7 w-7 place-items-center rounded-md text-lg hover:bg-[#f2eef4]"
+                    className="grid h-7 w-7 place-items-center rounded text-lg hover:bg-page"
                   >
-                    −
+                    -
                   </button>
                   <button
                     type="button"
                     onClick={() => setZoom(0.85)}
-                    className="min-w-12 rounded-md px-1 py-1 text-[11px] font-bold hover:bg-[#f2eef4]"
+                    className="min-w-12 rounded px-1 py-1 text-[11px] font-semibold hover:bg-page"
                   >
                     {Math.round(zoom * 100)}%
                   </button>
                   <button
                     type="button"
                     onClick={() => setSafeZoom(zoom + 0.1)}
-                    className="grid h-7 w-7 place-items-center rounded-md text-lg hover:bg-[#f2eef4]"
+                    className="grid h-7 w-7 place-items-center rounded text-lg hover:bg-page"
                   >
                     +
                   </button>
@@ -616,10 +606,10 @@ export function TicketFlowPage() {
                 style={{ transform: `scale(${zoom})` }}
               >
                 <FlowConnections />
-                <div className="absolute left-[26px] top-[175px] rounded-full bg-[#eee9fb] px-3 py-1 text-[10px] font-bold uppercase tracking-[.12em] text-[#6f4fd8]">
+                <div className="absolute left-[26px] top-[175px] rounded-full bg-primary/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[.12em] text-primary">
                   Ruta principal
                 </div>
-                <div className="absolute left-[1036px] top-[350px] rounded-full bg-[#fff2dd] px-3 py-1 text-[10px] font-bold uppercase tracking-[.12em] text-[#9b6c1c]">
+                <div className="absolute left-[1036px] top-[350px] rounded-full bg-warning/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[.12em] text-warning">
                   Excepciones
                 </div>
                 {stages.map((stage) => (
@@ -640,14 +630,14 @@ export function TicketFlowPage() {
               onSelect={setSelectedStageId}
             />
           )}
-        </section>
+        </SurfaceCard>
 
         <aside className="space-y-4">
           <Inspector stage={selectedStage} />
-          <section className="rounded-2xl border border-[#e2dce5] bg-[#fffdfb] p-5 shadow-[0_10px_30px_rgba(61,45,69,.05)]">
+          <SurfaceCard className="p-5">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold">Historial real</h3>
-              <Link to={`/tickets/${ticket.id}`} className="text-xs font-bold text-[#6f4fd8]">
+              <h3 className="font-semibold">Historial real</h3>
+              <Link to={`/tickets/${ticket.id}`} className="text-xs font-semibold text-primary">
                 Abrir ticket
               </Link>
             </div>
@@ -655,19 +645,19 @@ export function TicketFlowPage() {
               {history.length ? (
                 history.map((item) => <Activity key={item.id} item={item} />)
               ) : (
-                <li className="text-sm text-[#817788]">Sin eventos registrados.</li>
+                <li className="text-sm text-muted">Sin eventos registrados.</li>
               )}
             </ol>
-          </section>
-          <section className="rounded-2xl border border-[#ead8c1] bg-[#fff9ef] p-5">
-            <p className="text-xs font-bold uppercase tracking-[.14em] text-[#9a732b]">
+          </SurfaceCard>
+          <SurfaceCard className="border-warning/30 bg-warning/5 p-5">
+            <p className="text-xs font-semibold uppercase tracking-[.14em] text-warning">
               Siguiente acción
             </p>
-            <p className="mt-2 text-sm font-bold text-[#4b4031]">{nextAction[ticket.status]}</p>
-            <p className="mt-1 text-xs leading-5 text-[#82715a]">
+            <p className="mt-2 text-sm font-semibold text-text">{nextAction[ticket.status]}</p>
+            <p className="mt-1 text-xs leading-5 text-muted">
               La acción depende del estado actual y de los permisos del usuario.
             </p>
-          </section>
+          </SurfaceCard>
         </aside>
       </div>
     </div>
@@ -701,12 +691,12 @@ function FlowConnections() {
           refY="4"
           orient="auto"
         >
-          <path d="M0 0L8 4L0 8Z" fill="#9d90a5" />
+          <path d="M0 0L8 4L0 8Z" fill="var(--color-muted)" />
         </marker>
       </defs>
       <path
         d="M203 287H230 M405 287H432 M607 287H634 M809 287H836"
-        stroke="#6f4fd8"
+        stroke="var(--color-primary)"
         strokeWidth="2"
         strokeDasharray="7 6"
         markerEnd="url(#detailed-arrow)"
@@ -714,19 +704,19 @@ function FlowConnections() {
       />
       <path
         d="M1011 287C1090 287 1160 192 1240 192 M1415 192H1442 M1617 192H1644 M1819 192H1846"
-        stroke="#aaa0af"
+        stroke="var(--color-border)"
         strokeWidth="2"
         markerEnd="url(#detailed-arrow)"
       />
       <path
         d="M1011 287C1025 287 1024 462 1038 462 M1213 462H1240 M1415 462C1465 462 1185 245 1240 245"
-        stroke="#c59a49"
+        stroke="var(--color-warning)"
         strokeWidth="2"
         strokeDasharray="6 7"
         markerEnd="url(#detailed-arrow)"
       />
-      <circle cx="1011" cy="287" r="5" fill="#fff" stroke="#d96b52" strokeWidth="2" />
-      <text x="1030" y="305" fill="#8c8191" fontSize="10" fontWeight="600">
+      <circle cx="1011" cy="287" r="5" fill="var(--color-surface)" stroke="var(--color-warning)" strokeWidth="2" />
+      <text x="1030" y="305" fill="var(--color-muted)" fontSize="10" fontWeight="600">
         ¿continúa normalmente?
       </text>
     </svg>
@@ -745,46 +735,46 @@ function FlowNode({
   onSelect: () => void
 }) {
   const tone: Record<StageState, string> = {
-    completed: 'border-[#a995e3] bg-white',
-    active: 'ticket-flow-node-active border-[#d96b52] bg-[#fffaf7]',
-    pending: 'border-[#d9d2dd] bg-[#fffdfb]',
-    optional: 'border-[#d8c9a9] bg-[#fffcf4]',
-    cancelled: 'border-[#e5a8a1] bg-[#fff6f4]',
+    completed: 'border-primary/40 bg-surface',
+    active: 'ticket-flow-node-active border-warning bg-surface',
+    pending: 'border-border bg-surface',
+    optional: 'border-warning/40 bg-surface',
+    cancelled: 'border-danger/40 bg-surface',
   }
   const iconTone: Record<StageState, string> = {
-    completed: 'bg-[#eee9fb] text-[#6f4fd8]',
-    active: 'bg-[#fff0e8] text-[#d35f47]',
-    pending: 'bg-[#f0edf1] text-[#948a99]',
-    optional: 'bg-[#faf0d8] text-[#a67822]',
-    cancelled: 'bg-[#fee9e5] text-[#c55249]',
+    completed: 'bg-primary/10 text-primary',
+    active: 'bg-warning/10 text-warning',
+    pending: 'bg-page text-muted',
+    optional: 'bg-warning/10 text-warning',
+    cancelled: 'bg-danger/10 text-danger',
   }
   return (
     <button
       type="button"
       onClick={onSelect}
-      className={`absolute w-[175px] rounded-xl border text-left shadow-[0_8px_22px_rgba(65,48,73,.08)] transition hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(65,48,73,.13)] ${tone[stage.state]} ${selected ? 'ring-2 ring-[#6f4fd8]/30' : ''} ${className}`}
+      className={`absolute w-[175px] rounded border text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow ${tone[stage.state]} ${selected ? 'ring-2 ring-primary/30' : ''} ${className}`}
     >
-      <span className="absolute -left-[5px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border-2 border-white bg-[#9d90a5]" />
-      <span className="absolute -right-[5px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border-2 border-white bg-[#9d90a5]" />
-      <div className="border-b border-[#eee8ef] p-3">
-        <span className="mb-2 block text-[9px] font-bold uppercase tracking-[.13em] text-[#978c9b]">
+      <span className="absolute -left-[5px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border-2 border-surface bg-muted" />
+      <span className="absolute -right-[5px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border-2 border-surface bg-muted" />
+      <div className="border-b border-border p-3">
+        <span className="mb-2 block text-[9px] font-semibold uppercase tracking-[.13em] text-muted">
           {stage.eyebrow}
         </span>
         <div className="flex items-center gap-2.5">
           <span
-            className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${iconTone[stage.state]}`}
+            className={`grid h-9 w-9 shrink-0 place-items-center rounded ${iconTone[stage.state]}`}
           >
             <AppIcon name={stage.icon} className="h-4 w-4" />
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-sm font-bold">{stage.title}</span>
-            <span className="block truncate text-[10px] text-[#867c8c]">{stage.subtitle}</span>
+            <span className="block truncate text-sm font-semibold">{stage.title}</span>
+            <span className="block truncate text-[10px] text-muted">{stage.subtitle}</span>
           </span>
         </div>
       </div>
       <div className="flex items-center justify-between gap-2 px-3 py-2 text-[10px]">
-        <span className="truncate font-semibold text-[#716677]">{stage.actor}</span>
-        <span className={stage.state === 'active' ? 'font-bold text-[#d35f47]' : 'text-[#998f9d]'}>
+        <span className="truncate font-medium text-text">{stage.actor}</span>
+        <span className={stage.state === 'active' ? 'font-semibold text-warning' : 'text-muted'}>
           {stage.time}
         </span>
       </div>
@@ -793,50 +783,57 @@ function FlowNode({
 }
 
 function Inspector({ stage }: { stage: Stage }) {
+  const stateClass =
+    stage.state === 'active'
+      ? 'bg-warning/10 text-warning'
+      : stage.state === 'completed'
+        ? 'bg-success/10 text-success'
+        : stage.state === 'cancelled'
+          ? 'bg-danger/10 text-danger'
+          : 'bg-page text-muted'
+
   return (
-    <section className="rounded-2xl border border-[#e2dce5] bg-[#fffdfb] p-5 shadow-[0_10px_30px_rgba(61,45,69,.05)]">
+    <SurfaceCard className="p-5">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-bold uppercase tracking-[.14em] text-[#887d8e]">
+        <p className="text-xs font-semibold uppercase tracking-[.14em] text-muted">
           Inspector de etapa
         </p>
-        <span
-          className={`rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-wide ${stage.state === 'active' ? 'bg-[#fff0e8] text-[#c9563f]' : stage.state === 'completed' ? 'bg-[#eee9fb] text-[#6244c0]' : 'bg-[#f0edf1] text-[#817787]'}`}
-        >
+        <span className={`rounded-full px-2 py-1 text-[9px] font-semibold uppercase tracking-wide ${stateClass}`}>
           {stateLabel[stage.state]}
         </span>
       </div>
       <div className="mt-5 flex items-start gap-3">
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#f0ebfc] text-[#6f4fd8]">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded bg-primary/10 text-primary">
           <AppIcon name={stage.icon} />
         </div>
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[.13em] text-[#968b9a]">
+          <p className="text-[10px] font-semibold uppercase tracking-[.13em] text-muted">
             {stage.eyebrow}
           </p>
-          <h3 className="font-bold">{stage.title}</h3>
-          <p className="text-xs text-[#807687]">{stage.subtitle}</p>
+          <h3 className="font-semibold">{stage.title}</h3>
+          <p className="text-xs text-muted">{stage.subtitle}</p>
         </div>
       </div>
-      <p className="mt-4 text-sm leading-6 text-[#625968]">{stage.description}</p>
-      <dl className="mt-5 space-y-3 border-t border-[#ebe5ed] pt-4 text-sm">
+      <p className="mt-4 text-sm leading-6 text-text">{stage.description}</p>
+      <dl className="mt-5 space-y-3 border-t border-border pt-4 text-sm">
         <Meta label="Responsable" value={stage.actor} />
         <Meta label="Registro" value={stage.time} />
-        <Meta label="Duración" value={stage.duration} />
+        <Meta label={TICKET_FLOW_COPY.duration} value={stage.duration} />
         <Meta label="Origen" value={stage.source} />
       </dl>
-      <div className="mt-4 rounded-xl bg-[#f5f1f7] p-3">
-        <p className="text-[9px] font-bold uppercase tracking-[.14em] text-[#8c8191]">
+      <div className="mt-4 rounded bg-page p-3">
+        <p className="text-[9px] font-semibold uppercase tracking-[.14em] text-muted">
           Evento técnico
         </p>
-        <code className="mt-1 block text-xs font-bold text-[#6244c0]">{stage.technicalEvent}</code>
+        <code className="mt-1 block text-xs font-semibold text-primary">{stage.technicalEvent}</code>
       </div>
-      <div className="mt-3 rounded-xl border border-[#ebe4ed] p-3">
-        <p className="text-[9px] font-bold uppercase tracking-[.14em] text-[#8c8191]">
+      <div className="mt-3 rounded border border-border p-3">
+        <p className="text-[9px] font-semibold uppercase tracking-[.14em] text-muted">
           Regla de negocio
         </p>
-        <p className="mt-1 text-xs leading-5 text-[#6e6474]">{stage.businessRule}</p>
+        <p className="mt-1 text-xs leading-5 text-text">{stage.businessRule}</p>
       </div>
-    </section>
+    </SurfaceCard>
   )
 }
 
@@ -850,38 +847,38 @@ function TimelineView({
   onSelect: (id: string) => void
 }) {
   return (
-    <div className="max-h-[680px] overflow-y-auto bg-[#faf8f5] p-5 md:p-7">
+    <div className="max-h-[680px] overflow-y-auto bg-page p-5 md:p-7">
       <div className="mx-auto max-w-3xl space-y-3">
         {stages.map((stage, index) => (
           <button
             type="button"
             key={stage.id}
             onClick={() => onSelect(stage.id)}
-            className={`relative grid w-full gap-4 rounded-2xl border bg-white p-4 text-left shadow-sm sm:grid-cols-[52px_1fr_auto] ${selectedId === stage.id ? 'border-[#8c70df] ring-2 ring-[#6f4fd8]/15' : 'border-[#e4dde7]'}`}
+            className={`relative grid w-full gap-4 rounded border bg-surface p-4 text-left shadow-sm sm:grid-cols-[52px_1fr_auto] ${selectedId === stage.id ? 'border-primary ring-2 ring-primary/15' : 'border-border'}`}
           >
             <div
-              className={`grid h-11 w-11 place-items-center rounded-xl ${stage.state === 'completed' ? 'bg-[#eee9fb] text-[#6f4fd8]' : stage.state === 'active' ? 'bg-[#fff0e8] text-[#d35f47]' : 'bg-[#f0edf1] text-[#948a99]'}`}
+              className={`grid h-11 w-11 place-items-center rounded ${stage.state === 'completed' ? 'bg-success/10 text-success' : stage.state === 'active' ? 'bg-warning/10 text-warning' : 'bg-page text-muted'}`}
             >
               <AppIcon name={stage.icon} />
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[10px] font-bold text-[#9a8fa0]">
+                <span className="text-[10px] font-semibold text-muted">
                   {String(index + 1).padStart(2, '0')}
                 </span>
-                <h3 className="font-bold">{stage.title}</h3>
-                <span className="rounded-full bg-[#f3eff5] px-2 py-0.5 text-[9px] font-bold uppercase text-[#776d7d]">
+                <h3 className="font-semibold">{stage.title}</h3>
+                <span className="rounded-full bg-page px-2 py-0.5 text-[9px] font-semibold uppercase text-muted">
                   {stateLabel[stage.state]}
                 </span>
               </div>
-              <p className="mt-1 text-xs text-[#857b8b]">{stage.description}</p>
-              <p className="mt-2 text-[11px] font-semibold text-[#655a6b]">
+              <p className="mt-1 text-xs text-muted">{stage.description}</p>
+              <p className="mt-2 text-[11px] font-medium text-text">
                 {stage.actor} · {stage.technicalEvent}
               </p>
             </div>
             <div className="text-right text-xs">
-              <p className="font-bold text-[#63586a]">{stage.time}</p>
-              <p className="mt-1 text-[#998f9d]">{stage.duration}</p>
+              <p className="font-semibold text-text">{stage.time}</p>
+              <p className="mt-1 text-muted">{stage.duration}</p>
             </div>
           </button>
         ))}
@@ -893,16 +890,16 @@ function TimelineView({
 function Activity({ item }: { item: TicketStatusHistory }) {
   return (
     <li className="grid grid-cols-[52px_1fr] gap-3">
-      <span className="pt-0.5 text-[10px] font-semibold text-[#948a99]">
+      <span className="pt-0.5 text-[10px] font-medium text-muted">
         {new Date(item.createdAt).toLocaleTimeString('es-MX', {
           hour: '2-digit',
           minute: '2-digit',
         })}
       </span>
-      <div className="relative border-l border-[#ded6e2] pl-4">
-        <span className="absolute -left-[4.5px] top-1 h-2 w-2 rounded-full bg-[#6f4fd8] ring-4 ring-[#fffdfb]" />
+      <div className="relative border-l border-border pl-4">
+        <span className="absolute -left-[4.5px] top-1 h-2 w-2 rounded-full bg-primary ring-4 ring-surface" />
         <p className="text-sm font-semibold">{statusLabel[item.newStatus]}</p>
-        <p className="mt-0.5 text-xs leading-5 text-[#817788]">
+        <p className="mt-0.5 text-xs leading-5 text-muted">
           {item.changedByName}
           {item.reason ? ` · ${item.reason}` : ''}
         </p>
@@ -911,14 +908,15 @@ function Activity({ item }: { item: TicketStatusHistory }) {
   )
 }
 
-function DarkMetric({ label, value }: { label: string; value: string }) {
+function FlowMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-      <p className="text-[9px] font-bold uppercase tracking-[.12em] text-white/40">{label}</p>
-      <p className="mt-1 truncate text-sm font-bold text-white/85">{value}</p>
+    <div className="rounded border border-border bg-page p-3">
+      <p className="text-[9px] font-semibold uppercase tracking-[.12em] text-muted">{label}</p>
+      <p className="mt-1 truncate text-sm font-semibold text-text">{value}</p>
     </div>
   )
 }
+
 function InsightCard({
   icon,
   label,
@@ -933,25 +931,26 @@ function InsightCard({
   tone: string
 }) {
   return (
-    <article className="rounded-2xl border border-[#e2dce5] bg-white p-4 shadow-[0_8px_25px_rgba(61,45,69,.04)]">
+    <article className="ui-card p-4">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[.12em] text-[#918694]">{label}</p>
-          <p className="mt-2 text-2xl font-extrabold" style={{ color: tone }}>
+          <p className="text-[10px] font-semibold uppercase tracking-[.12em] text-muted">{label}</p>
+          <p className="mt-2 text-2xl font-semibold" style={{ color: tone }}>
             {value}
           </p>
         </div>
         <span
-          className="grid h-9 w-9 place-items-center rounded-xl"
-          style={{ backgroundColor: `${tone}18`, color: tone }}
+          className="grid h-9 w-9 place-items-center rounded"
+          style={{ backgroundColor: `color-mix(in srgb, ${tone} 14%, white)`, color: tone }}
         >
           <AppIcon name={icon} className="h-4 w-4" />
         </span>
       </div>
-      <p className="mt-2 text-[11px] text-[#887d8e]">{detail}</p>
+      <p className="mt-2 text-[11px] text-muted">{detail}</p>
     </article>
   )
 }
+
 function ModeButton({
   active,
   label,
@@ -965,17 +964,18 @@ function ModeButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-md px-3 py-1.5 text-[11px] font-bold ${active ? 'bg-white text-[#6244c0] shadow-sm' : 'text-[#7f7585]'}`}
+      className={`rounded px-3 py-1.5 text-[11px] font-semibold ${active ? 'bg-surface text-primary shadow-sm' : 'text-muted'}`}
     >
       {label}
     </button>
   )
 }
+
 function Meta({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-4">
-      <dt className="text-[#8a808f]">{label}</dt>
-      <dd className="text-right font-semibold">{value}</dd>
+      <dt className="text-muted">{label}</dt>
+      <dd className="text-right font-medium">{value}</dd>
     </div>
   )
 }
