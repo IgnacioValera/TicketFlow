@@ -40,17 +40,17 @@ const mockUsers: User[] = [
     id: '4',
     fullName: 'Usuario Solicitante',
     email: 'requester@helpdesk.com',
-    role: 'REQUESTER',
+    role: 'CLIENT',
     status: 'ACTIVE',
-    permissions: ROLE_PERMISSIONS.REQUESTER,
+    permissions: ROLE_PERMISSIONS.CLIENT,
   },
   {
     id: '5',
     fullName: 'Usuario Inactivo',
     email: 'inactive@helpdesk.com',
-    role: 'REQUESTER',
+    role: 'CLIENT',
     status: 'INACTIVE',
-    permissions: ROLE_PERMISSIONS.REQUESTER,
+    permissions: ROLE_PERMISSIONS.CLIENT,
   },
 ]
 

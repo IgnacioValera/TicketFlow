@@ -46,7 +46,7 @@ export function TicketsKanbanBoard({ tickets, loading = false }: TicketsKanbanBo
         {byStatus.map((column) => (
           <section
             key={column.status}
-            className="flex w-72 shrink-0 flex-col rounded-2xl border border-[#e2dce5] bg-[#f3f0f6]/80"
+            className="flex w-72 shrink-0 flex-col rounded border border-slate-200 bg-slate-50"
           >
             <header className="flex items-center gap-2 border-b border-[#e2dce5]/80 px-3 py-3">
               <span className={`h-2 w-2 rounded-full ${column.accent}`} aria-hidden />
@@ -75,7 +75,7 @@ export function TicketsKanbanBoard({ tickets, loading = false }: TicketsKanbanBo
                     <Link
                       key={ticket.id}
                       to={`/tickets/${ticket.id}`}
-                      className="block rounded-xl border border-[#e2dce5] bg-white p-3 shadow-[0_6px_16px_rgba(61,45,69,.05)] transition hover:-translate-y-0.5 hover:border-brand-teal/40 hover:shadow-[0_10px_22px_rgba(111,79,216,.12)]"
+                      className="block rounded border border-slate-200 bg-white p-3 transition hover:border-brand-teal/50 hover:shadow-sm"
                     >
                       <div className="mb-2 flex items-start justify-between gap-2">
                         <p className="line-clamp-2 text-sm font-semibold leading-snug text-brand-navy">

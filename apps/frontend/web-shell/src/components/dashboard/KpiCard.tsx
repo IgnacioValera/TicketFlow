@@ -5,20 +5,19 @@ interface KpiCardProps {
 }
 
 const toneStyles: Record<NonNullable<KpiCardProps['tone']>, string> = {
-  neutral: 'border-[#dfd8e3] text-[#4f4655] before:bg-[#8e8393]',
-  danger: 'border-[#efcfca] text-[#c55349] before:bg-[#d96b52]',
-  success: 'border-[#cde7da] text-[#287b5c] before:bg-[#45a77e]',
-  accent: 'border-[#d9d0f1] text-[#6344c5] before:bg-[#7d5ce1]',
+  neutral: 'border-slate-200 text-slate-700 before:bg-slate-400',
+  danger: 'border-red-200 text-red-700 before:bg-red-600',
+  success: 'border-emerald-200 text-emerald-800 before:bg-emerald-600',
+  accent: 'border-blue-200 text-blue-800 before:bg-brand-teal',
 }
 
 export function KpiCard({ title, value, tone = 'neutral' }: KpiCardProps) {
   return (
     <article
-      className={`relative overflow-hidden rounded-2xl border bg-white p-5 shadow-[0_9px_28px_rgba(61,45,69,.04)] before:absolute before:inset-y-0 before:left-0 before:w-1 ${toneStyles[tone]}`}
+      className={`relative overflow-hidden rounded border bg-white px-4 py-3 before:absolute before:inset-y-0 before:left-0 before:w-1 ${toneStyles[tone]}`}
     >
-      <p className="text-xs font-bold uppercase tracking-[0.1em] text-[#817788]">{title}</p>
-      <p className="mt-3 text-3xl font-extrabold leading-none">{value}</p>
-      <p className="mt-2 text-[11px] font-medium text-[#a096a4]">Actualizado ahora</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{title}</p>
+      <p className="mt-2 text-2xl font-semibold leading-none">{value}</p>
     </article>
   )
 }

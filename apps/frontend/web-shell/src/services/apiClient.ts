@@ -89,8 +89,11 @@ apiClient.interceptors.response.use(
       }
     }
 
+    const raw = error.response?.data?.message || error.message || 'No se pudo completar la solicitud.'
     const message =
-      error.response?.data?.message || error.message || 'Error inesperado en la solicitud'
+      raw === 'Network Error' || raw === 'Failed to fetch'
+        ? 'No se pudo cargar la información.'
+        : raw
 
     return Promise.reject({
       success: false,

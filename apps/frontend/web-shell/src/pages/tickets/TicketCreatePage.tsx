@@ -13,6 +13,7 @@ export function TicketCreatePage() {
     description: string
     categoryId: string
     priorityId: string
+    clientId?: string
   }) => {
     setSubmitting(true)
     setError('')

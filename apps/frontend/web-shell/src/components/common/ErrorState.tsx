@@ -4,7 +4,7 @@ interface ErrorStateProps {
   onRetry?: () => void
 }
 
-export function ErrorState({ title = 'Algo salió mal', message, onRetry }: ErrorStateProps) {
+export function ErrorState({ title = 'No se pudo cargar la información.', message, onRetry }: ErrorStateProps) {
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-brand-scarlet/30 bg-red-50 px-6 py-10 text-center">
       <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-scarlet/15 text-brand-scarlet">
@@ -23,7 +23,7 @@ export function ErrorState({ title = 'Algo salió mal', message, onRetry }: Erro
         <button
           type="button"
           onClick={onRetry}
-          className="mt-4 rounded-lg bg-brand-teal px-4 py-2 text-sm font-medium text-white hover:bg-brand-teal/90"
+          className="mt-4 rounded bg-brand-teal px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
         >
           Reintentar
         </button>

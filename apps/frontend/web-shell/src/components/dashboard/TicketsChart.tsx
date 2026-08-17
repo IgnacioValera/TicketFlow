@@ -18,12 +18,12 @@ interface TicketsChartProps {
   distribution: DashboardDistributionPoint[]
 }
 
-const PIE_COLORS = ['#7d5ce1', '#d96b52', '#45a77e', '#e2ae48', '#776c7d']
+const PIE_COLORS = ['#1d4ed8', '#0369a1', '#16a34a', '#ca8a04', '#64748b']
 
 export function TicketsChart({ trend, distribution }: TicketsChartProps) {
   return (
     <div className="grid gap-4 xl:grid-cols-2">
-      <section className="rounded-2xl border border-brand-slate/40 bg-white p-5 shadow-[0_10px_30px_rgba(61,45,69,.04)]">
+      <section className="rounded border border-slate-200 bg-white p-4">
         <h2 className="text-base font-semibold text-brand-navy">Tendencia semanal</h2>
         <div className="mt-3 h-72">
           <ResponsiveContainer width="100%" height="100%">
@@ -37,21 +37,21 @@ export function TicketsChart({ trend, distribution }: TicketsChartProps) {
                 type="monotone"
                 dataKey="open"
                 name="Abiertos"
-                stroke="#7d5ce1"
+                stroke="#1d4ed8"
                 strokeWidth={2.5}
               />
               <Line
                 type="monotone"
                 dataKey="inProgress"
                 name="En proceso"
-                stroke="#d96b52"
+                stroke="#0369a1"
                 strokeWidth={2.5}
               />
               <Line
                 type="monotone"
                 dataKey="resolved"
                 name="Resueltos"
-                stroke="#45a77e"
+                stroke="#16a34a"
                 strokeWidth={2.5}
               />
             </LineChart>
@@ -59,7 +59,7 @@ export function TicketsChart({ trend, distribution }: TicketsChartProps) {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-brand-slate/40 bg-white p-5 shadow-[0_10px_30px_rgba(61,45,69,.04)]">
+      <section className="rounded border border-slate-200 bg-white p-4">
         <h2 className="text-base font-semibold text-brand-navy">Distribución por estado</h2>
         <div className="mt-3 h-72">
           <ResponsiveContainer width="100%" height="100%">
@@ -73,7 +73,7 @@ export function TicketsChart({ trend, distribution }: TicketsChartProps) {
                 cx="50%"
                 cy="50%"
                 outerRadius={90}
-                fill="#7d5ce1"
+                fill="#1d4ed8"
                 label
               >
                 {distribution.map((entry, index) => (

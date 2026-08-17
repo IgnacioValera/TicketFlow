@@ -30,6 +30,7 @@ export type AppIconName =
   | 'pause'
   | 'edit'
   | 'eye'
+  | 'grip'
 
 const paths: Record<AppIconName, string[]> = {
   dashboard: ['M4 13h6V4H4z', 'M14 20h6v-9h-6z', 'M14 4h6v3h-6z', 'M4 17h6v3H4z'],
@@ -74,6 +75,7 @@ const paths: Record<AppIconName, string[]> = {
   pause: ['M8 5v14', 'M16 5v14'],
   edit: ['M12 20h9', 'M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z'],
   eye: ['M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z', 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z'],
+  grip: ['M8 6h.01', 'M8 12h.01', 'M8 18h.01', 'M16 6h.01', 'M16 12h.01', 'M16 18h.01'],
 }
 
 export function AppIcon({

@@ -30,9 +30,11 @@ export function LoginPage() {
     try {
       const loggedInUser = await login({ email: email.trim(), password })
       const destination =
-        loggedInUser.role === 'REQUESTER'
+        loggedInUser.role === 'CLIENT' || loggedInUser.role === 'REQUESTER'
           ? '/tickets'
-          : from === '/' || from === '/login'
+          : loggedInUser.role === 'SALES'
+            ? '/crm/dashboard'
+            : from === '/' || from === '/login'
             ? '/dashboard'
             : from
       navigate(destination, { replace: true })
@@ -71,7 +73,7 @@ export function LoginPage() {
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-xl border border-[#d9d1dd] bg-[#fffefd] px-3.5 py-3 text-sm focus:border-brand-teal focus:outline-none focus:ring-4 focus:ring-brand-teal/10"
+            className="w-full rounded border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none focus:ring-4 focus:ring-brand-teal/10"
             placeholder="correo@ejemplo.com"
           />
         </div>
@@ -85,14 +87,14 @@ export function LoginPage() {
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-xl border border-[#d9d1dd] bg-[#fffefd] px-3.5 py-3 text-sm focus:border-brand-teal focus:outline-none focus:ring-4 focus:ring-brand-teal/10"
+            className="w-full rounded border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none focus:ring-4 focus:ring-brand-teal/10"
             placeholder="Ingresa tu contraseña"
           />
         </div>
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-xl bg-brand-teal py-3 text-sm font-bold text-white shadow-[0_10px_24px_rgba(111,79,216,.22)] hover:bg-[#6040c8] disabled:opacity-50"
+          className="w-full rounded bg-brand-teal py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitting ? 'Ingresando...' : 'Ingresar'}
         </button>

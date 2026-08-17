@@ -3,7 +3,9 @@ import type { Category } from '@/types/catalog.types'
 import type { Priority } from '@/types/catalog.types'
 import { LIMITS } from '@/constants/validation'
 import * as categoriesService from '@/services/categories.service'
+import * as crm from '@/services/crm.service'
 import * as prioritiesService from '@/services/priorities.service'
+import type { CrmClient } from '@/types/crm.types'
 import { errorMessage, maxLengthAfterTrim, minLengthAfterTrim, requiredTrimmed } from '@/utils/validation'
 
 export interface TicketFormValues {
@@ -11,6 +13,7 @@ export interface TicketFormValues {
   description: string
   categoryId: string
   priorityId: string
+  clientId?: string
 }
 
 interface TicketFormProps {
@@ -26,6 +29,7 @@ const EMPTY: TicketFormValues = {
   description: '',
   categoryId: '',
   priorityId: '',
+  clientId: '',
 }
 
 export function TicketForm({
@@ -39,17 +43,20 @@ export function TicketForm({
   const [error, setError] = useState('')
   const [categories, setCategories] = useState<Category[]>([])
   const [priorities, setPriorities] = useState<Priority[]>([])
+  const [clients, setClients] = useState<CrmClient[]>([])
   const [catalogLoading, setCatalogLoading] = useState(true)
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [catRes, priRes] = await Promise.all([
+        const [catRes, priRes, clientRes] = await Promise.all([
           categoriesService.getCategories({ status: 'ACTIVE', perPage: 100 }),
           prioritiesService.getPriorities({ status: 'ACTIVE', perPage: 100 }),
+          crm.getClients({ perPage: 100, status: 'ACTIVE' }).catch(() => ({ data: [] as CrmClient[] })),
         ])
         setCategories(catRes.data.filter((c) => c.status === 'ACTIVE'))
         setPriorities(priRes.data.filter((p) => p.status === 'ACTIVE'))
+        setClients(clientRes.data)
       } finally {
         setCatalogLoading(false)
       }
@@ -86,6 +93,7 @@ export function TicketForm({
         description: values.description.trim(),
         categoryId: values.categoryId,
         priorityId: values.priorityId,
+        clientId: values.clientId || undefined,
       })
     } catch (err: unknown) {
       setError(errorMessage(err, 'No se pudo guardar el ticket'))
@@ -165,6 +173,24 @@ export function TicketForm({
             ))}
           </select>
         </div>
+      </div>
+      <div>
+        <label htmlFor="clientId" className="mb-1 block text-sm font-medium text-brand-navy">
+          Cliente (opcional)
+        </label>
+        <select
+          id="clientId"
+          value={values.clientId ?? ''}
+          onChange={(e) => setValues((v) => ({ ...v, clientId: e.target.value }))}
+          className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
+        >
+          <option value="">Sin cliente</option>
+          {clients.map((client) => (
+            <option key={client.id} value={client.id}>
+              {client.name}
+            </option>
+          ))}
+        </select>
       </div>
       <div className="flex flex-wrap gap-3 pt-2">
         <button

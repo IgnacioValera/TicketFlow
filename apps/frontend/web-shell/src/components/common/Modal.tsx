@@ -4,6 +4,7 @@ interface ModalProps {
   open: boolean
   onClose: () => void
   title: string
+  description?: string
   children: ReactNode
   footer?: ReactNode
   size?: 'sm' | 'md' | 'lg'
@@ -15,7 +16,7 @@ const sizeClasses = {
   lg: 'max-w-2xl',
 }
 
-export function Modal({ open, onClose, title, children, footer, size = 'md' }: ModalProps) {
+export function Modal({ open, onClose, title, description, children, footer, size = 'md' }: ModalProps) {
   useEffect(() => {
     if (!open) return
     const handleEscape = (e: KeyboardEvent) => {
@@ -43,16 +44,17 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }: M
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className={`relative w-full ${sizeClasses[size]} rounded-xl bg-white shadow-xl`}
+        className={`relative w-full ${sizeClasses[size]} rounded border border-slate-200 bg-white shadow-xl`}
       >
-        <div className="border-b border-brand-slate/40 px-6 py-4">
-          <h2 id="modal-title" className="text-lg font-semibold text-brand-navy">
+        <div className="border-b border-slate-200 px-5 py-3">
+          <h2 id="modal-title" className="text-base font-semibold text-brand-navy">
             {title}
           </h2>
+          {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
         </div>
-        <div className="px-6 py-4">{children}</div>
+        <div className="px-5 py-4">{children}</div>
         {footer && (
-          <div className="flex justify-end gap-3 border-t border-brand-slate/40 px-6 py-4">
+          <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-3">
             {footer}
           </div>
         )}
@@ -99,7 +101,7 @@ export function ConfirmModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-brand-slate px-4 py-2 text-sm text-brand-navy hover:bg-brand-cream/50"
+            className="rounded border border-slate-300 px-4 py-2 text-sm text-brand-navy hover:bg-slate-50"
             disabled={loading}
           >
             {cancelLabel}
@@ -108,7 +110,7 @@ export function ConfirmModal({
             type="button"
             onClick={onConfirm}
             disabled={loading}
-            className={`rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50 ${confirmClass}`}
+            className={`rounded px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 ${confirmClass}`}
           >
             {loading ? 'Procesando...' : confirmLabel}
           </button>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { DataTable, type Column } from '@/components/common/DataTable'
+import { PageHeader } from '@/components/common/PageHeader'
 import { ErrorState } from '@/components/common/ErrorState'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { SlaSemaphore } from '@/components/tickets/SlaSemaphore'
@@ -131,16 +132,12 @@ export function TicketsListPage() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8c8191]">Operación</p>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-brand-navy md:text-3xl">
-            Tickets
-          </h1>
-          <p className="mt-1 text-sm text-[#766c7c]">
-            Consulta, filtra y da seguimiento a cada solicitud.
-          </p>
-        </div>
+      <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <PageHeader
+          kicker="Help Desk"
+          title="Tickets"
+          description="Consulta, filtra y da seguimiento a cada solicitud."
+        />
         <div className="flex flex-wrap items-center gap-2">
           <div
             className="inline-flex rounded-xl border border-[#e2dce5] bg-white p-1 shadow-[0_4px_14px_rgba(61,45,69,.05)]"

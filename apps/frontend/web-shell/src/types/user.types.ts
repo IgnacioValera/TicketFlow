@@ -1,4 +1,4 @@
-export type UserRole = 'ADMIN' | 'SUPERVISOR' | 'AGENT' | 'REQUESTER'
+export type UserRole = 'ADMIN' | 'SALES' | 'SUPERVISOR' | 'AGENT' | 'CLIENT' | 'REQUESTER'
 
 export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'LOCKED'
 

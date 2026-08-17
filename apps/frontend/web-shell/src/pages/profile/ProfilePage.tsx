@@ -196,7 +196,7 @@ function moduleLabel(value: string) {
     TICKET: 'Tickets',
     COMMENT: 'Comentarios',
     ATTACHMENT: 'Adjuntos',
-    DASHBOARD: 'Dashboard',
+    DASHBOARD: 'Panel',
     REPORT: 'Reportes',
     USER: 'Usuarios',
     CATEGORY: 'Categorías',
@@ -204,6 +204,7 @@ function moduleLabel(value: string) {
     SLA: 'SLA',
     KNOWLEDGE: 'Conocimiento',
     SURVEY: 'Encuestas',
+    CRM: 'CRM',
     LOGIN: 'Autenticación',
   }
   return labels[value] ?? value

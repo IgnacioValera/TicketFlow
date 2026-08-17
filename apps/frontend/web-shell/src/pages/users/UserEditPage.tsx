@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ErrorState } from '@/components/common/ErrorState'
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
 import { PasswordRequirements } from '@/components/common/PasswordRequirements'
-import { ROLES } from '@/constants/roles'
+import { ASSIGNABLE_ROLES, ROLES } from '@/constants/roles'
 import { LIMITS } from '@/constants/validation'
 import * as usersService from '@/services/users.service'
 import type { UserRole } from '@/types/user.types'
@@ -14,7 +14,7 @@ export function UserEditPage() {
   const navigate = useNavigate()
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
-  const [role, setRole] = useState<UserRole>('REQUESTER')
+  const [role, setRole] = useState<UserRole>('CLIENT')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(true)
@@ -148,7 +148,7 @@ export function UserEditPage() {
             onChange={(e) => setRole(e.target.value as UserRole)}
             className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
           >
-            {(Object.keys(ROLES) as UserRole[]).map((r) => (
+            {ASSIGNABLE_ROLES.map((r) => (
               <option key={r} value={r}>
                 {ROLES[r]}
               </option>

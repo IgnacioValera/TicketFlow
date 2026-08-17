@@ -1,29 +1,29 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-brand-teal: #6f4fd8;
-  --color-brand-cream: #fff0e6;
-  --color-brand-slate: #b8afbe;
-  --color-brand-navy: #2d2833;
-  --color-brand-scarlet: #d85e53;
+  --color-brand-teal: #1d4ed8;
+  --color-brand-cream: #f8fafc;
+  --color-brand-slate: #94a3b8;
+  --color-brand-navy: #0f172a;
+  --color-brand-scarlet: #dc2626;
 
-  --color-sla-green: #22c55e;
-  --color-sla-yellow: #eab308;
-  --color-sla-orange: #f97316;
-  --color-sla-red: #ef4444;
+  --color-sla-green: #16a34a;
+  --color-sla-yellow: #ca8a04;
+  --color-sla-orange: #ea580c;
+  --color-sla-red: #dc2626;
 
-  --color-priority-low: #94a3b8;
-  --color-priority-medium: #6f4fd8;
-  --color-priority-high: #f97316;
-  --color-priority-critical: #db3a34;
+  --color-priority-low: #64748b;
+  --color-priority-medium: #1d4ed8;
+  --color-priority-high: #ea580c;
+  --color-priority-critical: #b91c1c;
 
-  --color-status-open: #7d5ce1;
-  --color-status-assigned: #4f4655;
-  --color-status-in-progress: #d96b52;
-  --color-status-waiting-user: #eab308;
-  --color-status-escalated: #db3a34;
-  --color-status-resolved: #22c55e;
-  --color-status-closed: #acb0bd;
+  --color-status-open: #1d4ed8;
+  --color-status-assigned: #475569;
+  --color-status-in-progress: #0369a1;
+  --color-status-waiting-user: #ca8a04;
+  --color-status-escalated: #b91c1c;
+  --color-status-resolved: #16a34a;
+  --color-status-closed: #64748b;
   --color-status-cancelled: #64748b;
 }
 
@@ -38,7 +38,7 @@
   line-height: 1.5;
   font-weight: 400;
   color: var(--color-brand-navy);
-  background-color: #f6f4f1;
+  background-color: #f1f5f9;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -52,33 +52,84 @@ body {
 
 button,
 a,
+[role='button'],
+[role='tab'],
+[role='menuitem'],
+summary,
+label:has(input[type='checkbox']),
+label:has(input[type='radio']),
+select {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled='true'],
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+}
+
+input:not([type='checkbox']):not([type='radio']):not([type='button']):not([type='submit']):not(
+    [type='reset']
+  ):not([type='file']),
+textarea {
+  cursor: text;
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  cursor: pointer;
+}
+
+input[type='checkbox']:disabled,
+input[type='radio']:disabled {
+  cursor: not-allowed;
+}
+
+[draggable='true'] {
+  cursor: grab;
+}
+
+[draggable='true']:active,
+.is-dragging {
+  cursor: grabbing;
+}
+
+button,
+a,
 input,
 select,
-textarea {
+textarea,
+[role='tab'],
+.ui-card {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
   transition-duration: 160ms;
+  transition-timing-function: ease;
 }
 
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 select:focus-visible,
-textarea:focus-visible {
-  outline: 3px solid rgba(111, 79, 216, 0.2);
+textarea:focus-visible,
+[role='tab']:focus-visible {
+  outline: 2px solid rgba(29, 78, 216, 0.35);
   outline-offset: 2px;
 }
 
 main input:not([type='checkbox']):not([type='radio']),
 main select,
 main textarea {
-  border-color: #d9d1dd;
-  background-color: #fffefd;
+  border-color: #cbd5e1;
+  background-color: #fff;
 }
 
 main input:not([type='checkbox']):not([type='radio']):focus,
 main select:focus,
 main textarea:focus {
-  border-color: #7d5ce1;
-  box-shadow: 0 0 0 3px rgba(111, 79, 216, 0.1);
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
 }
 
 @keyframes ticket-flow-dash {
@@ -89,15 +140,15 @@ main textarea:focus {
 @keyframes ticket-flow-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(217, 107, 82, 0.2);
+    box-shadow: 0 0 0 0 rgba(29, 78, 216, 0.2);
   }
   50% {
-    box-shadow: 0 0 0 10px rgba(217, 107, 82, 0);
+    box-shadow: 0 0 0 10px rgba(29, 78, 216, 0);
   }
 }
 .ticket-flow-canvas {
-  background-color: #faf8f5;
-  background-image: radial-gradient(circle, rgba(94, 79, 104, 0.16) 1px, transparent 1px);
+  background-color: #f8fafc;
+  background-image: radial-gradient(circle, rgba(15, 23, 42, 0.12) 1px, transparent 1px);
   background-size: 22px 22px;
 }
 .ticket-flow-line-active {
