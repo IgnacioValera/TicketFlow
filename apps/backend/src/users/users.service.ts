@@ -1,14 +1,19 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import bcrypt from 'bcryptjs'
-import { Brackets, Repository } from 'typeorm'
+import { Brackets, DataSource, Repository } from 'typeorm'
 import { parsePagination, pagination } from '../common/api'
-import { Role, User, UserStatus } from '../database/entities'
+import { generateTemporaryPassword } from '../common/password'
+import { RefreshToken, Role, RoleCode, User, UserStatus } from '../database/entities'
 import { CreateUserDto, UpdateUserDto, UsersQueryDto } from './dto'
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectRepository(User) private readonly users: Repository<User>, @InjectRepository(Role) private readonly roles: Repository<Role>) {}
+  constructor(
+    @InjectRepository(User) private readonly users: Repository<User>,
+    @InjectRepository(Role) private readonly roles: Repository<Role>,
+    private readonly dataSource: DataSource,
+  ) {}
 
   async list(query: UsersQueryDto) {
     const { page, perPage, skip } = parsePagination(query.page, query.perPage)
@@ -30,7 +35,14 @@ export class UsersService {
     if (await this.users.exists({ where: { email: dto.email.toLowerCase() } })) throw new ConflictException('El correo ya está registrado')
     const role = await this.roles.findOneBy({ code: dto.role })
     if (!role) throw new NotFoundException('Rol no encontrado')
-    const user = this.users.create({ fullName: dto.fullName.trim(), email: dto.email.toLowerCase().trim(), passwordHash: await bcrypt.hash(dto.password, 12), role, lastLoginAt: null })
+    const user = this.users.create({
+      fullName: dto.fullName.trim(),
+      email: dto.email.toLowerCase().trim(),
+      passwordHash: await bcrypt.hash(dto.password, 12),
+      role,
+      lastLoginAt: null,
+      mustChangePassword: false,
+    })
     return this.serialize(await this.users.save(user))
   }
 
@@ -44,7 +56,6 @@ export class UsersService {
     }
     if (dto.fullName) user.fullName = dto.fullName.trim()
     if (dto.email) user.email = dto.email.toLowerCase().trim()
-    if (dto.password) user.passwordHash = await bcrypt.hash(dto.password, 12)
     return this.serialize(await this.users.save(user))
   }
 
@@ -56,5 +67,40 @@ export class UsersService {
     user.status = status
     return this.serialize(await this.users.save(user))
   }
-  serialize(user: User) { return { id: user.id, fullName: user.fullName, email: user.email, role: user.role.code, status: user.status, permissions: (user.role.permissions ?? []).map((p) => p.code), lastLoginAt: user.lastLoginAt?.toISOString() ?? null, createdAt: user.createdAt?.toISOString() } }
+
+  async resetPassword(id: string, actor: User) {
+    if (actor.role.code !== RoleCode.ADMIN) {
+      throw new ForbiddenException('No tienes permisos para realizar esta acción')
+    }
+    const user = await this.find(id)
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new ConflictException('No se puede restablecer la contraseña de un usuario inactivo')
+    }
+    const temporaryPassword = generateTemporaryPassword()
+    const passwordHash = await bcrypt.hash(temporaryPassword, 12)
+    await this.dataSource.transaction(async (manager) => {
+      await manager.update(User, user.id, { passwordHash, mustChangePassword: true })
+      await manager
+        .createQueryBuilder()
+        .update(RefreshToken)
+        .set({ revokedAt: new Date() })
+        .where('user_id = :userId AND revoked_at IS NULL', { userId: user.id })
+        .execute()
+    })
+    return { message: 'La contraseña se restableció correctamente.', temporaryPassword }
+  }
+
+  serialize(user: User) {
+    return {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role.code,
+      status: user.status,
+      permissions: (user.role.permissions ?? []).map((p) => p.code),
+      mustChangePassword: Boolean(user.mustChangePassword),
+      lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
+      createdAt: user.createdAt?.toISOString(),
+    }
+  }
 }

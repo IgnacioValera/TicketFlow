@@ -2,12 +2,11 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ErrorState } from '@/components/common/ErrorState'
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
-import { PasswordRequirements } from '@/components/common/PasswordRequirements'
 import { ASSIGNABLE_ROLES, ROLES } from '@/constants/roles'
 import { LIMITS } from '@/constants/validation'
 import * as usersService from '@/services/users.service'
 import type { UserRole } from '@/types/user.types'
-import { errorMessage, maxLengthAfterTrim, minLengthAfterTrim, validatePasswordPolicy } from '@/utils/validation'
+import { errorMessage, maxLengthAfterTrim, minLengthAfterTrim } from '@/utils/validation'
 
 export function UserEditPage() {
   const { id } = useParams<{ id: string }>()
@@ -15,8 +14,6 @@ export function UserEditPage() {
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<UserRole>('CLIENT')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -55,17 +52,6 @@ export function UserEditPage() {
       setError(nameError)
       return
     }
-    if (password) {
-      const passwordResult = validatePasswordPolicy(password)
-      if (!passwordResult.ok) {
-        setError(passwordResult.message)
-        return
-      }
-      if (password !== confirmPassword) {
-        setError('La confirmación de contraseña no coincide')
-        return
-      }
-    }
 
     setSubmitting(true)
     try {
@@ -73,7 +59,6 @@ export function UserEditPage() {
         fullName: fullName.trim(),
         email: email.trim(),
         role,
-        ...(password ? { password } : {}),
       })
       navigate('/users')
     } catch (err: unknown) {
@@ -99,7 +84,7 @@ export function UserEditPage() {
           Editar usuario
         </h1>
         <p className="mt-2 text-sm text-muted">
-          Actualiza identidad, rol o credenciales de acceso.
+          Actualiza identidad y rol. El restablecimiento de contraseña se realiza desde el listado.
         </p>
       </div>
 
@@ -154,35 +139,6 @@ export function UserEditPage() {
               </option>
             ))}
           </select>
-        </div>
-        <div>
-          <label htmlFor="password" className="mb-1 block text-sm font-medium">
-            Nueva contraseña (opcional)
-          </label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
-            placeholder="Dejar vacío para no cambiar"
-            autoComplete="new-password"
-          />
-          <PasswordRequirements />
-        </div>
-        <div>
-          <label htmlFor="confirmPassword" className="mb-1 block text-sm font-medium">
-            Confirmar nueva contraseña
-          </label>
-          <input
-            id="confirmPassword"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
-            placeholder="Repite la nueva contraseña"
-            autoComplete="new-password"
-          />
         </div>
         <div className="flex gap-3 pt-2">
           <button

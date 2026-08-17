@@ -1,12 +1,13 @@
-import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { JwtService, JwtSignOptions } from '@nestjs/jwt'
 import { InjectRepository } from '@nestjs/typeorm'
 import bcrypt from 'bcryptjs'
 import { createHash, randomUUID } from 'crypto'
-import { IsNull, MoreThan, Repository } from 'typeorm'
+import { DataSource, IsNull, MoreThan, Repository } from 'typeorm'
 import { RefreshToken, User, UserStatus } from '../database/entities'
-import { LoginDto } from './dto'
+import { validatePasswordPolicy } from '../common/validation'
+import { ChangePasswordDto, LoginDto } from './dto'
 
 interface TokenPayload { sub: string; role: string; type: 'access' | 'refresh'; jti?: string }
 
@@ -17,6 +18,7 @@ export class AuthService {
     @InjectRepository(RefreshToken) private readonly refreshTokens: Repository<RefreshToken>,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async login(dto: LoginDto) {
@@ -78,9 +80,40 @@ export class AuthService {
       role: user.role.code,
       status: user.status,
       permissions: (user.role.permissions ?? []).map((permission) => permission.code),
+      mustChangePassword: Boolean(user.mustChangePassword),
       lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
       createdAt: user.createdAt?.toISOString(),
     }
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await this.users
+      .createQueryBuilder('user')
+      .addSelect('user.passwordHash')
+      .leftJoinAndSelect('user.role', 'role')
+      .where('user.id = :id', { id: userId })
+      .getOne()
+    if (!user) throw new UnauthorizedException('Sesión inválida')
+
+    if (!(await bcrypt.compare(dto.currentPassword, user.passwordHash))) {
+      throw new UnauthorizedException('La contraseña actual no es correcta.')
+    }
+    if (dto.currentPassword === dto.newPassword) {
+      throw new BadRequestException('La contraseña nueva debe ser diferente de la actual.')
+    }
+    const policy = validatePasswordPolicy(dto.newPassword)
+    if (!policy.ok) throw new BadRequestException(policy.message)
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 12)
+    await this.dataSource.transaction(async (manager) => {
+      await manager.update(User, user.id, { passwordHash, mustChangePassword: false })
+      await manager
+        .createQueryBuilder()
+        .update(RefreshToken)
+        .set({ revokedAt: new Date() })
+        .where('user_id = :userId AND revoked_at IS NULL', { userId: user.id })
+        .execute()
+    })
   }
 
   private async issueTokens(user: User) {

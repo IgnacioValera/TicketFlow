@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ConfirmModal } from '@/components/common/Modal'
+import { AppIcon } from '@/components/common/AppIcon'
+import { ConfirmModal, Modal } from '@/components/common/Modal'
 import { DataTable, type Column } from '@/components/common/DataTable'
 import { ErrorState } from '@/components/common/ErrorState'
 import { TableActionButton } from '@/components/common/TableActionButton'
+import { PrimaryButton, SecondaryButton } from '@/components/common/UiControls'
 import { ROLES } from '@/constants/roles'
 import { PERMISSIONS } from '@/constants/permissions'
 import { useAuth } from '@/hooks/useAuth'
@@ -33,6 +35,12 @@ export function UsersListPage() {
   const [statusModal, setStatusModal] = useState<{ user: User; status: UserStatus } | null>(null)
   const [statusLoading, setStatusLoading] = useState(false)
   const [processingUserId, setProcessingUserId] = useState<string | null>(null)
+  const [resetUser, setResetUser] = useState<User | null>(null)
+  const [temporaryPassword, setTemporaryPassword] = useState('')
+  const [passwordVisible, setPasswordVisible] = useState(false)
+  const [passwordCopied, setPasswordCopied] = useState(false)
+  const [resetLoading, setResetLoading] = useState(false)
+  const [resetError, setResetError] = useState('')
 
   const loadUsers = useCallback(async () => {
     setLoading(true)
@@ -81,6 +89,42 @@ export function UsersListPage() {
     }
   }
 
+  const closeResetModal = () => {
+    if (resetLoading) return
+    if (temporaryPassword && !passwordCopied) {
+      const confirmed = window.confirm(
+        'La contraseña temporal no se copió y no volverá a mostrarse. ¿Deseas cerrar de todos modos?',
+      )
+      if (!confirmed) return
+    }
+    setResetUser(null)
+    setTemporaryPassword('')
+    setPasswordVisible(false)
+    setPasswordCopied(false)
+    setResetError('')
+  }
+
+  const handleResetPassword = async () => {
+    if (!resetUser) return
+    setResetLoading(true)
+    setResetError('')
+    try {
+      const response = await usersService.resetUserPassword(resetUser.id)
+      setTemporaryPassword(response.temporaryPassword)
+      setSuccess(response.message)
+    } catch (err: unknown) {
+      setResetError((err as { message?: string }).message || 'No se pudo restablecer la contraseña')
+    } finally {
+      setResetLoading(false)
+    }
+  }
+
+  const copyTemporaryPassword = async () => {
+    if (!temporaryPassword) return
+    await navigator.clipboard.writeText(temporaryPassword)
+    setPasswordCopied(true)
+  }
+
   const columns: Column<User>[] = [
     { key: 'fullName', header: 'Nombre', sortable: true },
     { key: 'email', header: 'Correo' },
@@ -110,6 +154,20 @@ export function UsersListPage() {
               onClick={() => navigate(`/users/${row.id}/edit`)}
               disabled={isBusy}
             />
+            {currentUser?.role === 'ADMIN' && row.status === 'ACTIVE' && (
+              <TableActionButton
+                label={`Restablecer contraseña de ${row.fullName}`}
+                icon="key"
+                onClick={() => {
+                  setResetUser(row)
+                  setTemporaryPassword('')
+                  setPasswordVisible(false)
+                  setPasswordCopied(false)
+                  setResetError('')
+                }}
+                disabled={isBusy || resetLoading}
+              />
+            )}
             {canManage && (
               <>
                 {row.status !== 'ACTIVE' && (
@@ -257,6 +315,68 @@ export function UsersListPage() {
         }
         loading={statusLoading}
       />
+
+      <Modal
+        open={!!resetUser}
+        onClose={closeResetModal}
+        title="Restablecer contraseña"
+        size="md"
+      >
+        {resetUser && !temporaryPassword && (
+          <div className="space-y-4">
+            <p className="text-sm text-text">
+              <span className="font-semibold">{resetUser.fullName}</span>
+              <span className="mt-1 block text-muted">{resetUser.email}</span>
+            </p>
+            <p className="rounded border border-warning/30 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+              La contraseña actual dejará de funcionar. El usuario deberá cambiar la contraseña
+              temporal al iniciar sesión.
+            </p>
+            {resetError && (
+              <p className="rounded border border-danger/30 bg-red-50 px-3 py-2.5 text-sm text-danger">
+                {resetError}
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <SecondaryButton onClick={closeResetModal} disabled={resetLoading}>
+                Cancelar
+              </SecondaryButton>
+              <PrimaryButton onClick={() => void handleResetPassword()} disabled={resetLoading}>
+                {resetLoading ? 'Generando...' : 'Generar contraseña temporal'}
+              </PrimaryButton>
+            </div>
+          </div>
+        )}
+        {temporaryPassword && (
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm font-semibold text-text">Contraseña temporal generada</p>
+              <div className="mt-3 flex items-center gap-2 rounded border border-border bg-page px-3 py-2.5">
+                <code className="flex-1 break-all text-sm font-semibold tracking-wide">
+                  {passwordVisible ? temporaryPassword : '••••••••••••'}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => setPasswordVisible((value) => !value)}
+                  className="grid h-8 w-8 place-items-center rounded text-muted hover:bg-white hover:text-text"
+                  aria-label={passwordVisible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                >
+                  <AppIcon name={passwordVisible ? 'eye-off' : 'eye'} className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="mt-3 text-sm text-muted">
+                Compártela de forma segura con el usuario. Este valor no volverá a mostrarse.
+              </p>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2">
+              <SecondaryButton onClick={() => void copyTemporaryPassword()}>
+                {passwordCopied ? 'Contraseña copiada' : 'Copiar contraseña'}
+              </SecondaryButton>
+              <PrimaryButton onClick={closeResetModal}>Finalizar</PrimaryButton>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

@@ -9,6 +9,7 @@ export interface User {
   role: UserRole
   status: UserStatus
   permissions: string[]
+  mustChangePassword?: boolean
   lastLoginAt?: string | null
   createdAt?: string
 }
@@ -35,7 +36,6 @@ export interface UpdateUserPayload {
   fullName?: string
   email?: string
   role?: UserRole
-  password?: string
 }
 
 export interface UsersListParams {

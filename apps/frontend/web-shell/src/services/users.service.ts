@@ -32,3 +32,11 @@ export async function getUserById(id: string): Promise<User> {
   const response = await apiGet<User>(`/users/${id}`)
   return response.data
 }
+
+export async function resetUserPassword(id: string) {
+  const response = await apiPost<{ temporaryPassword: string }>(`/users/${id}/reset-password`)
+  return {
+    temporaryPassword: response.data.temporaryPassword,
+    message: response.message,
+  }
+}

@@ -130,7 +130,7 @@ export function UserCreatePage() {
             className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
             autoComplete="new-password"
           />
-          <PasswordRequirements />
+          <PasswordRequirements password={password} />
         </div>
         <div>
           <label htmlFor="confirmPassword" className="mb-1 block text-sm font-medium">

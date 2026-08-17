@@ -29,6 +29,8 @@ import { SurveyBuilderPage } from '@/pages/crm/SurveyBuilderPage'
 import { SurveyResultsPage } from '@/pages/crm/SurveyResultsPage'
 import { KnowledgePage } from '@/pages/knowledge/KnowledgePage'
 import { SurveyRespondPage } from '@/pages/public/SurveyRespondPage'
+import { ForgotPasswordPage } from '@/pages/login/ForgotPasswordPage'
+import { ChangePasswordPage } from '@/pages/login/ChangePasswordPage'
 import { ProtectedRoute } from '@/router/ProtectedRoute'
 import { RoleRoute } from '@/router/RoleRoute'
 import { HomeRedirect } from '@/router/HomeRedirect'
@@ -40,6 +42,11 @@ export const routes: RouteObject[] = [
     children: [{ index: true, element: <LoginPage /> }],
   },
   {
+    path: '/forgot-password',
+    element: <AuthLayout />,
+    children: [{ index: true, element: <ForgotPasswordPage /> }],
+  },
+  {
     path: '/public/surveys/:token',
     element: <SurveyRespondPage />,
   },
@@ -47,6 +54,7 @@ export const routes: RouteObject[] = [
     path: '/',
     element: <ProtectedRoute />,
     children: [
+      { path: 'change-password', element: <ChangePasswordPage /> },
       {
         element: <DashboardLayout />,
         children: [

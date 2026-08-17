@@ -4,7 +4,7 @@ import { APP_GUARD } from '@nestjs/core'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { AnalyticsModule } from './analytics/analytics.module'
 import { AuthModule } from './auth/auth.module'
-import { JwtAuthGuard, PermissionsGuard } from './auth/auth.guard'
+import { JwtAuthGuard, MustChangePasswordGuard, PermissionsGuard } from './auth/auth.guard'
 import { CatalogsModule } from './catalogs/catalogs.module'
 import { CrmModule } from './crm/crm.module'
 import { ENTITIES } from './database/entities'
@@ -20,6 +20,10 @@ import { HealthController } from './health.controller'
     AuthModule, UsersModule, CatalogsModule, TicketsModule, AnalyticsModule, KnowledgeModule, CrmModule,
   ],
   controllers: [HealthController],
-  providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }, { provide: APP_GUARD, useClass: PermissionsGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: MustChangePasswordGuard },
+    { provide: APP_GUARD, useClass: PermissionsGuard },
+  ],
 })
 export class AppModule {}

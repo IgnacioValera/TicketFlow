@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiPost, apiPut } from '@/services/apiClient'
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '@/services/apiClient'
 import apiClient from '@/services/apiClient'
 import type { ApiResponse } from '@/types/api.types'
 import type {
@@ -118,10 +118,24 @@ export async function getCrmDashboard() {
 }
 
 export async function getKnowledge(search?: string) {
-  const response = await apiGet<Array<{ id: string; title: string; content: string; tags: string; category: { name: string } | null }>>('/knowledge-articles', { search })
+  const response = await apiGet<import('@/types/knowledge.types').KnowledgeArticle[]>(
+    '/knowledge-articles',
+    { search },
+  )
   return response.data
 }
 export async function createKnowledge(payload: { title: string; content: string; tags?: string; categoryId?: string }) {
-  const response = await apiPost('/knowledge-articles', payload)
+  const response = await apiPost<import('@/types/knowledge.types').KnowledgeArticle>('/knowledge-articles', payload)
+  return response.data
+}
+export async function updateKnowledge(
+  id: string,
+  payload: { title?: string; content?: string; tags?: string; categoryId?: string },
+) {
+  const response = await apiPut<import('@/types/knowledge.types').KnowledgeArticle>(`/knowledge-articles/${id}`, payload)
+  return response.data
+}
+export async function deleteKnowledge(id: string) {
+  const response = await apiDelete(`/knowledge-articles/${id}`)
   return response.data
 }

@@ -9,6 +9,9 @@ import { ParseUuidPipe } from '../common/parse-uuid.pipe'
 import { CurrentUser, RequirePermissions } from '../common/security'
 import { maxLengthMessage, minLengthMessage, Trim } from '../common/validation'
 import { CatalogStatus, Category, KnowledgeArticle, User } from '../database/entities'
+import { KNOWLEDGE_SEED_ARTICLES } from './articles.seed'
+
+const topicByTitle = new Map(KNOWLEDGE_SEED_ARTICLES.map((article) => [article.title, article.topic]))
 
 export class CreateArticleDto {
   @ApiProperty()
@@ -50,8 +53,8 @@ export class KnowledgeService {
 
   async list(search?: string) {
     const qb = this.articles.createQueryBuilder('article').leftJoinAndSelect('article.category', 'category').leftJoinAndSelect('article.author', 'author').where('article.status = :status', { status: CatalogStatus.ACTIVE })
-    if (search) qb.andWhere('(LOWER(article.title) LIKE :q OR LOWER(article.tags) LIKE :q)', { q: `%${search.toLowerCase()}%` })
-    return qb.orderBy('article.updatedAt', 'DESC').getMany()
+    if (search) qb.andWhere('(LOWER(article.title) LIKE :q OR LOWER(article.content) LIKE :q OR LOWER(article.tags) LIKE :q)', { q: `%${search.toLowerCase()}%` })
+    return (await qb.orderBy('article.updatedAt', 'DESC').getMany()).map((article) => this.serialize(article))
   }
 
   private async resolveCategory(categoryId?: string) {
@@ -63,36 +66,56 @@ export class KnowledgeService {
 
   async create(dto: CreateArticleDto, user: User) {
     const category = dto.categoryId === undefined ? null : await this.resolveCategory(dto.categoryId)
-    return this.articles.save(this.articles.create({
+    const saved = await this.articles.save(this.articles.create({
       title: dto.title.trim(),
       content: dto.content.trim(),
       tags: dto.tags?.trim() ?? '',
       category: category ?? null,
       author: user,
     }))
+    return this.serialize(saved)
   }
 
   async update(id: string, dto: UpdateArticleDto) {
-    const article = await this.find(id)
+    const article = await this.findEntity(id)
     if (dto.title) article.title = dto.title.trim()
     if (dto.content) article.content = dto.content.trim()
     if (dto.tags !== undefined) article.tags = dto.tags.trim()
     if (dto.categoryId !== undefined) {
       article.category = (await this.resolveCategory(dto.categoryId)) ?? null
     }
-    return this.articles.save(article)
+    return this.serialize(await this.articles.save(article))
   }
 
   async remove(id: string) {
-    const article = await this.find(id)
+    const article = await this.findEntity(id)
     article.status = CatalogStatus.INACTIVE
-    return this.articles.save(article)
+    return this.serialize(await this.articles.save(article))
   }
 
   async find(id: string) {
+    return this.serialize(await this.findEntity(id))
+  }
+
+  private async findEntity(id: string) {
     const article = await this.articles.findOne({ where: { id }, relations: { category: true, author: true } })
     if (!article) throw new NotFoundException('Artículo no encontrado')
     return article
+  }
+
+  serialize(article: KnowledgeArticle) {
+    return {
+      id: article.id,
+      title: article.title,
+      content: article.content,
+      tags: article.tags,
+      topic: article.category?.name ?? topicByTitle.get(article.title) ?? 'General',
+      status: article.status,
+      category: article.category ? { id: article.category.id, name: article.category.name } : null,
+      author: article.author ? { id: article.author.id, fullName: article.author.fullName } : null,
+      createdAt: article.createdAt,
+      updatedAt: article.updatedAt,
+    }
   }
 }
 

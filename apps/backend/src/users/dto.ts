@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer'
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger'
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import { IsEmail, IsEnum, IsInt, IsOptional, IsString, MaxLength, MinLength } from 'class-validator'
 import { LIMITS } from '../common/limits'
 import { IsPasswordPolicy, maxLengthMessage, minLengthMessage, Trim } from '../common/validation'
@@ -27,7 +27,28 @@ export class CreateUserDto {
   @ApiProperty({ enum: RoleCode }) @IsEnum(RoleCode) role: RoleCode
 }
 
-export class UpdateUserDto extends PartialType(CreateUserDto) {}
+export class UpdateUserDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Trim()
+  @IsString()
+  @MinLength(LIMITS.USER_FULL_NAME_MIN, { message: minLengthMessage('El nombre', LIMITS.USER_FULL_NAME_MIN) })
+  @MaxLength(LIMITS.USER_FULL_NAME, { message: maxLengthMessage('El nombre', LIMITS.USER_FULL_NAME) })
+  fullName?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Trim()
+  @IsEmail({}, { message: 'El correo no es válido' })
+  @MaxLength(LIMITS.EMAIL, { message: maxLengthMessage('El correo', LIMITS.EMAIL) })
+  email?: string
+
+  @ApiPropertyOptional({ enum: RoleCode })
+  @IsOptional()
+  @IsEnum(RoleCode)
+  role?: RoleCode
+}
+
 export class UpdateUserStatusDto {
   @ApiProperty({ enum: UserStatus }) @IsEnum(UserStatus) status: UserStatus
 }

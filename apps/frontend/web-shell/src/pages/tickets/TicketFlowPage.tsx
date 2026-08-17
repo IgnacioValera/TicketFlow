@@ -14,6 +14,7 @@ import type {
   TicketStatus,
   TicketStatusHistory,
 } from '@/types/ticket.types'
+import { assignmentDescription, TICKET_FLOW_COPY } from '@/pages/tickets/ticket-flow-copy'
 
 type StageState = 'completed' | 'active' | 'pending' | 'optional' | 'cancelled'
 type ViewMode = 'map' | 'timeline'
@@ -63,10 +64,10 @@ const statusRank: Record<TicketStatus, number> = {
 const statusLabel: Record<TicketStatus, string> = {
   OPEN: 'Ticket abierto',
   ASSIGNED: 'Agente asignado',
-  IN_PROGRESS: 'AtenciÃ³n iniciada',
-  WAITING_USER: 'InformaciÃ³n solicitada',
+  IN_PROGRESS: 'Atención iniciada',
+  WAITING_USER: 'Información solicitada',
   ESCALATED: 'Ticket escalado',
-  RESOLVED: 'SoluciÃ³n registrada',
+  RESOLVED: 'Solución registrada',
   CLOSED: 'Ticket cerrado',
   CANCELLED: 'Ticket cancelado',
 }
@@ -97,7 +98,7 @@ function formatDate(value?: string) {
 }
 
 function formatDuration(from?: string, to?: string) {
-  if (!from || !to) return 'Sin mediciÃ³n'
+  if (!from || !to) return 'Sin medición'
   const minutes = Math.max(
     0,
     Math.round((new Date(to).getTime() - new Date(from).getTime()) / 60000),
@@ -142,7 +143,7 @@ function buildStages(ticket: Ticket, sla: TicketSlaStatus | null): Stage[] {
       state: 'completed',
       icon: 'inbox',
       description:
-        'La solicitud ingresÃ³ al sistema, recibiÃ³ un folio Ãºnico y quedÃ³ disponible para seguimiento.',
+        'La solicitud ingresó al sistema, recibió un folio único y quedó disponible para seguimiento.',
       technicalEvent: 'TICKET_CREATED',
       businessRule: 'Todo ticket debe tener folio, solicitante y estado inicial OPEN.',
       source: 'Portal de soporte',
@@ -151,17 +152,17 @@ function buildStages(ticket: Ticket, sla: TicketSlaStatus | null): Stage[] {
     {
       id: 'classified',
       lane: 'main',
-      eyebrow: 'ClasificaciÃ³n',
-      title: 'CategorÃ­a y prioridad',
-      subtitle: `${ticket.categoryName} Â· ${ticket.priorityName}`,
+      eyebrow: 'Clasificación',
+      title: 'Categoría y prioridad',
+      subtitle: `${ticket.categoryName} · ${ticket.priorityName}`,
       time: formatDate(ticket.createdAt),
       actor: 'Motor de reglas',
       state: 'completed',
       icon: 'tag',
-      description: `El caso se clasificÃ³ dentro de ${ticket.categoryName} y recibiÃ³ prioridad ${ticket.priorityName.toLowerCase()}.`,
+      description: `El caso se clasificó dentro de ${ticket.categoryName} y recibió prioridad ${ticket.priorityName.toLowerCase()}.`,
       technicalEvent: 'TICKET_CLASSIFIED',
-      businessRule: 'CategorÃ­a y prioridad deben pertenecer a catÃ¡logos activos.',
-      source: 'Reglas de catÃ¡logo',
+      businessRule: 'Categoría y prioridad deben pertenecer a catálogos activos.',
+      source: 'Reglas de catálogo',
       duration: '< 1 min',
     },
     {
@@ -169,49 +170,47 @@ function buildStages(ticket: Ticket, sla: TicketSlaStatus | null): Stage[] {
       lane: 'main',
       eyebrow: 'Compromiso',
       title: 'SLA calculado',
-      subtitle: `${ticket.resolutionHours} h de resoluciÃ³n`,
+      subtitle: `${ticket.resolutionHours} h de resolución`,
       time: formatDate(ticket.slaCreatedAt),
       actor: 'SlaService',
       state: 'completed',
       icon: 'clock',
-      description: `Se fijÃ³ la fecha lÃ­mite ${formatDate(ticket.slaDueAt)} conforme a la prioridad del ticket.`,
+      description: `Se fijó la fecha límite ${formatDate(ticket.slaDueAt)} conforme a la prioridad del ticket.`,
       technicalEvent: 'SLA_STARTED',
-      businessRule: 'El SLA comienza al crear el ticket y usa la polÃ­tica vigente.',
-      source: 'PolÃ­tica SLA',
+      businessRule: 'El SLA comienza al crear el ticket y usa la política vigente.',
+      source: 'Política SLA',
       duration: sla ? `${Math.round(100 - sla.percentRemaining)}% consumido` : 'Calculado',
     },
     {
       id: 'assigned',
       lane: 'main',
       eyebrow: 'Responsabilidad',
-      title: 'AsignaciÃ³n',
+      title: TICKET_FLOW_COPY.assignment,
       subtitle: ticket.assigneeName ?? 'Sin agente',
       time: formatDate(assigned?.createdAt),
       actor: assigned?.changedByName ?? 'Supervisor',
       state: stateByRank(ticket, 4, 'ASSIGNED'),
       icon: 'user-check',
-      description: ticket.assigneeName
-        ? `${ticket.assigneeName} asumiÃ³ la responsabilidad operativa del caso.`
-        : 'El ticket permanece disponible para asignaciÃ³n.',
+      description: assignmentDescription(ticket.assigneeName),
       technicalEvent: 'TICKET_ASSIGNED',
-      businessRule: 'SÃ³lo supervisor o administrador pueden asignar un agente activo.',
+      businessRule: `${TICKET_FLOW_COPY.only} supervisor o administrador pueden asignar un agente activo.`,
       source: 'Mesa de control',
       duration: formatDuration(createdAt, assigned?.createdAt),
     },
     {
       id: 'diagnosis',
       lane: 'main',
-      eyebrow: 'AtenciÃ³n',
-      title: 'DiagnÃ³stico',
-      subtitle: ticket.status === 'IN_PROGRESS' ? 'Trabajo activo' : 'AnÃ¡lisis tÃ©cnico',
+      eyebrow: TICKET_FLOW_COPY.attention,
+      title: 'Diagnóstico',
+      subtitle: ticket.status === 'IN_PROGRESS' ? 'Trabajo activo' : TICKET_FLOW_COPY.technicalAnalysis,
       time: formatDate(progress?.createdAt),
       actor: progress?.changedByName ?? ticket.assigneeName ?? 'Agente',
       state: stateByRank(ticket, 5, 'IN_PROGRESS'),
       icon: 'tools',
       description:
-        'El agente analiza la causa, documenta avances, consulta evidencias y prepara una soluciÃ³n.',
+        'El agente analiza la causa, documenta avances, consulta evidencias y prepara una solución.',
       technicalEvent: 'WORK_STARTED',
-      businessRule: 'SÃ³lo el agente asignado puede iniciar y actualizar la atenciÃ³n.',
+      businessRule: 'Sólo el agente asignado puede iniciar y actualizar la atención.',
       source: 'Bandeja del agente',
       duration: formatDuration(assigned?.createdAt, progress?.createdAt),
     },
@@ -220,17 +219,17 @@ function buildStages(ticket: Ticket, sla: TicketSlaStatus | null): Stage[] {
       lane: 'alternate',
       eyebrow: 'Ruta alterna',
       title: 'En espera',
-      subtitle: waiting ? 'InformaciÃ³n solicitada' : 'Si faltan datos',
+      subtitle: waiting ? 'Información solicitada' : 'Si faltan datos',
       time: formatDate(waiting?.createdAt),
       actor: waiting?.changedByName ?? 'Solicitante',
       state: ticket.status === 'WAITING_USER' ? 'active' : waiting ? 'completed' : 'optional',
       icon: 'pause',
       description:
         waiting?.reason ??
-        'La atenciÃ³n puede pausarse cuando se requiere informaciÃ³n adicional del solicitante.',
+        'La atención puede pausarse cuando se requiere información adicional del solicitante.',
       technicalEvent: 'WAITING_USER',
       businessRule: 'Debe registrarse el motivo y conservar el responsable actual.',
-      source: 'ConversaciÃ³n del ticket',
+      source: 'Conversación del ticket',
       duration: waiting ? formatDuration(waiting.createdAt, progress?.createdAt) : 'No utilizada',
     },
     {
@@ -238,14 +237,14 @@ function buildStages(ticket: Ticket, sla: TicketSlaStatus | null): Stage[] {
       lane: 'alternate',
       eyebrow: 'Control',
       title: 'Escalamiento',
-      subtitle: escalated ? 'IntervenciÃ³n requerida' : 'Bajo condiciÃ³n',
+      subtitle: escalated ? 'Intervención requerida' : 'Bajo condición',
       time: formatDate(escalated?.createdAt),
       actor: escalated?.changedByName ?? 'Supervisor',
       state: ticket.status === 'ESCALATED' ? 'active' : escalated ? 'completed' : 'optional',
       icon: 'priority',
       description:
         escalated?.reason ??
-        'Esta ruta se activa ante riesgo de SLA, severidad o necesidad de otro nivel tÃ©cnico.',
+        'Esta ruta se activa ante riesgo de SLA, severidad o necesidad de otro nivel técnico.',
       technicalEvent: 'TICKET_ESCALATED',
       businessRule: 'El escalamiento exige motivo y debe quedar en el historial.',
       source: 'Agente / Supervisor',
@@ -256,17 +255,17 @@ function buildStages(ticket: Ticket, sla: TicketSlaStatus | null): Stage[] {
     {
       id: 'resolved',
       lane: 'main',
-      eyebrow: 'SoluciÃ³n',
-      title: 'ResoluciÃ³n',
+      eyebrow: 'Solución',
+      title: 'Resolución',
       subtitle: resolved ? 'Propuesta registrada' : 'Pendiente',
       time: formatDate(resolved?.createdAt),
       actor: resolved?.changedByName ?? ticket.assigneeName ?? 'Agente',
       state: stateByRank(ticket, 8, 'RESOLVED'),
       icon: 'check',
       description:
-        resolved?.reason ?? 'El agente documentarÃ¡ la soluciÃ³n, evidencia y resultado esperado.',
+        resolved?.reason ?? 'El agente documentará la solución, evidencia y resultado esperado.',
       technicalEvent: 'TICKET_RESOLVED',
-      businessRule: 'La resoluciÃ³n debe estar documentada antes de solicitar el cierre.',
+      businessRule: 'La resolución debe estar documentada antes de solicitar el cierre.',
       source: 'Agente asignado',
       duration: formatDuration(progress?.createdAt, resolved?.createdAt),
     },
@@ -274,25 +273,25 @@ function buildStages(ticket: Ticket, sla: TicketSlaStatus | null): Stage[] {
       id: 'validation',
       lane: 'main',
       eyebrow: 'Cliente',
-      title: 'ValidaciÃ³n',
+      title: 'Validación',
       subtitle:
-        ticket.status === 'RESOLVED' ? 'Esperando confirmaciÃ³n' : 'ConfirmaciÃ³n de soluciÃ³n',
-      time: ticket.status === 'RESOLVED' ? 'AcciÃ³n requerida' : formatDate(closed?.createdAt),
+        ticket.status === 'RESOLVED' ? 'Esperando confirmación' : 'Confirmación de solución',
+      time: ticket.status === 'RESOLVED' ? 'Acción requerida' : formatDate(closed?.createdAt),
       actor: ticket.requesterName,
       state: ticket.status === 'RESOLVED' ? 'active' : closed ? 'completed' : 'pending',
       icon: 'profile',
       description:
-        'El solicitante comprueba que la soluciÃ³n funciona antes de confirmar el cierre.',
+        'El solicitante comprueba que la solución funciona antes de confirmar el cierre.',
       technicalEvent: 'SOLUTION_VALIDATION',
       businessRule:
-        'El solicitante dueÃ±o valida; supervisor o administrador pueden cerrar con justificaciÃ³n.',
+        'El solicitante dueño valida; supervisor o administrador pueden cerrar con justificación.',
       source: 'Portal del solicitante',
       duration: formatDuration(resolved?.createdAt, closed?.createdAt),
     },
     {
       id: 'closed',
       lane: 'main',
-      eyebrow: 'FinalizaciÃ³n',
+      eyebrow: 'Finalización',
       title: ticket.status === 'CANCELLED' ? 'Cancelado' : 'Cierre',
       subtitle: closed ? 'Caso finalizado' : cancelled ? 'Flujo interrumpido' : 'Pendiente',
       time: formatDate(closed?.createdAt ?? cancelled?.createdAt ?? ticket.closedAt ?? undefined),
@@ -307,10 +306,10 @@ function buildStages(ticket: Ticket, sla: TicketSlaStatus | null): Stage[] {
       description:
         cancelled?.reason ??
         (closed
-          ? 'El ticket concluyÃ³ y sus mÃ©tricas quedaron congeladas.'
-          : 'El cierre formaliza la conclusiÃ³n del caso.'),
+          ? 'El ticket concluyó y sus métricas quedaron congeladas.'
+          : 'El cierre formaliza la conclusión del caso.'),
       technicalEvent: ticket.status === 'CANCELLED' ? 'TICKET_CANCELLED' : 'TICKET_CLOSED',
-      businessRule: 'SÃ³lo RESOLVED puede pasar a CLOSED, salvo cierre administrativo documentado.',
+      businessRule: 'Sólo RESOLVED puede pasar a CLOSED, salvo cierre administrativo documentado.',
       source: 'Solicitante / Supervisor',
       duration: formatDuration(createdAt, closed?.createdAt ?? cancelled?.createdAt),
     },
@@ -318,7 +317,7 @@ function buildStages(ticket: Ticket, sla: TicketSlaStatus | null): Stage[] {
       id: 'survey',
       lane: 'main',
       eyebrow: 'Calidad',
-      title: 'SatisfacciÃ³n',
+      title: 'Satisfacción',
       subtitle: ticket.survey ? `${ticket.survey.rating}/5 estrellas` : 'Encuesta pendiente',
       time: formatDate(ticket.survey?.submittedAt),
       actor: ticket.requesterName,
@@ -326,9 +325,9 @@ function buildStages(ticket: Ticket, sla: TicketSlaStatus | null): Stage[] {
       icon: 'reports',
       description:
         ticket.survey?.comment ??
-        'DespuÃ©s del cierre, el solicitante puede evaluar la calidad de la atenciÃ³n.',
+        'Después del cierre, el solicitante puede evaluar la calidad de la atención.',
       technicalEvent: 'SURVEY_SUBMITTED',
-      businessRule: 'SÃ³lo se permite una encuesta por ticket cerrado, con calificaciÃ³n de 1 a 5.',
+      businessRule: 'Sólo se permite una encuesta por ticket cerrado, con calificación de 1 a 5.',
       source: 'Encuesta de cierre',
       duration: formatDuration(closed?.createdAt, ticket.survey?.submittedAt),
     },
@@ -437,7 +436,7 @@ export function TicketFlowPage() {
       <PageHeader
         kicker="Mesa de ayuda"
         title="Flujo visual"
-        description="RadiografÃ­a completa del ticket: decisiones, responsables, reglas, tiempos y rutas alternativas."
+        description="Radiografía completa del ticket: decisiones, responsables, reglas, tiempos y rutas alternativas."
         actions={
           <div className="flex flex-col gap-2 sm:flex-row">
             {!routeId && (
@@ -450,7 +449,7 @@ export function TicketFlowPage() {
                 >
                   {availableTickets.map((item) => (
                     <option key={item.id} value={item.id}>
-                      {item.folio} Â· {item.title}
+                      {item.folio} · {item.title}
                     </option>
                   ))}
                 </select>
@@ -480,7 +479,7 @@ export function TicketFlowPage() {
               </div>
               <h2 className="mt-2 truncate text-xl font-semibold text-text">{ticket.title}</h2>
               <p className="mt-1 text-sm text-muted">
-                {ticket.requesterName} Â· {ticket.assigneeName ?? 'Sin agente'} Â·{' '}
+                {ticket.requesterName} · {ticket.assigneeName ?? 'Sin agente'} ·{' '}
                 {ticket.categoryName}
               </p>
             </div>
@@ -488,7 +487,7 @@ export function TicketFlowPage() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:min-w-[520px]">
             <FlowMetric label="Avance" value={`${progressPercent}%`} />
             <FlowMetric label="Tiempo total" value={totalElapsed} />
-            <FlowMetric label="1Âª asignaciÃ³n" value={responseTime} />
+            <FlowMetric label="1ª asignación" value={responseTime} />
             <FlowMetric label="Eventos" value={String(ticket.statusHistory?.length ?? 0)} />
           </div>
         </div>
@@ -513,7 +512,7 @@ export function TicketFlowPage() {
           icon="clock"
           label="SLA consumido"
           value={`${consumed}%`}
-          detail={sla ? `LÃ­mite ${formatDate(sla.dueAt)}` : 'Sin polÃ­tica'}
+          detail={sla ? `Límite ${formatDate(sla.dueAt)}` : 'Sin política'}
           tone={sla ? slaColor[sla.level] : 'var(--color-primary)'}
         />
         <InsightCard
@@ -533,7 +532,7 @@ export function TicketFlowPage() {
         />
         <InsightCard
           icon="mail"
-          label="ConversaciÃ³n"
+          label={TICKET_FLOW_COPY.conversation}
           value={String(ticket.comments?.length ?? 0)}
           detail={`${ticket.comments?.filter((comment) => comment.isInternal).length ?? 0} comentarios internos`}
           tone="var(--color-warning)"
@@ -555,7 +554,7 @@ export function TicketFlowPage() {
               <div>
                 <p className="text-sm font-semibold">Recorrido operativo</p>
                 <p className="text-[11px] text-muted">
-                  La lÃ­nea superior es el camino principal; la inferior concentra excepciones.
+                  La línea superior es el camino principal; la inferior concentra excepciones.
                 </p>
               </div>
             </div>
@@ -568,7 +567,7 @@ export function TicketFlowPage() {
                 />
                 <ModeButton
                   active={viewMode === 'timeline'}
-                  label="CronologÃ­a"
+                  label={TICKET_FLOW_COPY.timeline}
                   onClick={() => setViewMode('timeline')}
                 />
               </div>
@@ -579,7 +578,7 @@ export function TicketFlowPage() {
                     onClick={() => setSafeZoom(zoom - 0.1)}
                     className="grid h-7 w-7 place-items-center rounded text-lg hover:bg-page"
                   >
-                    âˆ’
+                    -
                   </button>
                   <button
                     type="button"
@@ -652,11 +651,11 @@ export function TicketFlowPage() {
           </SurfaceCard>
           <SurfaceCard className="border-warning/30 bg-warning/5 p-5">
             <p className="text-xs font-semibold uppercase tracking-[.14em] text-warning">
-              Siguiente acciÃ³n
+              Siguiente acción
             </p>
             <p className="mt-2 text-sm font-semibold text-text">{nextAction[ticket.status]}</p>
             <p className="mt-1 text-xs leading-5 text-muted">
-              La acciÃ³n depende del estado actual y de los permisos del usuario.
+              La acción depende del estado actual y de los permisos del usuario.
             </p>
           </SurfaceCard>
         </aside>
@@ -667,13 +666,13 @@ export function TicketFlowPage() {
 
 const nextAction: Record<TicketStatus, string> = {
   OPEN: 'Asignar un agente responsable',
-  ASSIGNED: 'Iniciar el diagnÃ³stico tÃ©cnico',
-  IN_PROGRESS: 'Documentar avances o registrar soluciÃ³n',
+  ASSIGNED: 'Iniciar el diagnóstico técnico',
+  IN_PROGRESS: 'Documentar avances o registrar solución',
   WAITING_USER: 'Esperar respuesta del solicitante',
-  ESCALATED: 'IntervenciÃ³n y decisiÃ³n del supervisor',
-  RESOLVED: 'Solicitante debe validar la soluciÃ³n',
+  ESCALATED: 'Intervención y decisión del supervisor',
+  RESOLVED: 'Solicitante debe validar la solución',
   CLOSED: 'Responder o revisar la encuesta',
-  CANCELLED: 'Revisar el motivo de cancelaciÃ³n',
+  CANCELLED: 'Revisar el motivo de cancelación',
 }
 
 function FlowConnections() {
@@ -718,7 +717,7 @@ function FlowConnections() {
       />
       <circle cx="1011" cy="287" r="5" fill="var(--color-surface)" stroke="var(--color-warning)" strokeWidth="2" />
       <text x="1030" y="305" fill="var(--color-muted)" fontSize="10" fontWeight="600">
-        Â¿continÃºa normalmente?
+        ¿continúa normalmente?
       </text>
     </svg>
   )
@@ -819,12 +818,12 @@ function Inspector({ stage }: { stage: Stage }) {
       <dl className="mt-5 space-y-3 border-t border-border pt-4 text-sm">
         <Meta label="Responsable" value={stage.actor} />
         <Meta label="Registro" value={stage.time} />
-        <Meta label="DuraciÃ³n" value={stage.duration} />
+        <Meta label={TICKET_FLOW_COPY.duration} value={stage.duration} />
         <Meta label="Origen" value={stage.source} />
       </dl>
       <div className="mt-4 rounded bg-page p-3">
         <p className="text-[9px] font-semibold uppercase tracking-[.14em] text-muted">
-          Evento tÃ©cnico
+          Evento técnico
         </p>
         <code className="mt-1 block text-xs font-semibold text-primary">{stage.technicalEvent}</code>
       </div>
@@ -874,7 +873,7 @@ function TimelineView({
               </div>
               <p className="mt-1 text-xs text-muted">{stage.description}</p>
               <p className="mt-2 text-[11px] font-medium text-text">
-                {stage.actor} Â· {stage.technicalEvent}
+                {stage.actor} · {stage.technicalEvent}
               </p>
             </div>
             <div className="text-right text-xs">
@@ -902,7 +901,7 @@ function Activity({ item }: { item: TicketStatusHistory }) {
         <p className="text-sm font-semibold">{statusLabel[item.newStatus]}</p>
         <p className="mt-0.5 text-xs leading-5 text-muted">
           {item.changedByName}
-          {item.reason ? ` Â· ${item.reason}` : ''}
+          {item.reason ? ` · ${item.reason}` : ''}
         </p>
       </div>
     </li>

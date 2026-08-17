@@ -52,6 +52,7 @@ export class User {
   @Index({ unique: true }) @Column({ length: 200 }) email: string
   @Column({ name: 'password_hash', select: false }) passwordHash: string
   @Column({ type: 'enum', enum: UserStatus, default: UserStatus.ACTIVE }) status: UserStatus
+  @Column({ name: 'must_change_password', default: false }) mustChangePassword: boolean
   @ManyToOne(() => Role, { eager: true, nullable: false }) @JoinColumn({ name: 'role_id' }) role: Role
   @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true }) lastLoginAt: Date | null
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date

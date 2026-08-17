@@ -9,6 +9,7 @@ import {
   PriorityLevel, Role, RoleCode, SlaPolicy, SurveyQuestionType, SurveyStatus, SurveyTrigger, Ticket, TicketComment,
   TicketCounter, TicketHistory, TicketStatus, User,
 } from '../database/entities'
+import { KNOWLEDGE_SEED_ARTICLES } from '../knowledge/articles.seed'
 import { hashSurveyToken, invitationExpiry } from '../crm/survey-token'
 
 async function seed() {
@@ -102,7 +103,27 @@ async function seed() {
   }
 
   const articleRepo = AppDataSource.getRepository(KnowledgeArticle)
-  if (await articleRepo.count() === 0) await articleRepo.save(articleRepo.create({ title:'Cómo restablecer la contraseña', content:'Desde la pantalla de inicio de sesión selecciona “Olvidé mi contraseña”, confirma tu correo institucional y sigue el enlace recibido.', tags:'contraseña,acceso,cuenta', category:categories.get('Accesos')!, author:users.get(RoleCode.AGENT)!, status:CatalogStatus.ACTIVE }))
+  const author = users.get(RoleCode.ADMIN) ?? users.get(RoleCode.AGENT)!
+  for (const article of KNOWLEDGE_SEED_ARTICLES) {
+    const category = article.categoryName ? categories.get(article.categoryName) ?? null : null
+    let existing = await articleRepo.findOne({ where: { title: article.title } })
+    if (!existing) {
+      existing = articleRepo.create({
+        title: article.title,
+        content: article.content,
+        tags: article.tags,
+        category,
+        author,
+        status: CatalogStatus.ACTIVE,
+      })
+    } else {
+      existing.content = article.content
+      existing.tags = article.tags
+      existing.category = category
+      existing.status = CatalogStatus.ACTIVE
+    }
+    await articleRepo.save(existing)
+  }
 
   const contactRepo = AppDataSource.getRepository(CrmContact)
   if (await contactRepo.count() === 0) {

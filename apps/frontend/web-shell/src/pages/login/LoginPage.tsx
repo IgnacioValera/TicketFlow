@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { FORGOT_PASSWORD_LINK } from '@/constants/password-recovery'
 import { useAuth } from '@/hooks/useAuth'
 
 export function LoginPage() {
-  const { login, isAuthenticated, isLoading } = useAuth()
+  const { login, isAuthenticated, isLoading, user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [email, setEmail] = useState('')
@@ -11,10 +12,12 @@ export function LoginPage() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard'
+  const locationState = location.state as { from?: { pathname: string }; notice?: string } | null
+  const from = locationState?.from?.pathname || '/dashboard'
+  const notice = locationState?.notice
 
   if (!isLoading && isAuthenticated) {
-    return <Navigate to={from} replace />
+    return <Navigate to={user?.mustChangePassword ? '/change-password' : from} replace />
   }
 
   const handleSubmit = async (e: FormEvent) => {
@@ -29,6 +32,10 @@ export function LoginPage() {
     setSubmitting(true)
     try {
       const loggedInUser = await login({ email: email.trim(), password })
+      if (loggedInUser.mustChangePassword) {
+        navigate('/change-password', { replace: true })
+        return
+      }
       const destination =
         loggedInUser.role === 'CLIENT' || loggedInUser.role === 'REQUESTER'
           ? '/tickets'
@@ -58,6 +65,11 @@ export function LoginPage() {
         </p>
       </div>
       <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+        {notice && (
+          <div className="rounded border border-success/30 bg-green-50 px-3 py-2.5 text-sm text-success">
+            {notice}
+          </div>
+        )}
         {error && (
           <div className="rounded border border-danger/30 bg-red-50 px-3 py-2.5 text-sm text-danger">
             {error}
@@ -90,6 +102,11 @@ export function LoginPage() {
             className="w-full rounded border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none focus:ring-4 focus:ring-brand-teal/10"
             placeholder="Ingresa tu contraseña"
           />
+          <div className="mt-2 text-right">
+            <Link to="/forgot-password" className="text-sm font-medium text-primary hover:underline">
+              {FORGOT_PASSWORD_LINK}
+            </Link>
+          </div>
         </div>
         <button
           type="submit"

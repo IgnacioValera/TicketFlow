@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm'
 import { AppIcon } from '@/components/common/AppIcon'
 import { ErrorState } from '@/components/common/ErrorState'
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
+import { Modal } from '@/components/common/Modal'
 import { PageHeader } from '@/components/common/PageHeader'
 import { SurfaceCard } from '@/components/common/SurfaceCard'
-import { PrimaryButton } from '@/components/common/UiControls'
+import { PrimaryButton, SecondaryButton } from '@/components/common/UiControls'
 import { ROLES } from '@/constants/roles'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -25,9 +28,11 @@ const statusLabels = {
 }
 
 export function ProfilePage() {
-  const { user, refreshProfile } = useAuth()
+  const { user, refreshProfile, logout } = useAuth()
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [changeOpen, setChangeOpen] = useState(false)
 
   const loadProfile = useCallback(async () => {
     setLoading(true)
@@ -161,6 +166,11 @@ export function ProfilePage() {
             />
             <SecurityRow label="Último acceso" value={lastLogin} />
             <SecurityRow label="Autorización" value="Permisos dinámicos activos" good />
+            <div className="pt-1">
+              <SecondaryButton onClick={() => setChangeOpen(true)}>
+                Cambiar contraseña
+              </SecondaryButton>
+            </div>
           </div>
         </SurfaceCard>
       </div>
@@ -192,6 +202,27 @@ export function ProfilePage() {
           ))}
         </div>
       </SurfaceCard>
+
+      <Modal
+        open={changeOpen}
+        onClose={() => setChangeOpen(false)}
+        title="Cambiar contraseña"
+        size="md"
+      >
+        <ChangePasswordForm
+          currentLabel="Contraseña actual"
+          submitLabel="Actualizar contraseña"
+          onCancel={() => setChangeOpen(false)}
+          onSuccess={async () => {
+            setChangeOpen(false)
+            await logout()
+            navigate('/login', {
+              replace: true,
+              state: { notice: 'Tu contraseña se actualizó correctamente.' },
+            })
+          }}
+        />
+      </Modal>
     </div>
   )
 }

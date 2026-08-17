@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { IsEmail, IsNotEmpty, IsString, MaxLength } from 'class-validator'
 import { LIMITS } from '../common/limits'
-import { maxLengthMessage, Trim } from '../common/validation'
+import { IsPasswordPolicy, maxLengthMessage, Trim } from '../common/validation'
 
 export class LoginDto {
   @ApiProperty({ example: 'admin@helpdesk.com' })
@@ -18,4 +18,16 @@ export class LoginDto {
 
 export class RefreshDto {
   @ApiProperty() @IsString() @IsNotEmpty({ message: 'El refresh token es obligatorio' }) refreshToken: string
+}
+
+export class ChangePasswordDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty({ message: 'La contraseña actual es obligatoria' })
+  currentPassword: string
+
+  @ApiProperty()
+  @IsString()
+  @IsPasswordPolicy()
+  newPassword: string
 }

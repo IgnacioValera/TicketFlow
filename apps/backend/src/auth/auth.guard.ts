@@ -3,7 +3,13 @@ import { ConfigService } from '@nestjs/config'
 import { Reflector } from '@nestjs/core'
 import { JwtService } from '@nestjs/jwt'
 import { AuthService } from './auth.service'
-import { ANY_PERMISSIONS_KEY, IS_PUBLIC_KEY, REQUIRED_PERMISSIONS_KEY } from '../common/security'
+import {
+  ALLOW_WHILE_PASSWORD_CHANGE_KEY,
+  ANY_PERMISSIONS_KEY,
+  IS_PUBLIC_KEY,
+  REQUIRED_PERMISSIONS_KEY,
+  REQUIRED_ROLES_KEY,
+} from '../common/security'
 import { User } from '../database/entities'
 
 @Injectable()
@@ -33,11 +39,34 @@ export class PermissionsGuard implements CanActivate {
   canActivate(context: ExecutionContext) {
     const required = this.reflector.getAllAndOverride<string[]>(REQUIRED_PERMISSIONS_KEY, [context.getHandler(), context.getClass()]) ?? []
     const any = this.reflector.getAllAndOverride<string[]>(ANY_PERMISSIONS_KEY, [context.getHandler(), context.getClass()]) ?? []
-    if (!required.length && !any.length) return true
+    const roles = this.reflector.getAllAndOverride<string[]>(REQUIRED_ROLES_KEY, [context.getHandler(), context.getClass()]) ?? []
+    if (!required.length && !any.length && !roles.length) return true
     const user = context.switchToHttp().getRequest<{ user: User }>().user
     const owned = new Set((user.role.permissions ?? []).map((permission) => permission.code))
+    if (roles.length && !roles.includes(user.role.code)) {
+      throw new ForbiddenException('No tienes permisos para realizar esta acción')
+    }
     if (required.some((permission) => !owned.has(permission)) || (any.length && !any.some((permission) => owned.has(permission)))) {
       throw new ForbiddenException('No tienes permisos para realizar esta acción')
+    }
+    return true
+  }
+}
+
+@Injectable()
+export class MustChangePasswordGuard implements CanActivate {
+  constructor(private readonly reflector: Reflector) {}
+
+  canActivate(context: ExecutionContext) {
+    if (this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [context.getHandler(), context.getClass()])) {
+      return true
+    }
+    if (this.reflector.getAllAndOverride<boolean>(ALLOW_WHILE_PASSWORD_CHANGE_KEY, [context.getHandler(), context.getClass()])) {
+      return true
+    }
+    const user = context.switchToHttp().getRequest<{ user?: User }>().user
+    if (user?.mustChangePassword) {
+      throw new ForbiddenException('Debes cambiar tu contraseña temporal antes de continuar')
     }
     return true
   }
