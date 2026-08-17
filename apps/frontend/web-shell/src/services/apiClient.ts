@@ -92,7 +92,7 @@ apiClient.interceptors.response.use(
     const raw = error.response?.data?.message || error.message || 'No se pudo completar la solicitud.'
     const message =
       raw === 'Network Error' || raw === 'Failed to fetch'
-        ? 'No se pudo cargar la información.'
+        ? 'No se pudo completar la solicitud.'
         : raw
 
     return Promise.reject({

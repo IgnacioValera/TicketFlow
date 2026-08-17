@@ -35,13 +35,13 @@ export function TicketCreatePage() {
         </Link>
       </div>
       <div className="mb-6">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8c8191]">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
           Nueva solicitud
         </p>
-        <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-brand-navy md:text-3xl">
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-text md:text-3xl">
           Crear ticket
         </h1>
-        <p className="mt-2 text-sm text-[#766c7c]">
+        <p className="mt-2 text-sm text-muted">
           Describe el problema con claridad para acelerar su atención.
         </p>
       </div>
@@ -50,7 +50,7 @@ export function TicketCreatePage() {
           {error}
         </div>
       )}
-      <div className="rounded-2xl border border-brand-slate/30 bg-white p-6 shadow-[0_12px_35px_rgba(61,45,69,.06)] md:p-8">
+      <div className="ui-card p-6 md:p-8">
         <TicketForm
           submitLabel="Crear ticket"
           loading={loading || submitting}

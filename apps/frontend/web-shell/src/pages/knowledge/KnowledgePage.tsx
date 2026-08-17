@@ -37,7 +37,7 @@ export function KnowledgePage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        kicker="Help Desk"
+        kicker="Mesa de ayuda"
         title="Base de conocimiento"
         description="Artículos de apoyo para resolver tickets con mayor rapidez."
         actions={

@@ -5,7 +5,7 @@ type TableActionVariant = 'default' | 'success' | 'warning' | 'danger'
 
 const VARIANT_CLASSES: Record<TableActionVariant, string> = {
   default:
-    'border-[#d4cce0] bg-white text-brand-teal hover:border-brand-teal hover:bg-[#f6f2ff] focus-visible:ring-brand-teal/30',
+    'border-border bg-white text-primary hover:border-primary hover:bg-page focus-visible:ring-primary/30',
   success:
     'border-green-200 bg-white text-green-700 hover:border-green-400 hover:bg-green-50 focus-visible:ring-green-500/30',
   warning:

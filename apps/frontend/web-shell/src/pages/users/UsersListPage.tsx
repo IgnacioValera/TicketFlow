@@ -151,26 +151,26 @@ export function UsersListPage() {
     <div>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8c8191]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
             Administración
           </p>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-brand-navy md:text-3xl">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-text md:text-3xl">
             Usuarios
           </h1>
-          <p className="mt-1 text-sm text-[#766c7c]">
+          <p className="mt-1 text-sm text-muted">
             Gestiona identidades, roles y estado de acceso.
           </p>
         </div>
         <button
           type="button"
           onClick={() => navigate('/users/create')}
-          className="inline-flex justify-center rounded-xl bg-brand-teal px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(111,79,216,.2)] hover:bg-[#6040c8]"
+          className="inline-flex justify-center rounded bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-hover"
         >
           Nuevo usuario
         </button>
       </div>
 
-      <div className="mb-5 grid gap-3 rounded-2xl border border-[#e2dce5] bg-white p-4 shadow-[0_8px_25px_rgba(61,45,69,.04)] sm:grid-cols-2 lg:grid-cols-4">
+      <div className="ui-card mb-5 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
         <input
           type="search"
           placeholder="Buscar por nombre o correo..."

@@ -48,19 +48,19 @@ export function TicketsKanbanBoard({ tickets, loading = false }: TicketsKanbanBo
             key={column.status}
             className="flex w-72 shrink-0 flex-col rounded border border-slate-200 bg-slate-50"
           >
-            <header className="flex items-center gap-2 border-b border-[#e2dce5]/80 px-3 py-3">
+            <header className="flex items-center gap-2 border-b border-border px-3 py-3">
               <span className={`h-2 w-2 rounded-full ${column.accent}`} aria-hidden />
               <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-brand-navy">
                 {column.label}
               </h3>
-              <span className="ml-auto rounded-full bg-white px-2 py-0.5 text-xs font-bold text-[#766c7c] shadow-sm">
+              <span className="ml-auto rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-muted shadow-sm">
                 {column.items.length}
               </span>
             </header>
 
             <div className="flex max-h-[calc(100vh-22rem)] min-h-48 flex-col gap-2.5 overflow-y-auto p-2.5">
               {column.items.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-[#d9d1dd] px-3 py-6 text-center text-xs text-[#8c8191]">
+                <p className="rounded border border-dashed border-border px-3 py-6 text-center text-xs text-muted">
                   Sin tickets
                 </p>
               ) : (
@@ -84,19 +84,21 @@ export function TicketsKanbanBoard({ tickets, loading = false }: TicketsKanbanBo
                       </div>
 
                       <div className="mb-3 flex flex-wrap gap-1.5">
-                        <span className="rounded-md bg-[#efeaff] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-teal">
+                        <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
                           {ticket.folio}
                         </span>
                         <span
                           className="rounded-md px-1.5 py-0.5 text-[10px] font-bold"
                           style={{
-                            color: ticket.priorityColor || '#6f4fd8',
-                            backgroundColor: `${ticket.priorityColor || '#6f4fd8'}18`,
+                            color: ticket.priorityColor || 'var(--color-primary)',
+                            backgroundColor: ticket.priorityColor
+                              ? `${ticket.priorityColor}18`
+                              : 'color-mix(in srgb, var(--color-primary) 14%, white)',
                           }}
                         >
                           {ticket.priorityName}
                         </span>
-                        <span className="rounded-md bg-[#f4f1f6] px-1.5 py-0.5 text-[10px] font-medium text-[#766c7c]">
+                        <span className="rounded-md bg-page px-1.5 py-0.5 text-[10px] font-medium text-muted">
                           {ticket.categoryName}
                         </span>
                       </div>
@@ -105,8 +107,8 @@ export function TicketsKanbanBoard({ tickets, loading = false }: TicketsKanbanBo
                         <SlaSemaphore sla={sla} compact />
                       </div>
 
-                      <div className="flex items-center justify-between gap-2 border-t border-[#f0ebf2] pt-2.5">
-                        <p className="truncate text-[11px] text-[#8c8191]">
+                      <div className="flex items-center justify-between gap-2 border-t border-border pt-2.5">
+                        <p className="truncate text-[11px] text-muted">
                           {ticket.assigneeName
                             ? `Agente: ${ticket.assigneeName}`
                             : 'Sin asignar'}

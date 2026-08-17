@@ -62,7 +62,9 @@ export class CreatePriorityDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsHexColor()
+  @IsHexColor({
+    message: 'El color debe tener formato hexadecimal, por ejemplo #2563EB.',
+  })
   @MaxLength(LIMITS.PRIORITY_COLOR, { message: maxLengthMessage('El color', LIMITS.PRIORITY_COLOR) })
   color?: string
 

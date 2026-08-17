@@ -26,9 +26,10 @@ Todos usan la contraseña `password`.
 | Rol | Correo |
 |---|---|
 | Administrador | `admin@helpdesk.com` |
+| Ejecutivo comercial | `sales@helpdesk.com` |
 | Supervisor | `supervisor@helpdesk.com` |
 | Agente | `agent@helpdesk.com` |
-| Solicitante | `requester@helpdesk.com` |
+| Cliente portal | `requester@helpdesk.com` |
 
 ## Ejecución local sin Docker para Node
 
@@ -63,7 +64,7 @@ cd ../frontend/web-shell
 npm run build
 ```
 
-Consulta [docs/backend-api.md](docs/backend-api.md) para arquitectura, entidades, permisos y rutas.
+Consulta [docs/backend-api.md](docs/backend-api.md) y [docs/CRM_IMPLEMENTATION.md](docs/CRM_IMPLEMENTATION.md) para arquitectura, CRM, entidades, permisos y rutas.
 
 ## Estructura
 

@@ -204,7 +204,7 @@ export function TicketDetailPage() {
         <span className="font-mono text-sm text-slate-600">{ticket.folio}</span>
         <Link
           to={`/tickets/${ticket.id}/flow`}
-          className="ml-auto inline-flex items-center gap-2 rounded-xl bg-[#6f4fd8] px-4 py-2 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(111,79,216,.2)] hover:bg-[#6040c8]"
+              className="ml-auto inline-flex items-center gap-2 rounded bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
         >
           Ver flujo visual
         </Link>
@@ -225,7 +225,7 @@ export function TicketDetailPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <div className="rounded-2xl border border-brand-slate/30 bg-white p-6 shadow-[0_10px_30px_rgba(61,45,69,.05)]">
+          <div className="ui-card p-6">
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h1 className="text-xl font-bold text-brand-navy sm:text-2xl">{ticket.title}</h1>
@@ -266,7 +266,7 @@ export function TicketDetailPage() {
             )}
           </div>
 
-          <div className="rounded-2xl border border-brand-slate/30 bg-white p-6 shadow-[0_10px_30px_rgba(61,45,69,.05)]">
+          <div className="ui-card p-6">
             <TicketComments
               comments={comments}
               readOnly={isFinalized}
@@ -276,7 +276,7 @@ export function TicketDetailPage() {
             />
           </div>
 
-          <div className="rounded-2xl border border-brand-slate/30 bg-white p-6 shadow-[0_10px_30px_rgba(61,45,69,.05)]">
+          <div className="ui-card p-6">
             <TicketAttachments
               attachments={attachments}
               readOnly={isFinalized}
@@ -289,14 +289,14 @@ export function TicketDetailPage() {
             />
           </div>
 
-          <div className="rounded-2xl border border-brand-slate/30 bg-white p-6 shadow-[0_10px_30px_rgba(61,45,69,.05)]">
+          <div className="ui-card p-6">
             <h3 className="mb-4 text-base font-semibold text-brand-navy">Historial</h3>
             <TicketTimeline history={ticket.statusHistory ?? []} />
           </div>
         </div>
 
         <aside className="space-y-4">
-          <div className="rounded-2xl border border-brand-slate/30 bg-white p-4 shadow-[0_10px_30px_rgba(61,45,69,.05)]">
+          <div className="ui-card p-4">
             <h3 className="mb-3 text-sm font-semibold text-brand-navy">Detalles</h3>
             <dl className="space-y-2 text-sm">
               <div className="flex justify-between gap-2">
@@ -350,7 +350,7 @@ export function TicketDetailPage() {
           </div>
 
           {sla && (
-            <div className="rounded-2xl border border-brand-slate/30 bg-white p-4 shadow-[0_10px_30px_rgba(61,45,69,.05)]">
+            <div className="ui-card p-4">
               <h3 className="mb-3 text-sm font-semibold text-brand-navy">SLA</h3>
               <SlaSemaphore sla={sla} />
               <p className="mt-2 text-xs text-slate-500">
@@ -359,7 +359,7 @@ export function TicketDetailPage() {
             </div>
           )}
 
-          <div className="rounded-2xl border border-brand-slate/30 bg-white p-4 shadow-[0_10px_30px_rgba(61,45,69,.05)]">
+          <div className="ui-card p-4">
             <TicketStatusActions
               ticket={ticket}
               onChangeStatus={handleStatusChange}
@@ -369,7 +369,7 @@ export function TicketDetailPage() {
           </div>
 
           {ticket.survey && (
-            <div className="rounded-2xl border border-brand-slate/30 bg-white p-4 shadow-[0_10px_30px_rgba(61,45,69,.05)]">
+            <div className="ui-card p-4">
               <h3 className="mb-2 text-sm font-semibold text-brand-navy">Encuesta</h3>
               <p className="text-sm">
                 Calificación: <strong>{ticket.survey.rating}/5</strong>

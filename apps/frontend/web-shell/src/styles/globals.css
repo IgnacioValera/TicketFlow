@@ -1,28 +1,41 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-brand-teal: #1d4ed8;
-  --color-brand-cream: #f8fafc;
-  --color-brand-slate: #94a3b8;
-  --color-brand-navy: #0f172a;
-  --color-brand-scarlet: #dc2626;
+  --color-primary: #2563d9;
+  --color-primary-hover: #1d4fb8;
+  --color-sidebar: #143b63;
+  --color-sidebar-active: #1e4e7a;
+  --color-page: #f5f7fa;
+  --color-surface: #ffffff;
+  --color-border: #d9e2ec;
+  --color-text: #172033;
+  --color-muted: #64748b;
+  --color-success: #198754;
+  --color-warning: #d97706;
+  --color-danger: #d64545;
 
-  --color-sla-green: #16a34a;
-  --color-sla-yellow: #ca8a04;
-  --color-sla-orange: #ea580c;
-  --color-sla-red: #dc2626;
+  --color-brand-teal: #2563d9;
+  --color-brand-cream: #f5f7fa;
+  --color-brand-slate: #94a3b8;
+  --color-brand-navy: #172033;
+  --color-brand-scarlet: #d64545;
+
+  --color-sla-green: #198754;
+  --color-sla-yellow: #d97706;
+  --color-sla-orange: #d97706;
+  --color-sla-red: #d64545;
 
   --color-priority-low: #64748b;
-  --color-priority-medium: #1d4ed8;
-  --color-priority-high: #ea580c;
-  --color-priority-critical: #b91c1c;
+  --color-priority-medium: #0f766e;
+  --color-priority-high: #d97706;
+  --color-priority-critical: #dc2626;
 
-  --color-status-open: #1d4ed8;
+  --color-status-open: #2563d9;
   --color-status-assigned: #475569;
-  --color-status-in-progress: #0369a1;
-  --color-status-waiting-user: #ca8a04;
-  --color-status-escalated: #b91c1c;
-  --color-status-resolved: #16a34a;
+  --color-status-in-progress: #1d4fb8;
+  --color-status-waiting-user: #d97706;
+  --color-status-escalated: #d64545;
+  --color-status-resolved: #198754;
   --color-status-closed: #64748b;
   --color-status-cancelled: #64748b;
 }
@@ -37,8 +50,8 @@
     sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: var(--color-brand-navy);
-  background-color: #f1f5f9;
+  color: var(--color-text);
+  background-color: var(--color-page);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -72,13 +85,14 @@ textarea:disabled {
 
 input:not([type='checkbox']):not([type='radio']):not([type='button']):not([type='submit']):not(
     [type='reset']
-  ):not([type='file']),
+  ):not([type='file']):not([type='color']),
 textarea {
   cursor: text;
 }
 
 input[type='checkbox'],
-input[type='radio'] {
+input[type='radio'],
+input[type='color'] {
   cursor: pointer;
 }
 
@@ -114,22 +128,28 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 [role='tab']:focus-visible {
-  outline: 2px solid rgba(29, 78, 216, 0.35);
+  outline: 2px solid color-mix(in srgb, var(--color-primary) 35%, transparent);
   outline-offset: 2px;
 }
 
-main input:not([type='checkbox']):not([type='radio']),
+main input:not([type='checkbox']):not([type='radio']):not([type='color']),
 main select,
 main textarea {
-  border-color: #cbd5e1;
-  background-color: #fff;
+  border-color: var(--color-border);
+  background-color: var(--color-surface);
 }
 
-main input:not([type='checkbox']):not([type='radio']):focus,
+main input:not([type='checkbox']):not([type='radio']):not([type='color']):focus,
 main select:focus,
 main textarea:focus {
-  border-color: #1d4ed8;
-  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 16%, transparent);
+}
+
+.ui-card {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: 8px;
 }
 
 @keyframes ticket-flow-dash {
@@ -140,15 +160,15 @@ main textarea:focus {
 @keyframes ticket-flow-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(29, 78, 216, 0.2);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 22%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 10px rgba(29, 78, 216, 0);
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--color-primary) 0%, transparent);
   }
 }
 .ticket-flow-canvas {
-  background-color: #f8fafc;
-  background-image: radial-gradient(circle, rgba(15, 23, 42, 0.12) 1px, transparent 1px);
+  background-color: var(--color-page);
+  background-image: radial-gradient(circle, rgba(23, 32, 51, 0.1) 1px, transparent 1px);
   background-size: 22px 22px;
 }
 .ticket-flow-line-active {

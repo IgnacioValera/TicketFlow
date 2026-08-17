@@ -1,13 +1,19 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Modal } from '@/components/common/Modal'
+import { ColorField } from '@/components/common/ColorField'
 import { DataTable, type Column } from '@/components/common/DataTable'
 import { ErrorState } from '@/components/common/ErrorState'
+import { FormAlert } from '@/components/common/FormAlert'
+import { Modal } from '@/components/common/Modal'
+import { PageHeader } from '@/components/common/PageHeader'
 import { TableActionButton } from '@/components/common/TableActionButton'
+import { PrimaryButton, SecondaryButton } from '@/components/common/UiControls'
 import { PERMISSIONS } from '@/constants/permissions'
 import { LIMITS } from '@/constants/validation'
 import { usePermissions } from '@/hooks/usePermissions'
 import * as prioritiesService from '@/services/priorities.service'
 import type { CatalogStatus, Priority, PriorityLevel } from '@/types/catalog.types'
+import { PRIORITY_DEFAULT_COLORS, isHexColor, normalizeHexColor } from '@/utils/color'
+import { getErrorMessages, isValidationError } from '@/utils/errors'
 
 const STATUS_LABELS: Record<CatalogStatus, string> = {
   ACTIVE: 'Activa',
@@ -21,23 +27,22 @@ const LEVEL_LABELS: Record<PriorityLevel, string> = {
   CRITICAL: 'Crítica',
 }
 
-const LEVEL_COLORS: Record<PriorityLevel, string> = {
-  LOW: 'var(--color-priority-low)',
-  MEDIUM: 'var(--color-priority-medium)',
-  HIGH: 'var(--color-priority-high)',
-  CRITICAL: 'var(--color-priority-critical)',
-}
-
 type PriorityFormState = {
   name: string
   level: PriorityLevel
+  color: string
   description: string
 }
 
 const INITIAL_FORM: PriorityFormState = {
   name: '',
   level: 'MEDIUM',
+  color: PRIORITY_DEFAULT_COLORS.MEDIUM,
   description: '',
+}
+
+function focusField(id: string) {
+  document.getElementById(id)?.focus()
 }
 
 export function PrioritiesPage() {
@@ -55,12 +60,14 @@ export function PrioritiesPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editingPriority, setEditingPriority] = useState<Priority | null>(null)
   const [formState, setFormState] = useState<PriorityFormState>(INITIAL_FORM)
-  const [formError, setFormError] = useState('')
+  const [formAlertTitle, setFormAlertTitle] = useState('')
+  const [formMessages, setFormMessages] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
 
   const resetForm = () => {
     setFormState(INITIAL_FORM)
-    setFormError('')
+    setFormAlertTitle('')
+    setFormMessages([])
     setEditingPriority(null)
   }
 
@@ -97,9 +104,13 @@ export function PrioritiesPage() {
     setFormState({
       name: priority.name,
       level: priority.level,
-      description: priority.description,
+      color: isHexColor(priority.color)
+        ? normalizeHexColor(priority.color)
+        : PRIORITY_DEFAULT_COLORS[priority.level],
+      description: priority.description ?? '',
     })
-    setFormError('')
+    setFormAlertTitle('')
+    setFormMessages([])
     setFormOpen(true)
   }
 
@@ -108,37 +119,79 @@ export function PrioritiesPage() {
     resetForm()
   }
 
+  const showFormError = (title: string, messages: string[], fieldId?: string) => {
+    setFormAlertTitle(title)
+    setFormMessages(messages)
+    if (fieldId) focusField(fieldId)
+  }
+
+  const handleLevelChange = (level: PriorityLevel) => {
+    setFormState((prev) => {
+      const previousDefault = PRIORITY_DEFAULT_COLORS[prev.level]
+      const shouldFollowLevel =
+        !editingPriority && normalizeHexColor(prev.color) === previousDefault
+      return {
+        ...prev,
+        level,
+        color: shouldFollowLevel ? PRIORITY_DEFAULT_COLORS[level] : prev.color,
+      }
+    })
+  }
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
     const name = formState.name.trim()
     const description = formState.description.trim()
+    const color = normalizeHexColor(formState.color)
+    const validationTitle = 'Revisa los datos ingresados'
 
     if (!name) {
-      setFormError('El nombre es obligatorio')
+      showFormError(validationTitle, ['El nombre es obligatorio'], 'priority-name')
       return
     }
     if (name.length > LIMITS.PRIORITY_NAME) {
-      setFormError(`El nombre no puede superar ${LIMITS.PRIORITY_NAME} caracteres`)
+      showFormError(
+        validationTitle,
+        [`El nombre no puede superar ${LIMITS.PRIORITY_NAME} caracteres`],
+        'priority-name',
+      )
+      return
+    }
+    if (!isHexColor(color)) {
+      showFormError(
+        validationTitle,
+        ['El color debe tener formato hexadecimal, por ejemplo #2563EB.'],
+        'color',
+      )
       return
     }
     if (formState.description && !description) {
-      setFormError('La descripción no puede contener solo espacios')
+      showFormError(
+        validationTitle,
+        ['La descripción no puede contener solo espacios'],
+        'priority-description',
+      )
       return
     }
     if (description.length > LIMITS.CATALOG_DESCRIPTION) {
-      setFormError(`La descripción no puede superar ${LIMITS.CATALOG_DESCRIPTION} caracteres`)
+      showFormError(
+        validationTitle,
+        [`La descripción no puede superar ${LIMITS.CATALOG_DESCRIPTION} caracteres`],
+        'priority-description',
+      )
       return
     }
 
     setSaving(true)
-    setFormError('')
+    setFormAlertTitle('')
+    setFormMessages([])
 
     try {
       const payload = {
         name,
         level: formState.level,
-        color: LEVEL_COLORS[formState.level],
-        description,
+        color,
+        ...(description ? { description } : {}),
       }
 
       if (editingPriority) {
@@ -150,7 +203,14 @@ export function PrioritiesPage() {
       closeFormModal()
       await loadPriorities()
     } catch (err: unknown) {
-      setFormError((err as { message?: string }).message || 'No se pudo guardar la prioridad')
+      const fallback = editingPriority
+        ? 'No se pudo actualizar la prioridad'
+        : 'No se pudo crear la prioridad'
+      showFormError(
+        isValidationError(err) ? validationTitle : fallback,
+        getErrorMessages(err, fallback),
+        isHexColor(color) ? 'priority-name' : 'color',
+      )
     } finally {
       setSaving(false)
     }
@@ -164,11 +224,12 @@ export function PrioritiesPage() {
         render: (row) => (
           <span className="inline-flex items-center gap-2">
             <span
-              className="inline-block h-2.5 w-2.5 rounded-full"
+              className="inline-block h-4 w-4 rounded-full border border-border"
               style={{ backgroundColor: row.color }}
+              title={row.color}
               aria-hidden
             />
-            {row.name}
+            <span>{row.name}</span>
           </span>
         ),
       },
@@ -176,6 +237,13 @@ export function PrioritiesPage() {
         key: 'level',
         header: 'Nivel',
         render: (row) => LEVEL_LABELS[row.level],
+      },
+      {
+        key: 'color',
+        header: 'Color',
+        render: (row) => (
+          <span className="font-mono text-xs uppercase text-muted">{row.color}</span>
+        ),
       },
       {
         key: 'description',
@@ -205,27 +273,20 @@ export function PrioritiesPage() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8c8191]">Catálogos</p>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-brand-navy md:text-3xl">
-            Prioridades
-          </h1>
-          <p className="mt-1 text-sm text-[#766c7c]">
-            Define impacto, severidad y orden de atención.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={openCreateModal}
-          disabled={!canManage}
-          className="inline-flex justify-center rounded-xl bg-brand-teal px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(111,79,216,.2)] hover:bg-[#6040c8] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Nueva prioridad
-        </button>
+      <div className="mb-6">
+        <PageHeader
+          kicker="Catálogos"
+          title="Prioridades"
+          description="Define impacto, severidad y orden de atención."
+          actions={
+            <PrimaryButton onClick={openCreateModal} disabled={!canManage}>
+              Nueva prioridad
+            </PrimaryButton>
+          }
+        />
       </div>
 
-      <div className="mb-5 grid gap-3 rounded-2xl border border-[#e2dce5] bg-white p-4 shadow-[0_8px_25px_rgba(61,45,69,.04)] sm:grid-cols-2 lg:grid-cols-4">
+      <div className="ui-card mb-5 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
         <input
           type="search"
           placeholder="Buscar por nombre..."
@@ -234,7 +295,7 @@ export function PrioritiesPage() {
             setSearch(e.target.value)
             setPage(1)
           }}
-          className="rounded-lg border border-brand-slate px-3 py-2 text-sm focus:border-brand-teal focus:outline-none"
+          className="rounded border border-border px-3 py-2 text-sm"
         />
         <select
           value={statusFilter}
@@ -242,7 +303,7 @@ export function PrioritiesPage() {
             setStatusFilter(e.target.value as CatalogStatus | '')
             setPage(1)
           }}
-          className="rounded-lg border border-brand-slate px-3 py-2 text-sm"
+          className="rounded border border-border px-3 py-2 text-sm"
         >
           <option value="">Todos los estados</option>
           <option value="ACTIVE">Activa</option>
@@ -270,22 +331,12 @@ export function PrioritiesPage() {
         title={editingPriority ? 'Editar prioridad' : 'Nueva prioridad'}
         footer={
           <>
-            <button
-              type="button"
-              onClick={closeFormModal}
-              disabled={saving}
-              className="rounded-lg border border-brand-slate px-4 py-2 text-sm text-brand-navy hover:bg-brand-cream/50"
-            >
+            <SecondaryButton onClick={closeFormModal} disabled={saving}>
               Cancelar
-            </button>
-            <button
-              type="submit"
-              form="priority-form"
-              disabled={saving}
-              className="rounded-lg bg-brand-teal px-4 py-2 text-sm font-medium text-white hover:bg-brand-teal/90 disabled:opacity-50"
-            >
+            </SecondaryButton>
+            <PrimaryButton type="submit" form="priority-form" disabled={saving}>
               {saving ? 'Guardando...' : 'Guardar'}
-            </button>
+            </PrimaryButton>
           </>
         }
       >
@@ -294,7 +345,7 @@ export function PrioritiesPage() {
           onSubmit={(event) => void handleSubmit(event)}
           className="space-y-4"
         >
-          {formError && <ErrorState message={formError} />}
+          <FormAlert title={formAlertTitle} messages={formMessages} />
 
           <div>
             <label htmlFor="priority-name" className="mb-1 block text-sm font-medium">
@@ -304,7 +355,7 @@ export function PrioritiesPage() {
               id="priority-name"
               value={formState.name}
               onChange={(e) => setFormState((prev) => ({ ...prev, name: e.target.value }))}
-              className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
+              className="w-full rounded border border-border px-3 py-2 text-sm"
               maxLength={LIMITS.PRIORITY_NAME}
             />
           </div>
@@ -316,10 +367,8 @@ export function PrioritiesPage() {
             <select
               id="priority-level"
               value={formState.level}
-              onChange={(e) =>
-                setFormState((prev) => ({ ...prev, level: e.target.value as PriorityLevel }))
-              }
-              className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
+              onChange={(e) => handleLevelChange(e.target.value as PriorityLevel)}
+              className="w-full rounded border border-border px-3 py-2 text-sm"
             >
               {(Object.keys(LEVEL_LABELS) as PriorityLevel[]).map((level) => (
                 <option key={level} value={level}>
@@ -329,6 +378,11 @@ export function PrioritiesPage() {
             </select>
           </div>
 
+          <ColorField
+            value={formState.color}
+            onChange={(color) => setFormState((prev) => ({ ...prev, color }))}
+          />
+
           <div>
             <label htmlFor="priority-description" className="mb-1 block text-sm font-medium">
               Descripción
@@ -337,7 +391,7 @@ export function PrioritiesPage() {
               id="priority-description"
               value={formState.description}
               onChange={(e) => setFormState((prev) => ({ ...prev, description: e.target.value }))}
-              className="min-h-24 w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
+              className="min-h-24 w-full rounded border border-border px-3 py-2 text-sm"
               maxLength={LIMITS.CATALOG_DESCRIPTION}
             />
           </div>

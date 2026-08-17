@@ -49,17 +49,17 @@ export function LoginPage() {
   return (
     <div>
       <div className="mb-7">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8c8191]">Bienvenido</p>
-        <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-brand-navy">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">Bienvenido</p>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-text">
           Inicia sesión
         </h2>
-        <p className="mt-2 text-sm leading-6 text-[#7b7181]">
+        <p className="mt-2 text-sm leading-6 text-muted">
           Accede a tu espacio de atención y seguimiento.
         </p>
       </div>
       <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
         {error && (
-          <div className="rounded-xl border border-brand-scarlet/25 bg-[#fff1ee] px-3 py-2.5 text-sm text-brand-scarlet">
+          <div className="rounded border border-danger/30 bg-red-50 px-3 py-2.5 text-sm text-danger">
             {error}
           </div>
         )}
@@ -94,7 +94,7 @@ export function LoginPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded bg-brand-teal py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded bg-primary py-2.5 text-sm font-semibold text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitting ? 'Ingresando...' : 'Ingresar'}
         </button>

@@ -229,17 +229,17 @@ export function ReportsPlaceholderPage() {
 
   return (
     <div className="space-y-6">
-      <header className="rounded-[22px] border border-[#e1dae4] bg-white p-5 shadow-[0_10px_35px_rgba(61,45,69,.05)]">
+      <header className="ui-card p-5">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8c8191]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
               Analítica
             </p>
-            <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-brand-navy md:text-3xl">
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-text md:text-3xl">
               Reportes
             </h1>
-            <p className="mt-1 text-sm text-[#766c7c]">
-              Analitica operativa: estado, agentes, categorias, SLA y empresas.
+            <p className="mt-1 text-sm text-muted">
+              Analítica operativa: estado, agentes, categorías, SLA y empresas.
             </p>
           </div>
 
@@ -247,7 +247,7 @@ export function ReportsPlaceholderPage() {
             <button
               type="button"
               onClick={handleExport}
-              className="rounded-xl bg-brand-teal px-4 py-2 text-sm font-bold text-white shadow-[0_8px_20px_rgba(111,79,216,.18)] hover:bg-[#6040c8]"
+              className="rounded bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
             >
               Exportar CSV
             </button>

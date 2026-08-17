@@ -88,8 +88,8 @@ export function ConfirmModal({
 }: ConfirmModalProps) {
   const confirmClass =
     variant === 'danger'
-      ? 'bg-brand-scarlet hover:bg-brand-scarlet/90'
-      : 'bg-brand-teal hover:bg-brand-teal/90'
+      ? 'bg-danger hover:bg-danger/90'
+      : 'bg-primary hover:bg-primary-hover'
 
   return (
     <Modal

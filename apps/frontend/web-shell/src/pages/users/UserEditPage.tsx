@@ -92,13 +92,13 @@ export function UserEditPage() {
         <Link to="/users" className="text-sm text-brand-teal hover:underline">
           ← Volver al listado
         </Link>
-        <p className="mt-4 text-xs font-bold uppercase tracking-[0.18em] text-[#8c8191]">
+        <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
           Administración
         </p>
-        <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-brand-navy md:text-3xl">
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-text md:text-3xl">
           Editar usuario
         </h1>
-        <p className="mt-2 text-sm text-[#766c7c]">
+        <p className="mt-2 text-sm text-muted">
           Actualiza identidad, rol o credenciales de acceso.
         </p>
       </div>
@@ -111,7 +111,7 @@ export function UserEditPage() {
 
       <form
         onSubmit={(e) => void handleSubmit(e)}
-        className="space-y-5 rounded-2xl border border-brand-slate/40 bg-white p-6 shadow-[0_12px_35px_rgba(61,45,69,.06)] md:p-8"
+        className="ui-card space-y-5 p-6 md:p-8"
       >
         <div>
           <label htmlFor="fullName" className="mb-1 block text-sm font-medium">

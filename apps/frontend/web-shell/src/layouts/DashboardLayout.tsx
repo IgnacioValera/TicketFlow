@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AppIcon } from '@/components/common/AppIcon'
+import { BrandMark } from '@/components/common/BrandLogo'
 import { getNavItemsForRole, type NavItem } from '@/constants/navigation'
 import { PERMISSIONS } from '@/constants/permissions'
 import { ROLES } from '@/constants/roles'
 import { useAuth } from '@/hooks/useAuth'
 import { usePermissions } from '@/hooks/usePermissions'
 
-const GROUP_ORDER: NavItem['group'][] = ['CRM', 'Help Desk', 'Administración']
+const GROUP_ORDER: NavItem['group'][] = ['CRM', 'Mesa de ayuda', 'Administración']
 
 function initials(name = '') {
   return (
@@ -46,6 +47,8 @@ export function DashboardLayout() {
   const currentItem = [...navItems]
     .sort((a, b) => b.path.length - a.path.length)
     .find((item) => location.pathname.startsWith(item.path))
+  const pageTitle =
+    currentItem?.label ?? (location.pathname.startsWith('/profile') ? 'Mi perfil' : 'TicketFlow')
 
   const createActions = useMemo(
     () =>
@@ -93,7 +96,7 @@ export function DashboardLayout() {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-100 text-brand-navy">
+    <div className="flex min-h-screen bg-page text-text">
       {sidebarOpen && (
         <button
           type="button"
@@ -104,48 +107,32 @@ export function DashboardLayout() {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex flex-col bg-[#163a5f] text-white transition-[width,transform] duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${collapsed ? 'w-[72px]' : 'w-[232px]'} ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        className={`fixed inset-y-0 left-0 z-40 flex flex-col bg-sidebar text-white transition-[width,transform] duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${collapsed ? 'w-[72px]' : 'w-[232px]'} ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div
-          className={`flex h-14 items-center border-b border-white/10 ${collapsed ? 'justify-center px-2' : 'justify-between px-4'}`}
+          className={`flex h-14 items-center border-b border-white/10 ${collapsed ? 'justify-center px-2' : 'justify-between px-3'}`}
         >
           <Link
             to="/"
-            className="flex min-w-0 items-center gap-2.5"
+            title="TicketFlow"
+            aria-label="TicketFlow, ir al inicio"
+            className="flex min-w-0 items-center"
             onClick={() => setSidebarOpen(false)}
           >
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded bg-[#1d4ed8] text-xs font-bold text-white">
-              TF
-            </span>
-            {!collapsed && (
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-semibold">TicketFlow</span>
-                <span className="block text-[10px] text-white/60">CRM y mesa de ayuda</span>
-              </span>
-            )}
+            <BrandMark collapsed={collapsed} variant="white" />
           </Link>
           {!collapsed && (
             <button
               type="button"
-              className="hidden h-7 w-7 place-items-center rounded text-white/70 hover:bg-white/10 lg:grid"
+              className="hidden h-7 w-7 place-items-center rounded text-white/80 hover:bg-sidebar-active lg:grid"
               aria-label="Contraer navegación"
+              title="Contraer navegación"
               onClick={() => setCollapsed(true)}
             >
               <AppIcon name="chevron-left" className="h-4 w-4" />
             </button>
           )}
         </div>
-
-        {collapsed && (
-          <button
-            type="button"
-            className="mx-auto mt-2 hidden h-7 w-7 rotate-180 place-items-center rounded text-white/70 hover:bg-white/10 lg:grid"
-            aria-label="Expandir navegación"
-            onClick={() => setCollapsed(false)}
-          >
-            <AppIcon name="chevron-left" className="h-4 w-4" />
-          </button>
-        )}
 
         <nav className="flex-1 overflow-y-auto px-2 py-3">
           {groups.map(({ group, items }) => (
@@ -160,10 +147,11 @@ export function DashboardLayout() {
                   <NavLink
                     key={item.path}
                     to={item.path}
-                    title={collapsed ? item.label : undefined}
+                    title={item.label}
+                    aria-label={item.label}
                     onClick={() => setSidebarOpen(false)}
                     className={({ isActive }) =>
-                      `flex items-center rounded text-sm transition-colors ${collapsed ? 'h-9 justify-center px-2' : 'gap-2.5 px-2.5 py-1.5'} ${isActive ? 'bg-white/15 font-medium text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'}`
+                      `flex items-center rounded text-sm transition-colors ${collapsed ? 'h-9 justify-center px-2' : 'gap-2.5 px-2.5 py-1.5'} ${isActive ? 'bg-sidebar-active font-medium text-white' : 'text-white/75 hover:bg-sidebar-active/70 hover:text-white'}`
                     }
                   >
                     <AppIcon name={item.icon} className="h-4 w-4 shrink-0" />
@@ -174,27 +162,39 @@ export function DashboardLayout() {
             </div>
           ))}
         </nav>
+
+        {collapsed && (
+          <div className="border-t border-white/10 p-2">
+            <button
+              type="button"
+              className="mx-auto hidden h-9 w-full place-items-center rounded text-white/80 hover:bg-sidebar-active lg:grid"
+              aria-label="Expandir navegación"
+              title="Expandir navegación"
+              onClick={() => setCollapsed(false)}
+            >
+              <AppIcon name="chevron-left" className="h-4 w-4 rotate-180" />
+            </button>
+          </div>
+        )}
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-slate-200 bg-white px-3 md:px-5">
+        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-surface px-3 md:px-5">
           <button
             type="button"
-            className="grid h-9 w-9 place-items-center rounded text-slate-600 hover:bg-slate-100 lg:hidden"
+            className="grid h-9 w-9 place-items-center rounded text-muted hover:bg-page lg:hidden"
             aria-label="Abrir menú"
             onClick={() => setSidebarOpen(true)}
           >
             <AppIcon name="menu" />
           </button>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-brand-navy">
-              {currentItem?.label ?? 'TicketFlow'}
-            </p>
+            <p className="truncate text-sm font-semibold text-text">{pageTitle}</p>
           </div>
 
           <Link
             to="/tickets"
-            className="ml-auto hidden h-9 max-w-sm flex-1 items-center gap-2 rounded border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500 hover:border-slate-300 md:flex"
+            className="ml-auto hidden h-9 max-w-sm flex-1 items-center gap-2 rounded border border-border bg-page px-3 text-sm text-muted hover:border-slate-300 md:flex"
           >
             <AppIcon name="search" className="h-4 w-4" />
             <span>Buscar tickets...</span>
@@ -205,7 +205,7 @@ export function DashboardLayout() {
               <div className="relative" ref={createMenuRef}>
                 <button
                   type="button"
-                  className="grid h-9 w-9 place-items-center rounded bg-brand-teal text-white hover:bg-blue-800"
+                  className="grid h-9 w-9 place-items-center rounded bg-primary text-white hover:bg-primary-hover"
                   aria-label="Creación rápida"
                   aria-expanded={createOpen}
                   onClick={() => setCreateOpen((open) => !open)}
@@ -213,13 +213,13 @@ export function DashboardLayout() {
                   <AppIcon name="plus" className="h-4 w-4" />
                 </button>
                 {createOpen && (
-                  <div className="absolute right-0 mt-1 w-52 overflow-hidden rounded border border-slate-200 bg-white shadow-lg">
+                  <div className="absolute right-0 mt-1 w-52 overflow-hidden rounded border border-border bg-surface shadow-lg">
                     {createActions.map((action) => (
                       <Link
                         key={action.to}
                         to={action.to}
                         onClick={() => setCreateOpen(false)}
-                        className="block px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                        className="block px-3 py-2 text-sm text-text hover:bg-page"
                       >
                         {action.label}
                       </Link>
@@ -232,10 +232,10 @@ export function DashboardLayout() {
               <button
                 type="button"
                 onClick={() => setProfileOpen((open) => !open)}
-                className="flex items-center gap-2 rounded border border-slate-200 bg-white p-1 pr-2 hover:bg-slate-50"
+                className="flex items-center gap-2 rounded border border-border bg-surface p-1 pr-2 hover:bg-page"
                 aria-expanded={profileOpen}
               >
-                <span className="grid h-7 w-7 place-items-center rounded bg-slate-700 text-[10px] font-bold text-white">
+                <span className="grid h-7 w-7 place-items-center rounded bg-primary text-[10px] font-bold text-white">
                   {initials(user?.fullName)}
                 </span>
                 <span className="hidden max-w-32 truncate text-sm font-medium xl:block">
@@ -243,16 +243,16 @@ export function DashboardLayout() {
                 </span>
                 <AppIcon
                   name="chevron-down"
-                  className={`h-3.5 w-3.5 text-slate-500 transition-transform ${profileOpen ? 'rotate-180' : ''}`}
+                  className={`h-3.5 w-3.5 text-muted transition-transform ${profileOpen ? 'rotate-180' : ''}`}
                 />
               </button>
 
               {profileOpen && (
-                <div className="absolute right-0 mt-1 w-64 overflow-hidden rounded border border-slate-200 bg-white shadow-lg">
-                  <div className="border-b border-slate-100 p-3">
+                <div className="absolute right-0 mt-1 w-64 overflow-hidden rounded border border-border bg-surface shadow-lg">
+                  <div className="border-b border-border p-3">
                     <p className="truncate text-sm font-semibold">{user?.fullName}</p>
-                    <p className="truncate text-xs text-slate-500">{user?.email}</p>
-                    <p className="mt-1 text-[11px] font-medium text-slate-500">
+                    <p className="truncate text-xs text-muted">{user?.email}</p>
+                    <p className="mt-1 text-[11px] font-medium text-muted">
                       {user ? ROLES[user.role] : ''}
                     </p>
                   </div>
@@ -260,7 +260,7 @@ export function DashboardLayout() {
                     <Link
                       to="/profile"
                       onClick={() => setProfileOpen(false)}
-                      className="flex items-center gap-2 rounded px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                      className="flex items-center gap-2 rounded px-3 py-2 text-sm text-text hover:bg-page"
                     >
                       <AppIcon name="profile" className="h-4 w-4" />
                       Ver mi perfil
@@ -268,7 +268,7 @@ export function DashboardLayout() {
                     <button
                       type="button"
                       onClick={() => void handleLogout()}
-                      className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-red-700 hover:bg-red-50"
+                      className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-danger hover:bg-red-50"
                     >
                       <AppIcon name="logout" className="h-4 w-4" />
                       Cerrar sesión
