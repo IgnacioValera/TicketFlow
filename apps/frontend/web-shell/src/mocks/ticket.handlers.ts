@@ -1,5 +1,15 @@
 import { http, HttpResponse } from 'msw'
 import { calculateSlaStatus, matchesSlaFilter } from '@/utils/sla.utils'
+import {
+  aggregateSatisfaction,
+  aggregateSlaCompliance,
+  aggregateTicketsByAgent,
+  aggregateTicketsByCategory,
+  aggregateTicketsByCompany,
+  aggregateTicketsByStatus,
+  canRequestDateRange,
+  filterTicketsByCreatedRange,
+} from '@/utils/reports'
 import type { User } from '@/types/user.types'
 import type {
   Ticket,
@@ -18,7 +28,7 @@ interface TicketStore {
   survey: TicketSurvey | null
 }
 
-let folioCounter = 6
+let folioCounter = 8
 
 const mockCategories = [
   { id: '1', name: 'Hardware' },
@@ -44,6 +54,10 @@ function hoursAgo(h: number) {
 
 function hoursFromNow(h: number) {
   return new Date(Date.now() + h * 3600000).toISOString()
+}
+
+function daysAgo(d: number) {
+  return new Date(Date.now() - d * 86400000).toISOString()
 }
 
 function buildTicket(
@@ -231,6 +245,9 @@ const ticketStores: TicketStore[] = [
       assigneeName: 'Agente Soporte',
       createdAt: hoursAgo(48),
       slaDueAt: hoursFromNow(0),
+      closedAt: hoursAgo(24),
+      companyId: '1',
+      companyName: 'Acme Corp',
     }),
     comments: [
       {
@@ -282,7 +299,13 @@ const ticketStores: TicketStore[] = [
         createdAt: hoursAgo(24),
       },
     ],
-    survey: null,
+    survey: {
+      id: 's-t4',
+      ticketId: 't4',
+      rating: 5,
+      comment: 'Resolución rápida',
+      submittedAt: hoursAgo(20),
+    },
   },
   {
     ticket: buildTicket({
@@ -321,6 +344,84 @@ const ticketStores: TicketStore[] = [
         changedByName: 'Agente Soporte',
         reason: 'Requiere infraestructura',
         createdAt: hoursAgo(3),
+      },
+    ],
+    survey: null,
+  },
+  {
+    ticket: buildTicket({
+      id: 't6',
+      folio: 'HD-2026-0006',
+      title: 'Falla de correo corporativo',
+      description: 'No llegan correos desde anoche.',
+      status: 'CLOSED',
+      requesterId: '4',
+      requesterName: 'Usuario Solicitante',
+      categoryId: '2',
+      priorityId: '3',
+      assigneeId: '2',
+      assigneeName: 'Agente Soporte',
+      companyId: '2',
+      companyName: 'Globex',
+      createdAt: hoursAgo(80),
+      slaDueAt: hoursAgo(56),
+      closedAt: hoursAgo(40),
+    }),
+    comments: [],
+    attachments: [],
+    statusHistory: [
+      {
+        id: 'h13',
+        ticketId: 't6',
+        oldStatus: null,
+        newStatus: 'OPEN',
+        changedBy: '4',
+        changedByName: 'Usuario Solicitante',
+        createdAt: hoursAgo(80),
+      },
+      {
+        id: 'h14',
+        ticketId: 't6',
+        oldStatus: 'RESOLVED',
+        newStatus: 'CLOSED',
+        changedBy: '4',
+        changedByName: 'Usuario Solicitante',
+        createdAt: hoursAgo(40),
+      },
+    ],
+    survey: {
+      id: 's-t6',
+      ticketId: 't6',
+      rating: 2,
+      comment: 'Tardó más de lo prometido',
+      submittedAt: hoursAgo(38),
+    },
+  },
+  {
+    ticket: buildTicket({
+      id: 't7',
+      folio: 'HD-2026-0007',
+      title: 'Capacitación de nuevo sistema',
+      description: 'Solicitud de capacitación registrada hace tres semanas.',
+      status: 'OPEN',
+      requesterId: '4',
+      requesterName: 'Usuario Solicitante',
+      categoryId: '3',
+      priorityId: '1',
+      createdAt: daysAgo(20),
+      slaDueAt: daysAgo(17),
+    }),
+    comments: [],
+    attachments: [],
+    statusHistory: [
+      {
+        id: 'h15',
+        ticketId: 't7',
+        oldStatus: null,
+        newStatus: 'OPEN',
+        changedBy: '4',
+        changedByName: 'Usuario Solicitante',
+        createdAt: daysAgo(20),
       },
     ],
     survey: null,
@@ -368,6 +469,48 @@ function filterByRole(stores: TicketStore[], user: User): TicketStore[] {
     return stores.filter((s) => s.ticket.assigneeId === user.id)
   }
   return stores
+}
+
+const COMPANY_REPORT_META: Record<string, { industry: string; region: string }> = {
+  'Acme Corp': { industry: 'Finanzas', region: 'Norte' },
+  Globex: { industry: 'Retail', region: 'Centro' },
+}
+
+function jsonOk(data: unknown) {
+  return HttpResponse.json({ success: true, message: 'OK', data, meta: null })
+}
+
+function parseReportRange(url: URL) {
+  const startDate = url.searchParams.get('startDate') ?? undefined
+  const endDate = url.searchParams.get('endDate') ?? undefined
+  if (startDate && endDate) {
+    const invalid = canRequestDateRange(startDate, endDate)
+    if (invalid) {
+      return {
+        error: HttpResponse.json(
+          { success: false, message: invalid, data: null, meta: null },
+          { status: 400 },
+        ),
+      }
+    }
+  }
+  return { startDate, endDate }
+}
+
+function ticketsForReport(request: Request, mockUsers: User[]) {
+  const user = findUserFromRequest(request, mockUsers)
+  if (!user) {
+    return {
+      error: HttpResponse.json(
+        { success: false, message: 'No autenticado', data: null, meta: null },
+        { status: 401 },
+      ),
+    }
+  }
+  const range = parseReportRange(new URL(request.url))
+  if ('error' in range && range.error) return { error: range.error }
+  const tickets = filterByRole(ticketStores, user).map(enrichTicket)
+  return { tickets, startDate: range.startDate, endDate: range.endDate }
 }
 
 function addHistory(
@@ -842,6 +985,68 @@ export function createTicketHandlers(mockUsers: User[]) {
       return HttpResponse.json(
         { success: true, message: 'Encuesta registrada', data: survey, meta: null },
         { status: 201 },
+      )
+    }),
+
+    http.get('*/api/v1/reports/tickets-by-status', async ({ request }) => {
+      const result = ticketsForReport(request, mockUsers)
+      if ('error' in result && result.error) return result.error
+      const ranged = filterTicketsByCreatedRange(result.tickets ?? [], {
+        startDate: result.startDate,
+        endDate: result.endDate,
+      })
+      return jsonOk(aggregateTicketsByStatus(ranged))
+    }),
+
+    http.get('*/api/v1/reports/tickets-by-agent', async ({ request }) => {
+      const result = ticketsForReport(request, mockUsers)
+      if ('error' in result && result.error) return result.error
+      const ranged = filterTicketsByCreatedRange(result.tickets ?? [], {
+        startDate: result.startDate,
+        endDate: result.endDate,
+      })
+      return jsonOk(aggregateTicketsByAgent(ranged))
+    }),
+
+    http.get('*/api/v1/reports/tickets-by-category', async ({ request }) => {
+      const result = ticketsForReport(request, mockUsers)
+      if ('error' in result && result.error) return result.error
+      const ranged = filterTicketsByCreatedRange(result.tickets ?? [], {
+        startDate: result.startDate,
+        endDate: result.endDate,
+      })
+      return jsonOk(aggregateTicketsByCategory(ranged))
+    }),
+
+    http.get('*/api/v1/reports/tickets-by-company', async ({ request }) => {
+      const result = ticketsForReport(request, mockUsers)
+      if ('error' in result && result.error) return result.error
+      const ranged = filterTicketsByCreatedRange(result.tickets ?? [], {
+        startDate: result.startDate,
+        endDate: result.endDate,
+      })
+      return jsonOk(aggregateTicketsByCompany(ranged, COMPANY_REPORT_META))
+    }),
+
+    http.get('*/api/v1/reports/sla-compliance', async ({ request }) => {
+      const result = ticketsForReport(request, mockUsers)
+      if ('error' in result && result.error) return result.error
+      return jsonOk(
+        aggregateSlaCompliance(result.tickets ?? [], {
+          startDate: result.startDate,
+          endDate: result.endDate,
+        }),
+      )
+    }),
+
+    http.get('*/api/v1/reports/satisfaction', async ({ request }) => {
+      const result = ticketsForReport(request, mockUsers)
+      if ('error' in result && result.error) return result.error
+      return jsonOk(
+        aggregateSatisfaction(result.tickets ?? [], {
+          startDate: result.startDate,
+          endDate: result.endDate,
+        }),
       )
     }),
   ]

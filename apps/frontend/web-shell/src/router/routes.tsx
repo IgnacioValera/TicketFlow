@@ -10,7 +10,7 @@ import { CategoriesPage } from '@/pages/catalogs/CategoriesPage'
 import { PrioritiesPage } from '@/pages/catalogs/PrioritiesPage'
 import { SlaPoliciesPage } from '@/pages/catalogs/SlaPoliciesPage'
 import { ProfilePage } from '@/pages/profile/ProfilePage'
-import { ReportsPlaceholderPage } from '@/pages/reports/ReportsPlaceholderPage'
+import { ReportsPage } from '@/pages/reports/ReportsPage'
 import { TicketCreatePage } from '@/pages/tickets/TicketCreatePage'
 import { TicketDetailPage } from '@/pages/tickets/TicketDetailPage'
 import { TicketsListPage } from '@/pages/tickets/TicketsListPage'
@@ -108,7 +108,7 @@ export const routes: RouteObject[] = [
               { path: 'sla-policies', element: <RoleRoute permission={PERMISSIONS.SLA_MANAGE}><SlaPoliciesPage /></RoleRoute> },
             ],
           },
-          { path: 'reports', element: <RoleRoute path="/reports"><ReportsPlaceholderPage /></RoleRoute> },
+          { path: 'reports', element: <RoleRoute path="/reports"><ReportsPage /></RoleRoute> },
           { path: 'profile', element: <ProfilePage /> },
           { path: 'forbidden', element: <ForbiddenPage /> },
         ],
