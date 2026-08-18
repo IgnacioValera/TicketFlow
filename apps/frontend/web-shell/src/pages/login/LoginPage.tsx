@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { FORGOT_PASSWORD_LINK } from '@/constants/password-recovery'
 import { useAuth } from '@/hooks/useAuth'
+import { FeedbackAlert } from '@/components/common/FeedbackAlert'
 import { clearLoginNotice, peekLoginNotice } from '@/utils/storage'
 
 export function LoginPage() {
@@ -70,15 +71,9 @@ export function LoginPage() {
         </p>
       </div>
       <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
-        {notice && (
-          <div className="rounded border border-success/30 bg-green-50 px-3 py-2.5 text-sm text-success">
-            {notice}
-          </div>
-        )}
+        {notice && <FeedbackAlert title="Contraseña actualizada" message={notice} />}
         {error && (
-          <div className="rounded border border-danger/30 bg-red-50 px-3 py-2.5 text-sm text-danger">
-            {error}
-          </div>
+          <FeedbackAlert variant="danger" title="No se pudo iniciar sesión" message={error} />
         )}
         <div>
           <label htmlFor="email" className="mb-1 block text-sm font-medium text-brand-navy">

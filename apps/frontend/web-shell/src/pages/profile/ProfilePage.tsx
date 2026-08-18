@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { useNavigate } from 'react-router-dom'
 import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm'
 import { AppIcon } from '@/components/common/AppIcon'
+import { ConfirmToast, FeedbackAlert } from '@/components/common/FeedbackAlert'
 import { ErrorState } from '@/components/common/ErrorState'
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
 import { Modal } from '@/components/common/Modal'
@@ -39,6 +40,7 @@ export function ProfilePage() {
   const [fullName, setFullName] = useState('')
   const [savingName, setSavingName] = useState(false)
   const [nameNotice, setNameNotice] = useState('')
+  const [toast, setToast] = useState<{ title: string; message: string } | null>(null)
   const profileRequest = useRef(0)
 
   const loadProfile = useCallback(async () => {
@@ -58,6 +60,12 @@ export function ProfilePage() {
   useEffect(() => {
     if (user?.fullName) setFullName(user.fullName)
   }, [user?.fullName])
+
+  useEffect(() => {
+    if (!toast) return
+    const timer = window.setTimeout(() => setToast(null), 6000)
+    return () => window.clearTimeout(timer)
+  }, [toast])
 
   const permissionModules = useMemo(() => {
     if (!user) return []
@@ -97,7 +105,12 @@ export function ProfilePage() {
       profileRequest.current += 1
       const updated = await updateOwnProfile(buildOwnProfilePayload(fullName))
       setFullName(updated.fullName)
-      setNameNotice('Nombre actualizado correctamente.')
+      const notice = `Su nombre fue actualizado a ${updated.fullName}.`
+      setNameNotice(notice)
+      setToast({
+        title: 'Nombre actualizado',
+        message: notice,
+      })
     } catch (err: unknown) {
       setError(getErrorMessages(err, 'No se pudo actualizar el perfil')[0])
     } finally {
@@ -107,6 +120,11 @@ export function ProfilePage() {
 
   return (
     <div className="space-y-6">
+      <ConfirmToast
+        open={Boolean(toast)}
+        title={toast?.title ?? ''}
+        message={toast?.message ?? ''}
+      />
       <PageHeader
         kicker="Cuenta"
         title="Mi perfil"
@@ -114,15 +132,9 @@ export function ProfilePage() {
       />
 
       {error && (
-        <div className="rounded border border-danger/30 bg-red-50 px-3 py-2 text-sm text-danger">
-          {error}
-        </div>
+        <FeedbackAlert variant="danger" title="No se pudo completar el cambio" message={error} />
       )}
-      {nameNotice && (
-        <div className="rounded border border-success/30 bg-green-50 px-3 py-2 text-sm text-success">
-          {nameNotice}
-        </div>
-      )}
+      {nameNotice && <FeedbackAlert title="Nombre actualizado" message={nameNotice} />}
 
       <SurfaceCard className="p-6 md:p-8">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
@@ -271,7 +283,12 @@ export function ProfilePage() {
           onCancel={() => setChangeOpen(false)}
           onSuccess={async () => {
             setChangeOpen(false)
-            setLoginNotice('Tu contraseña se actualizó correctamente.')
+            setToast({
+              title: 'Contraseña actualizada',
+              message: 'Su contraseña fue actualizada. Vamos a iniciar sesión de nuevo.',
+            })
+            setLoginNotice('Su contraseña fue actualizada. Inicie sesión con la nueva contraseña.')
+            await new Promise((resolve) => window.setTimeout(resolve, 1600))
             await logout()
             navigate('/login', { replace: true })
           }}

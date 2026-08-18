@@ -37,7 +37,7 @@ test.describe('Perfil del usuario autenticado', () => {
 
     await page.getByLabel('Nombre completo').fill('Admin Actualizado')
     await page.getByRole('button', { name: 'Guardar nombre' }).click()
-    await expect(page.getByText('Nombre actualizado correctamente.')).toBeVisible()
+    await expect(page.getByText('Su nombre fue actualizado a Admin Actualizado.').first()).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Admin Actualizado' })).toBeVisible()
     await expect(page.getByText('Administrador').first()).toBeVisible()
   })
@@ -54,7 +54,8 @@ test.describe('Perfil del usuario autenticado', () => {
 
     await page.getByLabel('Confirmar nueva contraseña').fill('NuevaClave1!')
     await page.getByRole('button', { name: 'Actualizar contraseña' }).click()
-    await expect(page).toHaveURL(/login/)
-    await expect(page.getByText('Tu contraseña se actualizó correctamente.')).toBeVisible()
+    await expect(page.getByText('Su contraseña fue actualizada')).toBeVisible()
+    await expect(page).toHaveURL(/login/, { timeout: 10000 })
+    await expect(page.getByText('Inicie sesión con la nueva contraseña.')).toBeVisible()
   })
 })
