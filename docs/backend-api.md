@@ -23,7 +23,7 @@ La migración inicial se encuentra en `apps/backend/src/database/migrations`. Lo
 
 | Módulo | Rutas principales |
 |---|---|
-| Autenticación | `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me` |
+| Autenticación | `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET/PATCH /auth/me`, `POST /auth/change-password` |
 | Usuarios | `GET/POST /users`, `GET/PUT /users/:id`, `PATCH /users/:id/status` |
 | Catálogos | CRUD de categorías, prioridades y políticas SLA; consulta de empresas |
 | Tickets | Crear, listar, filtrar, consultar, editar, asignar, cambiar estado, escalar y cerrar |

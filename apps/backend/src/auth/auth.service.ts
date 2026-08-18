@@ -7,7 +7,7 @@ import { createHash, randomUUID } from 'crypto'
 import { DataSource, IsNull, MoreThan, Repository } from 'typeorm'
 import { RefreshToken, User, UserStatus } from '../database/entities'
 import { validatePasswordPolicy } from '../common/validation'
-import { ChangePasswordDto, LoginDto } from './dto'
+import { ChangePasswordDto, LoginDto, UpdateOwnProfileDto } from './dto'
 
 interface TokenPayload { sub: string; role: string; type: 'access' | 'refresh'; jti?: string }
 
@@ -114,6 +114,13 @@ export class AuthService {
         .where('user_id = :userId AND revoked_at IS NULL', { userId: user.id })
         .execute()
     })
+  }
+
+  async updateOwnProfile(userId: string, dto: UpdateOwnProfileDto) {
+    const user = await this.users.findOne({ where: { id: userId }, relations: { role: { permissions: true } } })
+    if (!user) throw new UnauthorizedException('Sesión inválida')
+    user.fullName = dto.fullName.trim()
+    return this.serializeUser(await this.users.save(user))
   }
 
   private async issueTokens(user: User) {
