@@ -346,6 +346,36 @@ function findUserByToken(authHeader: string | null): User | undefined {
   return mockUsers.find((u) => u.id === userId)
 }
 
+async function updateOwnProfileMock({ request }: { request: Request }) {
+  const user = findUserByToken(request.headers.get('Authorization'))
+  if (!user) {
+    return HttpResponse.json(
+      { success: false, message: 'No autenticado', data: null, meta: null },
+      { status: 401 },
+    )
+  }
+  const body = (await request.json()) as { fullName?: string }
+  const fullName = body.fullName?.trim() ?? ''
+  if (fullName.length < 3) {
+    return HttpResponse.json(
+      {
+        success: false,
+        message: 'El nombre debe tener al menos 3 caracteres',
+        data: null,
+        meta: null,
+      },
+      { status: 400 },
+    )
+  }
+  user.fullName = fullName
+  return HttpResponse.json({
+    success: true,
+    message: 'Perfil actualizado',
+    data: { ...user, permissions: [...user.permissions] },
+    meta: null,
+  })
+}
+
 function paginate<T>(items: T[], page = 1, perPage = 10) {
   const start = (page - 1) * perPage
   const data = items.slice(start, start + perPage)
@@ -457,35 +487,8 @@ export const handlers = [
     return HttpResponse.json({ success: true, message: 'OK', data: user, meta: null })
   }),
 
-  http.patch('*/auth/me', async ({ request }) => {
-    const user = findUserByToken(request.headers.get('Authorization'))
-    if (!user) {
-      return HttpResponse.json(
-        { success: false, message: 'No autenticado', data: null, meta: null },
-        { status: 401 },
-      )
-    }
-    const body = (await request.json()) as { fullName?: string }
-    const fullName = body.fullName?.trim() ?? ''
-    if (fullName.length < 3) {
-      return HttpResponse.json(
-        {
-          success: false,
-          message: 'El nombre debe tener al menos 3 caracteres',
-          data: null,
-          meta: null,
-        },
-        { status: 400 },
-      )
-    }
-    user.fullName = fullName
-    return HttpResponse.json({
-      success: true,
-      message: 'Perfil actualizado',
-      data: user,
-      meta: null,
-    })
-  }),
+  http.put('*/auth/me', updateOwnProfileMock),
+  http.patch('*/auth/me', updateOwnProfileMock),
 
   http.get('*/users', async ({ request }) => {
     const url = new URL(request.url)

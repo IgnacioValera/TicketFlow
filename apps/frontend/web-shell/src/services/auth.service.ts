@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiPost } from '@/services/apiClient'
+import { apiGet, apiPost, apiPut } from '@/services/apiClient'
 import type { LoginCredentials, LoginResponse, User } from '@/types/user.types'
 import { tokenStorage } from '@/utils/storage'
 
@@ -42,7 +42,10 @@ export async function getProfile(): Promise<User> {
 }
 
 export async function updateOwnProfile(payload: { fullName: string }): Promise<User> {
-  const response = await apiPatch<User>('/auth/me', payload)
+  const response = await apiPut<User>('/auth/me', payload)
+  if (!response.data?.id || !response.data.fullName) {
+    throw { message: 'No se pudo actualizar el perfil' }
+  }
   return response.data
 }
 

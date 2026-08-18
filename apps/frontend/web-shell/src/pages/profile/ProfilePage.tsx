@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm'
 import { AppIcon } from '@/components/common/AppIcon'
@@ -11,6 +11,7 @@ import { PrimaryButton, SecondaryButton, TextInput } from '@/components/common/U
 import { ROLES } from '@/constants/roles'
 import { useAuth } from '@/hooks/useAuth'
 import { buildOwnProfilePayload, ownProfileNameError } from '@/utils/profile-form'
+import { getErrorMessages } from '@/utils/errors'
 import { setLoginNotice } from '@/utils/storage'
 
 function initials(name: string) {
@@ -38,16 +39,19 @@ export function ProfilePage() {
   const [fullName, setFullName] = useState('')
   const [savingName, setSavingName] = useState(false)
   const [nameNotice, setNameNotice] = useState('')
+  const profileRequest = useRef(0)
 
   const loadProfile = useCallback(async () => {
+    const requestId = ++profileRequest.current
     setLoading(true)
     setError('')
     try {
       await refreshProfile()
     } catch (err: unknown) {
-      setError((err as { message?: string }).message || 'No se pudo cargar el perfil')
+      if (requestId !== profileRequest.current) return
+      setError(getErrorMessages(err, 'No se pudo cargar el perfil')[0])
     } finally {
-      setLoading(false)
+      if (requestId === profileRequest.current) setLoading(false)
     }
   }, [refreshProfile])
 
@@ -94,10 +98,12 @@ export function ProfilePage() {
     }
     setSavingName(true)
     try {
-      await updateOwnProfile(buildOwnProfilePayload(fullName))
+      profileRequest.current += 1
+      const updated = await updateOwnProfile(buildOwnProfilePayload(fullName))
+      setFullName(updated.fullName)
       setNameNotice('Nombre actualizado correctamente.')
     } catch (err: unknown) {
-      setError((err as { message?: string }).message || 'No se pudo actualizar el perfil')
+      setError(getErrorMessages(err, 'No se pudo actualizar el perfil')[0])
     } finally {
       setSavingName(false)
     }
@@ -156,10 +162,6 @@ export function ProfilePage() {
               </p>
             </div>
           </div>
-          <PrimaryButton disabled={loading} onClick={() => void loadProfile()}>
-            <AppIcon name="refresh" className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Actualizar perfil
-          </PrimaryButton>
         </div>
       </SurfaceCard>
 
@@ -192,10 +194,7 @@ export function ProfilePage() {
                   autoComplete="name"
                   maxLength={160}
                 />
-                <PrimaryButton
-                  type="submit"
-                  disabled={savingName || fullName.trim() === user.fullName}
-                >
+                <PrimaryButton type="submit" disabled={savingName}>
                   {savingName ? 'Guardando...' : 'Guardar nombre'}
                 </PrimaryButton>
               </div>
