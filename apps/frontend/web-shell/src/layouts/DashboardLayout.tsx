@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AppIcon } from '@/components/common/AppIcon'
 import { BrandMark } from '@/components/common/BrandLogo'
+import { TicketSearch } from '@/components/tickets/TicketSearch'
 import { getNavItemsForRole, type NavItem } from '@/constants/navigation'
 import { PERMISSIONS } from '@/constants/permissions'
 import { ROLES } from '@/constants/roles'
@@ -49,6 +50,9 @@ export function DashboardLayout() {
     .find((item) => location.pathname.startsWith(item.path))
   const pageTitle =
     currentItem?.label ?? (location.pathname.startsWith('/profile') ? 'Mi perfil' : 'TicketFlow')
+
+  const canSearchTickets =
+    hasPermission(PERMISSIONS.TICKET_VIEW_OWN) || hasPermission(PERMISSIONS.TICKET_VIEW_ALL)
 
   const createActions = useMemo(
     () =>
@@ -192,90 +196,89 @@ export function DashboardLayout() {
             <p className="truncate text-sm font-semibold text-text">{pageTitle}</p>
           </div>
 
-          <Link
-            to="/tickets"
-            className="ml-auto hidden h-9 max-w-sm flex-1 items-center gap-2 rounded border border-border bg-page px-3 text-sm text-muted hover:border-slate-300 md:flex"
-          >
-            <AppIcon name="search" className="h-4 w-4" />
-            <span>Buscar tickets...</span>
-          </Link>
-
-          <div className="flex items-center gap-1.5 md:ml-2">
-            {createActions.length > 0 && (
-              <div className="relative" ref={createMenuRef}>
+          <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-1.5">
+            {canSearchTickets && (
+              <div className="hidden min-w-0 flex-1 justify-end md:flex">
+                <TicketSearch />
+              </div>
+            )}
+            <div className="flex items-center gap-1.5">
+              {createActions.length > 0 && (
+                <div className="relative" ref={createMenuRef}>
+                  <button
+                    type="button"
+                    className="grid h-9 w-9 place-items-center rounded bg-primary text-white hover:bg-primary-hover"
+                    aria-label="Creación rápida"
+                    aria-expanded={createOpen}
+                    onClick={() => setCreateOpen((open) => !open)}
+                  >
+                    <AppIcon name="plus" className="h-4 w-4" />
+                  </button>
+                  {createOpen && (
+                    <div className="absolute right-0 mt-1 w-52 overflow-hidden rounded border border-border bg-surface shadow-lg">
+                      {createActions.map((action) => (
+                        <Link
+                          key={action.to}
+                          to={action.to}
+                          onClick={() => setCreateOpen(false)}
+                          className="block px-3 py-2 text-sm text-text hover:bg-page"
+                        >
+                          {action.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="relative" ref={profileMenuRef}>
                 <button
                   type="button"
-                  className="grid h-9 w-9 place-items-center rounded bg-primary text-white hover:bg-primary-hover"
-                  aria-label="Creación rápida"
-                  aria-expanded={createOpen}
-                  onClick={() => setCreateOpen((open) => !open)}
+                  onClick={() => setProfileOpen((open) => !open)}
+                  className="flex items-center gap-2 rounded border border-border bg-surface p-1 pr-2 hover:bg-page"
+                  aria-expanded={profileOpen}
                 >
-                  <AppIcon name="plus" className="h-4 w-4" />
+                  <span className="grid h-7 w-7 place-items-center rounded bg-primary text-[10px] font-bold text-white">
+                    {initials(user?.fullName)}
+                  </span>
+                  <span className="hidden max-w-32 truncate text-sm font-medium xl:block">
+                    {user?.fullName.split(' ')[0]}
+                  </span>
+                  <AppIcon
+                    name="chevron-down"
+                    className={`h-3.5 w-3.5 text-muted transition-transform ${profileOpen ? 'rotate-180' : ''}`}
+                  />
                 </button>
-                {createOpen && (
-                  <div className="absolute right-0 mt-1 w-52 overflow-hidden rounded border border-border bg-surface shadow-lg">
-                    {createActions.map((action) => (
+
+                {profileOpen && (
+                  <div className="absolute right-0 mt-1 w-64 overflow-hidden rounded border border-border bg-surface shadow-lg">
+                    <div className="border-b border-border p-3">
+                      <p className="truncate text-sm font-semibold">{user?.fullName}</p>
+                      <p className="truncate text-xs text-muted">{user?.email}</p>
+                      <p className="mt-1 text-[11px] font-medium text-muted">
+                        {user ? ROLES[user.role] : ''}
+                      </p>
+                    </div>
+                    <div className="p-1">
                       <Link
-                        key={action.to}
-                        to={action.to}
-                        onClick={() => setCreateOpen(false)}
-                        className="block px-3 py-2 text-sm text-text hover:bg-page"
+                        to="/profile"
+                        onClick={() => setProfileOpen(false)}
+                        className="flex items-center gap-2 rounded px-3 py-2 text-sm text-text hover:bg-page"
                       >
-                        {action.label}
+                        <AppIcon name="profile" className="h-4 w-4" />
+                        Ver mi perfil
                       </Link>
-                    ))}
+                      <button
+                        type="button"
+                        onClick={() => void handleLogout()}
+                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-danger hover:bg-red-50"
+                      >
+                        <AppIcon name="logout" className="h-4 w-4" />
+                        Cerrar sesión
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
-            )}
-            <div className="relative" ref={profileMenuRef}>
-              <button
-                type="button"
-                onClick={() => setProfileOpen((open) => !open)}
-                className="flex items-center gap-2 rounded border border-border bg-surface p-1 pr-2 hover:bg-page"
-                aria-expanded={profileOpen}
-              >
-                <span className="grid h-7 w-7 place-items-center rounded bg-primary text-[10px] font-bold text-white">
-                  {initials(user?.fullName)}
-                </span>
-                <span className="hidden max-w-32 truncate text-sm font-medium xl:block">
-                  {user?.fullName.split(' ')[0]}
-                </span>
-                <AppIcon
-                  name="chevron-down"
-                  className={`h-3.5 w-3.5 text-muted transition-transform ${profileOpen ? 'rotate-180' : ''}`}
-                />
-              </button>
-
-              {profileOpen && (
-                <div className="absolute right-0 mt-1 w-64 overflow-hidden rounded border border-border bg-surface shadow-lg">
-                  <div className="border-b border-border p-3">
-                    <p className="truncate text-sm font-semibold">{user?.fullName}</p>
-                    <p className="truncate text-xs text-muted">{user?.email}</p>
-                    <p className="mt-1 text-[11px] font-medium text-muted">
-                      {user ? ROLES[user.role] : ''}
-                    </p>
-                  </div>
-                  <div className="p-1">
-                    <Link
-                      to="/profile"
-                      onClick={() => setProfileOpen(false)}
-                      className="flex items-center gap-2 rounded px-3 py-2 text-sm text-text hover:bg-page"
-                    >
-                      <AppIcon name="profile" className="h-4 w-4" />
-                      Ver mi perfil
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => void handleLogout()}
-                      className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-danger hover:bg-red-50"
-                    >
-                      <AppIcon name="logout" className="h-4 w-4" />
-                      Cerrar sesión
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </header>
