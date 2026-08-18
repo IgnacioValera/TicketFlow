@@ -35,6 +35,17 @@ export interface TicketsByCompanyItem {
   tickets: number
 }
 
+export interface SatisfactionByRatingItem {
+  rating: number
+  count: number
+}
+
+export interface SatisfactionSummary {
+  averageRating: number
+  totalResponses: number
+  byRating: SatisfactionByRatingItem[]
+}
+
 export interface ReportDateRangeParams {
   startDate?: string
   endDate?: string

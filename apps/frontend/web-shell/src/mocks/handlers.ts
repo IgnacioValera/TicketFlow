@@ -1,13 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import { ROLE_PERMISSIONS } from '@/constants/roles'
 import type { Category, Company, Priority, SlaPolicy } from '@/types/catalog.types'
-import type {
-  SlaComplianceSummary,
-  TicketsByAgentItem,
-  TicketsByCategoryItem,
-  TicketsByCompanyItem,
-  TicketsByStatusItem,
-} from '@/types/report.types'
 import type { User, UserRole, UserStatus } from '@/types/user.types'
 import { createTicketHandlers } from '@/mocks/ticket.handlers'
 import { validatePasswordPolicy } from '@/utils/validation'
@@ -251,92 +244,6 @@ const mockCompanies: Company[] = [
     status: 'ACTIVE',
   },
 ]
-
-const reportTicketsByStatus: TicketsByStatusItem[] = [
-  { status: 'OPEN', count: 42, percentage: 17.2 },
-  { status: 'IN_PROGRESS', count: 67, percentage: 27.5 },
-  { status: 'RESOLVED', count: 118, percentage: 48.4 },
-  { status: 'OVERDUE', count: 17, percentage: 6.9 },
-]
-
-const reportTicketsByAgent: TicketsByAgentItem[] = [
-  {
-    agentId: '2',
-    agentName: 'Agente Soporte',
-    open: 8,
-    inProgress: 5,
-    resolved: 21,
-    overdue: 2,
-    total: 36,
-  },
-  {
-    agentId: '6',
-    agentName: 'Laura Campos',
-    open: 11,
-    inProgress: 9,
-    resolved: 34,
-    overdue: 4,
-    total: 58,
-  },
-  {
-    agentId: '7',
-    agentName: 'Jorge Perez',
-    open: 7,
-    inProgress: 6,
-    resolved: 29,
-    overdue: 3,
-    total: 45,
-  },
-]
-
-const reportTicketsByCategory: TicketsByCategoryItem[] = [
-  { category: 'Hardware', priority: 'Alta', count: 34 },
-  { category: 'Hardware', priority: 'Media', count: 22 },
-  { category: 'Software', priority: 'Alta', count: 48 },
-  { category: 'Software', priority: 'Baja', count: 19 },
-  { category: 'Accesos', priority: 'Media', count: 26 },
-]
-
-const reportTicketsByCompany: TicketsByCompanyItem[] = [
-  { company: 'Acme Corp', industry: 'Finanzas', region: 'Norte', tickets: 47 },
-  { company: 'Globex', industry: 'Retail', region: 'Centro', tickets: 35 },
-  { company: 'Initech', industry: 'Tecnologia', region: 'Sur', tickets: 54 },
-  { company: 'Umbrella', industry: 'Salud', region: 'Norte', tickets: 29 },
-]
-
-function buildSlaCompliance(
-  startDate?: string | null,
-  endDate?: string | null,
-): SlaComplianceSummary {
-  if (!startDate || !endDate) {
-    return {
-      periodLabel: 'Ultimos 30 dias',
-      withinSla: 182,
-      outOfSla: 41,
-      withinPercentage: 81.6,
-      outPercentage: 18.4,
-    }
-  }
-
-  const start = new Date(startDate)
-  const end = new Date(endDate)
-  const diffDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1)
-
-  const withinSla = Math.max(12, Math.round(diffDays * 4.2))
-  const outOfSla = Math.max(2, Math.round(diffDays * 0.9))
-  const total = withinSla + outOfSla
-
-  const withinPercentage = Number(((withinSla / total) * 100).toFixed(1))
-  const outPercentage = Number((100 - withinPercentage).toFixed(1))
-
-  return {
-    periodLabel: `${startDate} a ${endDate}`,
-    withinSla,
-    outOfSla,
-    withinPercentage,
-    outPercentage,
-  }
-}
 
 function findUserByToken(authHeader: string | null): User | undefined {
   if (!authHeader?.startsWith('Bearer ')) return undefined
@@ -1096,56 +1003,6 @@ export const handlers = [
       meta: null,
     })
   }),
-
-  http.get('*/api/v1/reports/tickets-by-status', async () =>
-    HttpResponse.json({
-      success: true,
-      message: 'OK',
-      data: reportTicketsByStatus,
-      meta: null,
-    }),
-  ),
-
-  http.get('*/api/v1/reports/tickets-by-agent', async () =>
-    HttpResponse.json({
-      success: true,
-      message: 'OK',
-      data: reportTicketsByAgent,
-      meta: null,
-    }),
-  ),
-
-  http.get('*/api/v1/reports/tickets-by-category', async () =>
-    HttpResponse.json({
-      success: true,
-      message: 'OK',
-      data: reportTicketsByCategory,
-      meta: null,
-    }),
-  ),
-
-  http.get('*/api/v1/reports/sla-compliance', async ({ request }) => {
-    const url = new URL(request.url)
-    const startDate = url.searchParams.get('startDate')
-    const endDate = url.searchParams.get('endDate')
-    const result = buildSlaCompliance(startDate, endDate)
-
-    return HttpResponse.json({
-      success: true,
-      message: 'OK',
-      data: result,
-      meta: null,
-    })
-  }),
-
-  http.get('*/api/v1/reports/tickets-by-company', async () =>
-    HttpResponse.json({
-      success: true,
-      message: 'OK',
-      data: reportTicketsByCompany,
-      meta: null,
-    }),
-  ),
 
   ...createTicketHandlers(mockUsers),
 
