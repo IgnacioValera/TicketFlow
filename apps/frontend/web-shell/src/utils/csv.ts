@@ -7,16 +7,12 @@ export function toCsv(rows: Array<Record<string, string | number>>) {
 }
 
 export function downloadCsv(fileName: string, rows: Array<Record<string, string | number>>) {
-  const csv = toCsv(rows)
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.setAttribute('download', fileName)
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  downloadCsvText(fileName, toCsv(rows))
+}
+
+export function downloadCsvText(fileName: string, csv: string) {
+  const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' })
+  downloadBlob(fileName, blob)
 }
 
 export function downloadBlob(fileName: string, blob: Blob) {
