@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { FORGOT_PASSWORD_LINK } from '@/constants/password-recovery'
 import { useAuth } from '@/hooks/useAuth'
+import { clearLoginNotice, peekLoginNotice } from '@/utils/storage'
 
 export function LoginPage() {
   const { login, isAuthenticated, isLoading, user } = useAuth()
@@ -14,7 +15,11 @@ export function LoginPage() {
 
   const locationState = location.state as { from?: { pathname: string }; notice?: string } | null
   const from = locationState?.from?.pathname || '/dashboard'
-  const notice = locationState?.notice
+  const [notice] = useState(() => locationState?.notice || peekLoginNotice())
+
+  useEffect(() => {
+    if (notice) clearLoginNotice()
+  }, [notice])
 
   if (!isLoading && isAuthenticated) {
     return <Navigate to={user?.mustChangePassword ? '/change-password' : from} replace />
@@ -42,8 +47,8 @@ export function LoginPage() {
           : loggedInUser.role === 'SALES'
             ? '/crm/dashboard'
             : from === '/' || from === '/login'
-            ? '/dashboard'
-            : from
+              ? '/dashboard'
+              : from
       navigate(destination, { replace: true })
     } catch (err: unknown) {
       const apiError = err as { status?: number; message?: string }
@@ -56,10 +61,10 @@ export function LoginPage() {
   return (
     <div>
       <div className="mb-7">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">Bienvenido</p>
-        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-text">
-          Inicia sesión
-        </h2>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
+          Bienvenido
+        </p>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-text">Inicia sesión</h2>
         <p className="mt-2 text-sm leading-6 text-muted">
           Accede a tu espacio de atención y seguimiento.
         </p>
@@ -103,7 +108,10 @@ export function LoginPage() {
             placeholder="Ingresa tu contraseña"
           />
           <div className="mt-2 text-right">
-            <Link to="/forgot-password" className="text-sm font-medium text-primary hover:underline">
+            <Link
+              to="/forgot-password"
+              className="text-sm font-medium text-primary hover:underline"
+            >
               {FORGOT_PASSWORD_LINK}
             </Link>
           </div>

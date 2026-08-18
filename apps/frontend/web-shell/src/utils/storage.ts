@@ -1,5 +1,6 @@
 const ACCESS_TOKEN_KEY = 'helpdesk_access_token'
 const REFRESH_TOKEN_KEY = 'helpdesk_refresh_token'
+const LOGIN_NOTICE_KEY = 'ticketflow-login-notice'
 
 export const tokenStorage = {
   getAccessToken(): string | null {
@@ -18,4 +19,16 @@ export const tokenStorage = {
     localStorage.removeItem(ACCESS_TOKEN_KEY)
     localStorage.removeItem(REFRESH_TOKEN_KEY)
   },
+}
+
+export function setLoginNotice(message: string) {
+  sessionStorage.setItem(LOGIN_NOTICE_KEY, message)
+}
+
+export function peekLoginNotice() {
+  return sessionStorage.getItem(LOGIN_NOTICE_KEY)
+}
+
+export function clearLoginNotice() {
+  sessionStorage.removeItem(LOGIN_NOTICE_KEY)
 }

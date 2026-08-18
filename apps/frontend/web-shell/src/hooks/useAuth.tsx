@@ -21,6 +21,7 @@ interface AuthContextValue {
   login: (credentials: LoginCredentials) => Promise<User>
   logout: () => Promise<void>
   refreshProfile: () => Promise<void>
+  updateOwnProfile: (payload: { fullName: string }) => Promise<User>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -43,6 +44,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshProfile = useCallback(async () => {
     const profile = await authService.getProfile()
     setUser(normalizeUser(profile))
+  }, [])
+
+  const updateOwnProfile = useCallback(async (payload: { fullName: string }) => {
+    const profile = await authService.updateOwnProfile(payload)
+    const normalized = normalizeUser(profile)
+    setUser(normalized)
+    return normalized
   }, [])
 
   useEffect(() => {
@@ -89,8 +97,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       refreshProfile,
+      updateOwnProfile,
     }),
-    [user, isLoading, login, logout, refreshProfile],
+    [user, isLoading, login, logout, refreshProfile, updateOwnProfile],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

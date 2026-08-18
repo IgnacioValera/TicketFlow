@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm'
 import { AppIcon } from '@/components/common/AppIcon'
@@ -7,9 +7,11 @@ import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
 import { Modal } from '@/components/common/Modal'
 import { PageHeader } from '@/components/common/PageHeader'
 import { SurfaceCard } from '@/components/common/SurfaceCard'
-import { PrimaryButton, SecondaryButton } from '@/components/common/UiControls'
+import { PrimaryButton, SecondaryButton, TextInput } from '@/components/common/UiControls'
 import { ROLES } from '@/constants/roles'
 import { useAuth } from '@/hooks/useAuth'
+import { buildOwnProfilePayload, ownProfileNameError } from '@/utils/profile-form'
+import { setLoginNotice } from '@/utils/storage'
 
 function initials(name: string) {
   return name
@@ -28,11 +30,14 @@ const statusLabels = {
 }
 
 export function ProfilePage() {
-  const { user, refreshProfile, logout } = useAuth()
+  const { user, refreshProfile, logout, updateOwnProfile } = useAuth()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [changeOpen, setChangeOpen] = useState(false)
+  const [fullName, setFullName] = useState('')
+  const [savingName, setSavingName] = useState(false)
+  const [nameNotice, setNameNotice] = useState('')
 
   const loadProfile = useCallback(async () => {
     setLoading(true)
@@ -49,6 +54,10 @@ export function ProfilePage() {
   useEffect(() => {
     void loadProfile()
   }, [loadProfile])
+
+  useEffect(() => {
+    if (user?.fullName) setFullName(user.fullName)
+  }, [user?.fullName])
 
   const permissionModules = useMemo(() => {
     if (!user) return []
@@ -69,22 +78,47 @@ export function ProfilePage() {
         dateStyle: 'medium',
         timeStyle: 'short',
       })
-    : 'Primera sesión'
+    : 'Sin registro de acceso'
   const createdAt = user.createdAt
     ? new Date(user.createdAt).toLocaleDateString('es-MX', { dateStyle: 'long' })
-    : 'Cuenta institucional'
+    : 'Sin fecha de alta'
+
+  const handleSaveName = async (event: FormEvent) => {
+    event.preventDefault()
+    setError('')
+    setNameNotice('')
+    const nameError = ownProfileNameError(fullName)
+    if (nameError) {
+      setError(nameError)
+      return
+    }
+    setSavingName(true)
+    try {
+      await updateOwnProfile(buildOwnProfilePayload(fullName))
+      setNameNotice('Nombre actualizado correctamente.')
+    } catch (err: unknown) {
+      setError((err as { message?: string }).message || 'No se pudo actualizar el perfil')
+    } finally {
+      setSavingName(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
       <PageHeader
         kicker="Cuenta"
         title="Mi perfil"
-        description="Consulta tu identidad, acceso y actividad dentro de TicketFlow."
+        description="Consulta y actualiza los datos permitidos de tu cuenta en TicketFlow."
       />
 
       {error && (
         <div className="rounded border border-danger/30 bg-red-50 px-3 py-2 text-sm text-danger">
           {error}
+        </div>
+      )}
+      {nameNotice && (
+        <div className="rounded border border-success/30 bg-green-50 px-3 py-2 text-sm text-success">
+          {nameNotice}
         </div>
       )}
 
@@ -137,14 +171,41 @@ export function ProfilePage() {
             </span>
             <div>
               <h3 className="font-semibold">Información de la cuenta</h3>
-              <p className="text-xs text-muted">Datos asociados a tu sesión</p>
+              <p className="text-xs text-muted">
+                Puedes actualizar tu nombre. El rol no se modifica aquí.
+              </p>
             </div>
           </div>
+          <form className="mt-6 space-y-4" onSubmit={(event) => void handleSaveName(event)}>
+            <div>
+              <label
+                htmlFor="profileFullName"
+                className="mb-1 block text-xs font-medium text-muted"
+              >
+                Nombre completo
+              </label>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <TextInput
+                  id="profileFullName"
+                  value={fullName}
+                  onChange={(event) => setFullName(event.target.value)}
+                  autoComplete="name"
+                  maxLength={160}
+                />
+                <PrimaryButton
+                  type="submit"
+                  disabled={savingName || fullName.trim() === user.fullName}
+                >
+                  {savingName ? 'Guardando...' : 'Guardar nombre'}
+                </PrimaryButton>
+              </div>
+            </div>
+          </form>
           <dl className="mt-6 grid gap-4 sm:grid-cols-2">
-            <Info icon="profile" label="Nombre completo" value={user.fullName} />
             <Info icon="mail" label="Correo electrónico" value={user.email} />
             <Info icon="user-check" label="Rol operativo" value={ROLES[user.role]} />
-            <Info icon="calendar" label="Miembro desde" value={createdAt} />
+            <Info icon="calendar" label="Fecha de alta" value={createdAt} />
+            <Info icon="profile" label="Estado" value={statusLabels[user.status]} />
           </dl>
         </SurfaceCard>
 
@@ -215,11 +276,9 @@ export function ProfilePage() {
           onCancel={() => setChangeOpen(false)}
           onSuccess={async () => {
             setChangeOpen(false)
+            setLoginNotice('Tu contraseña se actualizó correctamente.')
             await logout()
-            navigate('/login', {
-              replace: true,
-              state: { notice: 'Tu contraseña se actualizó correctamente.' },
-            })
+            navigate('/login', { replace: true })
           }}
         />
       </Modal>

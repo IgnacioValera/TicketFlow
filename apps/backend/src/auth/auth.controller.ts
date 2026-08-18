@@ -1,10 +1,10 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common'
+import { Body, Controller, Get, HttpCode, HttpStatus, Patch, Post } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { AllowWhilePasswordChange, CurrentUser, Public } from '../common/security'
 import { result } from '../common/api'
 import { User } from '../database/entities'
 import { AuthService } from './auth.service'
-import { ChangePasswordDto, LoginDto, RefreshDto } from './dto'
+import { ChangePasswordDto, LoginDto, RefreshDto, UpdateOwnProfileDto } from './dto'
 
 @ApiTags('Autenticación')
 @Controller('auth')
@@ -22,6 +22,11 @@ export class AuthController {
 
   @Get('me') @ApiBearerAuth() @AllowWhilePasswordChange()
   me(@CurrentUser() user: User) { return result(this.auth.serializeUser(user)) }
+
+  @Patch('me') @ApiBearerAuth() @ApiOperation({ summary: 'Actualizar el nombre del usuario autenticado' })
+  async updateMe(@CurrentUser() user: User, @Body() dto: UpdateOwnProfileDto) {
+    return result(await this.auth.updateOwnProfile(user.id, dto), 'Perfil actualizado')
+  }
 
   @Post('change-password') @HttpCode(HttpStatus.OK) @ApiBearerAuth() @AllowWhilePasswordChange()
   @ApiOperation({ summary: 'Cambiar la contraseña del usuario autenticado' })

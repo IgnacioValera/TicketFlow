@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsEmail, IsNotEmpty, IsString, MaxLength } from 'class-validator'
+import { IsEmail, IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator'
 import { LIMITS } from '../common/limits'
-import { IsPasswordPolicy, maxLengthMessage, Trim } from '../common/validation'
+import { IsPasswordPolicy, maxLengthMessage, minLengthMessage, Trim } from '../common/validation'
 
 export class LoginDto {
   @ApiProperty({ example: 'admin@helpdesk.com' })
@@ -30,4 +30,13 @@ export class ChangePasswordDto {
   @IsString()
   @IsPasswordPolicy()
   newPassword: string
+}
+
+export class UpdateOwnProfileDto {
+  @ApiProperty({ example: 'Admin Sistema' })
+  @Trim()
+  @IsString()
+  @MinLength(LIMITS.USER_FULL_NAME_MIN, { message: minLengthMessage('El nombre', LIMITS.USER_FULL_NAME_MIN) })
+  @MaxLength(LIMITS.USER_FULL_NAME, { message: maxLengthMessage('El nombre', LIMITS.USER_FULL_NAME) })
+  fullName: string
 }

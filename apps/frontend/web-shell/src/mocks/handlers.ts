@@ -10,6 +10,15 @@ import type {
 } from '@/types/report.types'
 import type { User, UserRole, UserStatus } from '@/types/user.types'
 import { createTicketHandlers } from '@/mocks/ticket.handlers'
+import { validatePasswordPolicy } from '@/utils/validation'
+
+const mockPasswords: Record<string, string> = {
+  '1': 'password',
+  '2': 'password',
+  '3': 'password',
+  '4': 'password',
+  '5': 'password',
+}
 
 const mockUsers: User[] = [
   {
@@ -20,6 +29,8 @@ const mockUsers: User[] = [
     status: 'ACTIVE',
     permissions: ROLE_PERMISSIONS.ADMIN,
     mustChangePassword: false,
+    lastLoginAt: '2026-08-17T15:10:00.000Z',
+    createdAt: '2026-01-10T09:00:00.000Z',
   },
   {
     id: '2',
@@ -29,6 +40,8 @@ const mockUsers: User[] = [
     status: 'ACTIVE',
     permissions: ROLE_PERMISSIONS.AGENT,
     mustChangePassword: false,
+    lastLoginAt: '2026-08-17T12:30:00.000Z',
+    createdAt: '2026-02-01T09:00:00.000Z',
   },
   {
     id: '3',
@@ -38,6 +51,8 @@ const mockUsers: User[] = [
     status: 'ACTIVE',
     permissions: ROLE_PERMISSIONS.SUPERVISOR,
     mustChangePassword: false,
+    lastLoginAt: '2026-08-16T18:45:00.000Z',
+    createdAt: '2026-01-15T09:00:00.000Z',
   },
   {
     id: '4',
@@ -47,6 +62,8 @@ const mockUsers: User[] = [
     status: 'ACTIVE',
     permissions: ROLE_PERMISSIONS.CLIENT,
     mustChangePassword: false,
+    lastLoginAt: '2026-08-18T08:00:00.000Z',
+    createdAt: '2026-03-20T09:00:00.000Z',
   },
   {
     id: '5',
@@ -56,6 +73,8 @@ const mockUsers: User[] = [
     status: 'INACTIVE',
     permissions: ROLE_PERMISSIONS.CLIENT,
     mustChangePassword: false,
+    lastLoginAt: null,
+    createdAt: '2026-04-01T09:00:00.000Z',
   },
 ]
 
@@ -345,7 +364,7 @@ export const handlers = [
   http.post('*/auth/login', async ({ request }) => {
     const body = (await request.json()) as { email: string; password: string }
     const user = mockUsers.find((u) => u.email === body.email)
-    if (!user || body.password !== 'password') {
+    if (!user || body.password !== (mockPasswords[user.id] ?? 'password')) {
       return HttpResponse.json(
         { success: false, message: 'Credenciales inválidas', data: null, meta: null },
         { status: 401 },
@@ -357,6 +376,7 @@ export const handlers = [
         { status: 403 },
       )
     }
+    user.lastLoginAt = new Date().toISOString()
     return HttpResponse.json({
       success: true,
       message: 'Login exitoso',
@@ -391,7 +411,8 @@ export const handlers = [
       )
     }
     const body = (await request.json()) as { currentPassword: string; newPassword: string }
-    if (body.currentPassword !== 'password' && body.currentPassword !== 'Tf-A7k9!mQ2') {
+    const expected = mockPasswords[actor.id] ?? 'password'
+    if (body.currentPassword !== expected && body.currentPassword !== 'Tf-A7k9!mQ2') {
       return HttpResponse.json(
         { success: false, message: 'La contraseña actual no es correcta.', data: null, meta: null },
         { status: 401 },
@@ -399,10 +420,23 @@ export const handlers = [
     }
     if (body.currentPassword === body.newPassword) {
       return HttpResponse.json(
-        { success: false, message: 'La contraseña nueva debe ser diferente de la actual.', data: null, meta: null },
+        {
+          success: false,
+          message: 'La contraseña nueva debe ser diferente de la actual.',
+          data: null,
+          meta: null,
+        },
         { status: 400 },
       )
     }
+    const policy = validatePasswordPolicy(body.newPassword)
+    if (!policy.ok) {
+      return HttpResponse.json(
+        { success: false, message: policy.message, data: null, meta: null },
+        { status: 400 },
+      )
+    }
+    mockPasswords[actor.id] = body.newPassword
     actor.mustChangePassword = false
     return HttpResponse.json({
       success: true,
@@ -421,6 +455,36 @@ export const handlers = [
       )
     }
     return HttpResponse.json({ success: true, message: 'OK', data: user, meta: null })
+  }),
+
+  http.patch('*/auth/me', async ({ request }) => {
+    const user = findUserByToken(request.headers.get('Authorization'))
+    if (!user) {
+      return HttpResponse.json(
+        { success: false, message: 'No autenticado', data: null, meta: null },
+        { status: 401 },
+      )
+    }
+    const body = (await request.json()) as { fullName?: string }
+    const fullName = body.fullName?.trim() ?? ''
+    if (fullName.length < 3) {
+      return HttpResponse.json(
+        {
+          success: false,
+          message: 'El nombre debe tener al menos 3 caracteres',
+          data: null,
+          meta: null,
+        },
+        { status: 400 },
+      )
+    }
+    user.fullName = fullName
+    return HttpResponse.json({
+      success: true,
+      message: 'Perfil actualizado',
+      data: user,
+      meta: null,
+    })
   }),
 
   http.get('*/users', async ({ request }) => {
@@ -533,7 +597,12 @@ export const handlers = [
     const actor = findUserByToken(request.headers.get('Authorization'))
     if (actor?.role !== 'ADMIN') {
       return HttpResponse.json(
-        { success: false, message: 'No tienes permisos para realizar esta acción', data: null, meta: null },
+        {
+          success: false,
+          message: 'No tienes permisos para realizar esta acción',
+          data: null,
+          meta: null,
+        },
         { status: 403 },
       )
     }
@@ -546,7 +615,12 @@ export const handlers = [
     }
     if (user.status !== 'ACTIVE') {
       return HttpResponse.json(
-        { success: false, message: 'No se puede restablecer la contraseña de un usuario inactivo', data: null, meta: null },
+        {
+          success: false,
+          message: 'No se puede restablecer la contraseña de un usuario inactivo',
+          data: null,
+          meta: null,
+        },
         { status: 409 },
       )
     }
@@ -1098,26 +1172,45 @@ export const handlers = [
       updatedAt: new Date().toISOString(),
     }
     mockKnowledge.push(article)
-    return HttpResponse.json({ success: true, message: 'Artículo creado', data: article, meta: null }, { status: 201 })
+    return HttpResponse.json(
+      { success: true, message: 'Artículo creado', data: article, meta: null },
+      { status: 201 },
+    )
   }),
 
   http.put('*/knowledge-articles/:id', async ({ params, request }) => {
     const body = (await request.json()) as { title?: string; content?: string; tags?: string }
     const index = mockKnowledge.findIndex((article) => article.id === params.id)
     if (index === -1) {
-      return HttpResponse.json({ success: false, message: 'Artículo no encontrado', data: null, meta: null }, { status: 404 })
+      return HttpResponse.json(
+        { success: false, message: 'Artículo no encontrado', data: null, meta: null },
+        { status: 404 },
+      )
     }
     mockKnowledge[index] = { ...mockKnowledge[index], ...body, updatedAt: new Date().toISOString() }
-    return HttpResponse.json({ success: true, message: 'Artículo actualizado', data: mockKnowledge[index], meta: null })
+    return HttpResponse.json({
+      success: true,
+      message: 'Artículo actualizado',
+      data: mockKnowledge[index],
+      meta: null,
+    })
   }),
 
   http.delete('*/knowledge-articles/:id', async ({ params }) => {
     const index = mockKnowledge.findIndex((article) => article.id === params.id)
     if (index === -1) {
-      return HttpResponse.json({ success: false, message: 'Artículo no encontrado', data: null, meta: null }, { status: 404 })
+      return HttpResponse.json(
+        { success: false, message: 'Artículo no encontrado', data: null, meta: null },
+        { status: 404 },
+      )
     }
     const [removed] = mockKnowledge.splice(index, 1)
-    return HttpResponse.json({ success: true, message: 'Artículo desactivado', data: removed, meta: null })
+    return HttpResponse.json({
+      success: true,
+      message: 'Artículo desactivado',
+      data: removed,
+      meta: null,
+    })
   }),
 ]
 
