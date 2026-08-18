@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -35,21 +36,27 @@ function normalizeUser(user: User): User {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const profileEpoch = useRef(0)
 
   const logout = useCallback(async () => {
+    profileEpoch.current += 1
     await authService.logout()
     setUser(null)
   }, [])
 
   const refreshProfile = useCallback(async () => {
+    const epoch = profileEpoch.current
     const profile = await authService.getProfile()
+    if (epoch !== profileEpoch.current) return
     setUser(normalizeUser(profile))
   }, [])
 
   const updateOwnProfile = useCallback(async (payload: { fullName: string }) => {
+    profileEpoch.current += 1
+    const epoch = profileEpoch.current
     const profile = await authService.updateOwnProfile(payload)
     const normalized = normalizeUser(profile)
-    setUser(normalized)
+    if (epoch === profileEpoch.current) setUser(normalized)
     return normalized
   }, [])
 

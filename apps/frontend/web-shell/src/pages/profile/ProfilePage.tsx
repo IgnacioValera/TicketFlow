@@ -56,10 +56,6 @@ export function ProfilePage() {
   }, [refreshProfile])
 
   useEffect(() => {
-    void loadProfile()
-  }, [loadProfile])
-
-  useEffect(() => {
     if (user?.fullName) setFullName(user.fullName)
   }, [user?.fullName])
 
