@@ -39,7 +39,6 @@ export function ProfilePage() {
   const [changeOpen, setChangeOpen] = useState(false)
   const [fullName, setFullName] = useState('')
   const [savingName, setSavingName] = useState(false)
-  const [nameNotice, setNameNotice] = useState('')
   const [toast, setToast] = useState<{ title: string; message: string } | null>(null)
   const profileRequest = useRef(0)
 
@@ -94,7 +93,6 @@ export function ProfilePage() {
   const handleSaveName = async (event: FormEvent) => {
     event.preventDefault()
     setError('')
-    setNameNotice('')
     const nameError = ownProfileNameError(fullName)
     if (nameError) {
       setError(nameError)
@@ -105,11 +103,9 @@ export function ProfilePage() {
       profileRequest.current += 1
       const updated = await updateOwnProfile(buildOwnProfilePayload(fullName))
       setFullName(updated.fullName)
-      const notice = `Su nombre fue actualizado a ${updated.fullName}.`
-      setNameNotice(notice)
       setToast({
         title: 'Nombre actualizado',
-        message: notice,
+        message: `Su nombre fue actualizado a ${updated.fullName}.`,
       })
     } catch (err: unknown) {
       setError(getErrorMessages(err, 'No se pudo actualizar el perfil')[0])
@@ -134,7 +130,6 @@ export function ProfilePage() {
       {error && (
         <FeedbackAlert variant="danger" title="No se pudo completar el cambio" message={error} />
       )}
-      {nameNotice && <FeedbackAlert title="Nombre actualizado" message={nameNotice} />}
 
       <SurfaceCard className="p-6 md:p-8">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">

@@ -37,7 +37,7 @@ test.describe('Perfil del usuario autenticado', () => {
 
     await page.getByLabel('Nombre completo').fill('Admin Actualizado')
     await page.getByRole('button', { name: 'Guardar nombre' }).click()
-    await expect(page.getByText('Su nombre fue actualizado a Admin Actualizado.').first()).toBeVisible()
+    await expect(page.getByText('Su nombre fue actualizado a Admin Actualizado.')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Admin Actualizado' })).toBeVisible()
     await expect(page.getByText('Administrador').first()).toBeVisible()
   })
