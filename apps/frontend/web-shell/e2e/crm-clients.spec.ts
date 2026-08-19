@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import fs from 'node:fs'
 
 async function login(page: import('@playwright/test').Page) {
   await page.goto('/login')
@@ -38,6 +39,27 @@ test.describe('Clientes CRM', () => {
     await page.getByRole('button', { name: 'Guardar' }).click()
     await expect(page.getByRole('status')).toContainText('Cliente creado')
     await expect(page.getByText('Nueva Empresa se agregó a la cartera.')).toBeVisible()
+  })
+
+  test('exporta la cartera filtrada en CSV', async ({ page }) => {
+    await login(page)
+    await page.goto('/crm/clients')
+    await expect(page.getByRole('button', { name: 'Exportar' })).toBeVisible()
+
+    await page.getByPlaceholder('Buscar clientes...').fill('Globex')
+    await expect(page.getByText('Globex')).toBeVisible()
+    await expect(page.getByText('Acme Corp')).toHaveCount(0)
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: 'Exportar' }).click(),
+    ])
+    expect(download.suggestedFilename()).toBe('clientes.csv')
+    const filePath = await download.path()
+    expect(filePath).toBeTruthy()
+    const content = fs.readFileSync(filePath!, 'utf-8')
+    expect(content).toContain('Globex')
+    expect(content).not.toContain('Acme Corp')
   })
 
   test('el detalle muestra contactos y oportunidades', async ({ page }) => {

@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw'
 import type { CrmClient } from '@/types/crm.types'
 import { isValidClientPhone, normalizeClientPhone } from '@/utils/client-form'
+import { toCsv } from '@/utils/csv'
 
 let mockClients: CrmClient[] = [
   {
@@ -58,8 +59,53 @@ function jsonError(message: string, status: number) {
   return HttpResponse.json({ success: false, message, data: null, meta: null }, { status })
 }
 
+function filterClients(url: URL) {
+  const status = url.searchParams.get('status')
+  const segment = url.searchParams.get('segment')
+  const search = (url.searchParams.get('search') ?? '').trim().toLowerCase()
+  return mockClients.filter((client) => {
+    if (status && client.status !== status) return false
+    if (segment && client.segment !== segment) return false
+    if (
+      search &&
+      !`${client.name} ${client.email} ${client.industry} ${client.region} ${client.phone}`
+        .toLowerCase()
+        .includes(search)
+    ) {
+      return false
+    }
+    return true
+  })
+}
+
+function clientsExportCsv(clients: CrmClient[]) {
+  return toCsv(
+    clients.map((item) => ({
+      nombre: item.name,
+      giro: item.industry,
+      region: item.region,
+      segmento: item.segment,
+      nivel: item.tier,
+      correo: item.email,
+      telefono: item.phone,
+      estado: item.status,
+      score: item.score,
+      propietario: item.ownerName ?? '',
+    })),
+  )
+}
+
 export function createCrmHandlers() {
   return [
+    http.get('*/api/v1/crm/clients/export', ({ request }) => {
+      const csv = clientsExportCsv(filterClients(new URL(request.url)))
+      return new HttpResponse(`\uFEFF${csv}`, {
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': 'attachment; filename="clientes.csv"',
+        },
+      })
+    }),
     http.get('*/api/v1/crm/clients/:id/360', ({ params }) => {
       const client = mockClients.find((item) => item.id === params.id)
       if (!client) return jsonError('Cliente no encontrado', 404)
@@ -94,22 +140,7 @@ export function createCrmHandlers() {
       const url = new URL(request.url)
       const page = Number(url.searchParams.get('page') ?? 1)
       const perPage = Number(url.searchParams.get('perPage') ?? 10)
-      const status = url.searchParams.get('status')
-      const segment = url.searchParams.get('segment')
-      const search = (url.searchParams.get('search') ?? '').trim().toLowerCase()
-      const items = mockClients.filter((client) => {
-        if (status && client.status !== status) return false
-        if (segment && client.segment !== segment) return false
-        if (
-          search &&
-          !`${client.name} ${client.email} ${client.industry} ${client.region} ${client.phone}`
-            .toLowerCase()
-            .includes(search)
-        ) {
-          return false
-        }
-        return true
-      })
+      const items = filterClients(url)
       const start = (page - 1) * perPage
       return jsonOk(items.slice(start, start + perPage), {
         page,

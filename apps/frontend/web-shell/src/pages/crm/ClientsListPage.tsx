@@ -60,6 +60,7 @@ export function ClientsListPage() {
   const [form, setForm] = useState(EMPTY)
   const [fieldErrors, setFieldErrors] = useState<ClientFormErrors>({})
   const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [toast, setToast] = useState<{ title: string; message: string } | null>(null)
 
   useEffect(() => {
@@ -126,6 +127,21 @@ export function ClientsListPage() {
     setSegment('')
     setStatus('')
     setPage(1)
+  }
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      await crm.exportClientsCsv({
+        search: (searchInput.trim() || search) || undefined,
+        segment: segment || undefined,
+        status: status || undefined,
+      })
+    } catch (err: unknown) {
+      setError(getErrorMessages(err, 'No se pudo exportar la cartera de clientes.')[0])
+    } finally {
+      setExporting(false)
+    }
   }
 
   const openCreate = () => {
@@ -236,8 +252,8 @@ export function ClientsListPage() {
         actions={
           <>
             {hasPermission(PERMISSIONS.CRM_EXPORT) && (
-              <SecondaryButton onClick={() => void crm.exportClientsCsv({ search, segment, status })}>
-                Exportar
+              <SecondaryButton disabled={exporting} onClick={() => void handleExport()}>
+                {exporting ? 'Exportando...' : 'Exportar'}
               </SecondaryButton>
             )}
             {hasPermission(PERMISSIONS.CRM_CLIENT_CREATE) && (
