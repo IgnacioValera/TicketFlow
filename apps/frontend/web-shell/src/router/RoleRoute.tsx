@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom'
+import { ForbiddenPage } from '@/pages/errors/ForbiddenPage'
 import { usePermissions } from '@/hooks/usePermissions'
 import type { UserRole } from '@/types/user.types'
 
@@ -13,15 +13,15 @@ export function RoleRoute({ children, roles, permission, path }: RoleRouteProps)
   const { hasRole, hasPermission, canAccessRoute } = usePermissions()
 
   if (roles && !hasRole(roles)) {
-    return <Navigate to="/forbidden" replace />
+    return <ForbiddenPage />
   }
 
   if (permission && !hasPermission(permission)) {
-    return <Navigate to="/forbidden" replace />
+    return <ForbiddenPage />
   }
 
   if (path && !canAccessRoute(path)) {
-    return <Navigate to="/forbidden" replace />
+    return <ForbiddenPage />
   }
 
   return <>{children}</>

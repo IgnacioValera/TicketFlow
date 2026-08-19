@@ -25,11 +25,7 @@ export function TicketAssignModal({
     if (!open) return
     const load = async () => {
       try {
-        const response = await usersService.getUsers({
-          role: 'AGENT',
-          status: 'ACTIVE',
-          perPage: 100,
-        })
+        const response = await usersService.getAssignableUsers()
         setAgents(response.data)
         setAssigneeId(currentAssigneeId ?? response.data[0]?.id ?? '')
       } catch {
@@ -40,7 +36,7 @@ export function TicketAssignModal({
   }, [open, currentAssigneeId])
 
   const handleSubmit = async () => {
-    if (!assigneeId) return
+    if (!assigneeId || loading) return
     setLoading(true)
     setError('')
     try {

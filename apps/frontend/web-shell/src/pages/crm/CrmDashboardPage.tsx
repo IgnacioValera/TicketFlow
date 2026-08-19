@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { ErrorState } from '@/components/common/ErrorState'
-import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
+import { CardSkeleton } from '@/components/common/LoadingSkeleton'
 import { PageHeader } from '@/components/common/PageHeader'
 import * as crm from '@/services/crm.service'
 import type { CrmDashboard } from '@/types/crm.types'
@@ -14,7 +14,9 @@ export function CrmDashboardPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true)
+    setError('')
     void Promise.all([
       crm.getCrmDashboard(),
       crm.getClients({ perPage: 1 }).catch(() => null),
@@ -25,10 +27,14 @@ export function CrmDashboardPage() {
       })
       .catch((err: { message?: string }) => setError(err.message || 'No se pudo cargar la información.'))
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    load()
   }, [])
 
-  if (loading) return <LoadingSkeleton />
-  if (error || !data) return <ErrorState message={error || 'No hay información disponible'} />
+  if (loading) return <CardSkeleton />
+  if (error || !data) return <ErrorState message={error || 'No hay información disponible'} onRetry={load} />
 
   const chart = data.pipeline.map((item) => ({
     etapa: getOpportunityStageLabel(item.stage),

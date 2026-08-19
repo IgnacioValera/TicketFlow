@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ErrorState } from '@/components/common/ErrorState'
+import { CardSkeleton } from '@/components/common/LoadingSkeleton'
 import { KpiCard } from '@/components/dashboard/KpiCard'
 import { TicketsChart } from '@/components/dashboard/TicketsChart'
 import { useAuth } from '@/hooks/useAuth'
@@ -61,15 +62,8 @@ export function DashboardPlaceholderPage() {
         </p>
       </header>
 
-      {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div
-              key={index}
-              className="h-28 animate-pulse rounded-2xl border border-brand-slate/30 bg-white"
-            />
-          ))}
-        </div>
+      {loading && !summary ? (
+        <CardSkeleton />
       ) : (
         <>
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

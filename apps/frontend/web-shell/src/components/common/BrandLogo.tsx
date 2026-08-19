@@ -18,6 +18,7 @@ export function BrandLogo({
       src={logoUrl}
       width={size}
       height={size}
+      decoding="async"
       alt={decorative ? '' : 'Logo de TicketFlow'}
       aria-hidden={decorative || undefined}
       className={`inline-block shrink-0 ${variant === 'white' ? 'brightness-0 invert' : ''} ${className}`}

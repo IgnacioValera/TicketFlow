@@ -32,7 +32,7 @@ interface TicketsKanbanBoardProps {
 
 export function TicketsKanbanBoard({ tickets, loading = false }: TicketsKanbanBoardProps) {
   if (loading) {
-    return <LoadingSkeleton rows={4} />
+    return <LoadingSkeleton rows={4} label="Cargando tablero…" />
   }
 
   const byStatus = KANBAN_COLUMNS.map((column) => ({

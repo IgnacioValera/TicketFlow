@@ -3,7 +3,11 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { FORGOT_PASSWORD_LINK } from '@/constants/password-recovery'
 import { useAuth } from '@/hooks/useAuth'
 import { FeedbackAlert } from '@/components/common/FeedbackAlert'
+import { PageLoader } from '@/components/common/PageLoader'
+import { PrimaryButton } from '@/components/common/UiControls'
 import { clearLoginNotice, peekLoginNotice } from '@/utils/storage'
+import { createSubmitLock } from '@/utils/submit-lock'
+import { getHomePath } from '@/utils/session-gate'
 
 export function LoginPage() {
   const { login, isAuthenticated, isLoading, user } = useAuth()
@@ -13,21 +17,25 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [submitLock] = useState(() => createSubmitLock())
 
   const locationState = location.state as { from?: { pathname: string }; notice?: string } | null
-  const from = locationState?.from?.pathname || '/dashboard'
+  const from = locationState?.from?.pathname
   const [notice] = useState(() => locationState?.notice || peekLoginNotice())
 
   useEffect(() => {
     if (notice) clearLoginNotice()
   }, [notice])
 
-  if (!isLoading && isAuthenticated) {
-    return <Navigate to={user?.mustChangePassword ? '/change-password' : from} replace />
+  if (isLoading) return <PageLoader />
+
+  if (isAuthenticated) {
+    return <Navigate to={getHomePath(user)} replace />
   }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (submitting || submitLock.pending) return
     setError('')
 
     if (!email.trim() || !password) {
@@ -35,28 +43,27 @@ export function LoginPage() {
       return
     }
 
-    setSubmitting(true)
-    try {
-      const loggedInUser = await login({ email: email.trim(), password })
-      if (loggedInUser.mustChangePassword) {
-        navigate('/change-password', { replace: true })
-        return
+    await submitLock.run(async () => {
+      setSubmitting(true)
+      try {
+        const loggedInUser = await login({ email: email.trim(), password })
+        if (loggedInUser.mustChangePassword) {
+          navigate('/change-password', { replace: true })
+          return
+        }
+        const home = getHomePath(loggedInUser)
+        const destination =
+          from && from !== '/' && from !== '/login' && !from.startsWith('/change-password')
+            ? from
+            : home
+        navigate(destination, { replace: true })
+      } catch (err: unknown) {
+        const apiError = err as { status?: number; message?: string }
+        setError(apiError.message || 'No se pudo iniciar sesión')
+      } finally {
+        setSubmitting(false)
       }
-      const destination =
-        loggedInUser.role === 'CLIENT' || loggedInUser.role === 'REQUESTER'
-          ? '/tickets'
-          : loggedInUser.role === 'SALES'
-            ? '/crm/dashboard'
-            : from === '/' || from === '/login'
-              ? '/dashboard'
-              : from
-      navigate(destination, { replace: true })
-    } catch (err: unknown) {
-      const apiError = err as { status?: number; message?: string }
-      setError(apiError.message || 'No se pudo iniciar sesión')
-    } finally {
-      setSubmitting(false)
-    }
+    })
   }
 
   return (
@@ -85,6 +92,7 @@ export function LoginPage() {
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            disabled={submitting}
             className="w-full rounded border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none focus:ring-4 focus:ring-brand-teal/10"
             placeholder="correo@ejemplo.com"
           />
@@ -99,6 +107,7 @@ export function LoginPage() {
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            disabled={submitting}
             className="w-full rounded border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none focus:ring-4 focus:ring-brand-teal/10"
             placeholder="Ingresa tu contraseña"
           />
@@ -111,13 +120,9 @@ export function LoginPage() {
             </Link>
           </div>
         </div>
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full rounded bg-primary py-2.5 text-sm font-semibold text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {submitting ? 'Ingresando...' : 'Ingresar'}
-        </button>
+        <PrimaryButton type="submit" className="w-full py-2.5" disabled={submitting} loading={submitting} loadingText="Ingresando…">
+          Ingresar
+        </PrimaryButton>
       </form>
     </div>
   )

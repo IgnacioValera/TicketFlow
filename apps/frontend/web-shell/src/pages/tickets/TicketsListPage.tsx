@@ -333,19 +333,23 @@ export function TicketsListPage() {
         </select>
       </div>
 
-      {error ? (
+      {error && tickets.length === 0 && !loading ? (
         <ErrorState message={error} onRetry={() => void fetchTickets()} />
       ) : viewMode === 'kanban' ? (
-        <TicketsKanbanBoard tickets={tickets} loading={loading} />
+        <TicketsKanbanBoard tickets={tickets} loading={loading && tickets.length === 0} />
       ) : (
         <DataTable
           columns={columns}
           data={tickets}
-          loading={loading}
+          loading={loading && tickets.length === 0}
           pagination={meta}
           onPageChange={setPage}
           rowKey={(row) => row.id}
-          emptyMessage="No se encontraron tickets"
+          emptyMessage={
+            search || statusFilter || priorityFilter || categoryFilter || slaFilter
+              ? 'No hay tickets que coincidan con los filtros.'
+              : 'No hay tickets para mostrar.'
+          }
         />
       )}
     </div>

@@ -1,5 +1,7 @@
-import { DataSource } from 'typeorm'
+import { DataSource, getMetadataArgsStorage } from 'typeorm'
 import AppDataSource, * as dataSourceExports from './data-source'
+import { User } from './entities'
+import { MustChangePasswordAndKnowledge1763000000000 } from './migrations/1763000000000-MustChangePasswordAndKnowledge'
 
 describe('TypeORM CLI data source', () => {
   it('expone exactamente una instancia de DataSource', () => {
@@ -9,5 +11,19 @@ describe('TypeORM CLI data source', () => {
 
     expect(exportedDataSources).toHaveLength(1)
     expect(exportedDataSources[0]).toBe(AppDataSource)
+  })
+
+  it('registra la migración de must_change_password sin duplicarla', () => {
+    const migrations = (AppDataSource.options.migrations ?? []) as unknown[]
+    const matches = migrations.filter((migration) => migration === MustChangePasswordAndKnowledge1763000000000)
+    expect(matches).toHaveLength(1)
+  })
+
+  it('mapea mustChangePassword a must_change_password con default false', () => {
+    const column = getMetadataArgsStorage().columns.find(
+      (item) => item.target === User && item.propertyName === 'mustChangePassword',
+    )
+    expect(column?.options.name).toBe('must_change_password')
+    expect(column?.options.default).toBe(false)
   })
 })

@@ -59,7 +59,7 @@ export function TicketDetailPage() {
   }, [id, loadTicket, loadComments, loadAttachments, loadSla])
 
   useEffect(() => {
-    void refresh()
+    void refresh().catch(() => undefined)
   }, [refresh])
 
   useEffect(() => {
@@ -183,7 +183,7 @@ export function TicketDetailPage() {
   }
 
   if (loading && !ticket) {
-    return <LoadingSkeleton rows={6} />
+    return <LoadingSkeleton variant="ticket" label="Cargando ticket…" delayed={false} />
   }
 
   if (error && !ticket) {

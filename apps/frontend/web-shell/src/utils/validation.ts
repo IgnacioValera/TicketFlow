@@ -110,5 +110,10 @@ export async function validateAttachmentFile(file: File): Promise<string | null>
 }
 
 export function errorMessage(err: unknown, fallback: string) {
-  return (err as { message?: string })?.message || fallback
+  const raw = (err as { message?: string | string[] })?.message
+  if (Array.isArray(raw)) {
+    const joined = raw.map((item) => item.trim()).filter(Boolean).join(', ')
+    return joined || fallback
+  }
+  return raw || fallback
 }

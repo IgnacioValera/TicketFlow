@@ -197,8 +197,8 @@ export function ProfilePage() {
                   autoComplete="name"
                   maxLength={160}
                 />
-                <PrimaryButton type="submit" disabled={savingName}>
-                  {savingName ? 'Guardando...' : 'Guardar nombre'}
+                <PrimaryButton type="submit" disabled={savingName} loading={savingName} loadingText="Guardando…">
+                  Guardar nombre
                 </PrimaryButton>
               </div>
             </div>
@@ -280,9 +280,9 @@ export function ProfilePage() {
             setChangeOpen(false)
             setToast({
               title: 'Contraseña actualizada',
-              message: 'Su contraseña fue actualizada. Vamos a iniciar sesión de nuevo.',
+              message: 'Tu contraseña se actualizó correctamente.',
             })
-            setLoginNotice('Su contraseña fue actualizada. Inicie sesión con la nueva contraseña.')
+            setLoginNotice('Tu contraseña se actualizó correctamente.')
             await new Promise((resolve) => window.setTimeout(resolve, 1600))
             await logout()
             navigate('/login', { replace: true })
