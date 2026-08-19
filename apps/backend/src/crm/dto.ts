@@ -116,6 +116,9 @@ export class ActivitiesQueryDto extends CrmPaginationDto {
   @ApiPropertyOptional() @IsOptional() @IsUUID('4') opportunityId?: string
   @ApiPropertyOptional({ enum: ActivityType }) @IsOptional() @IsEnum(ActivityType) type?: ActivityType
   @ApiPropertyOptional({ enum: ActivityStatus }) @IsOptional() @IsEnum(ActivityStatus) status?: ActivityStatus
+  @ApiPropertyOptional() @IsOptional() @IsUUID('4') ownerId?: string
+  @ApiPropertyOptional() @IsOptional() @IsDateString() dueFrom?: string
+  @ApiPropertyOptional() @IsOptional() @IsDateString() dueTo?: string
 }
 
 export class CreateActivityDto {

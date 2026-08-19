@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import {
   Client,
   CrmActivity,
+  CrmActivityHistory,
   CrmContact,
   CrmOpportunity,
   CrmOpportunityStageHistory,
@@ -34,7 +35,7 @@ import { SurveysService } from './surveys.service'
 
 @Module({
   imports: [TypeOrmModule.forFeature([
-    Client, User, Ticket, CrmContact, CrmOpportunity, CrmOpportunityStageHistory, CrmActivity,
+    Client, User, Ticket, CrmContact, CrmOpportunity, CrmOpportunityStageHistory, CrmActivity, CrmActivityHistory,
     CrmSurvey, CrmSurveyQuestion, CrmSurveyQuestionOption, CrmSurveyInvitation, CrmSurveyResponse, CrmSurveyAnswer, SatisfactionSurvey,
   ])],
   controllers: [ClientsController, ContactsController, OpportunitiesController, ActivitiesController, SurveysController, PublicSurveysController, CrmDashboardController],

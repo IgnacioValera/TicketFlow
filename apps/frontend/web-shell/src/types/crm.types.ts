@@ -61,6 +61,10 @@ export interface CrmActivity {
   clientName: string
   opportunityId: string | null
   opportunityTitle: string | null
+  contactId: string | null
+  contactName: string | null
+  ownerId: string | null
+  ownerName: string | null
   type: ActivityType
   status: ActivityStatus
   subject: string
@@ -68,6 +72,7 @@ export interface CrmActivity {
   dueAt: string | null
   completedAt: string | null
   createdAt: string
+  history?: Array<{ action: string; changedBy: string | null; createdAt: string; details: Record<string, unknown> | null }>
 }
 
 export interface CrmSurveyQuestion {

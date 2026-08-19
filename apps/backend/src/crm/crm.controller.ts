@@ -75,6 +75,7 @@ export class ActivitiesController {
   @RequirePermissions('CRM_ACTIVITY_VIEW') @Get() async list(@Query() query: ActivitiesQueryDto, @CurrentUser() user: User) { const r = await this.service.list(query, user); return result(r.items, 'OK', r.meta) }
   @RequirePermissions('CRM_ACTIVITY_CREATE') @Post() async create(@Body() dto: CreateActivityDto, @CurrentUser() user: User) { return result(await this.service.create(dto, user), 'Actividad creada') }
   @RequirePermissions('CRM_ACTIVITY_EDIT') @Patch(':id/complete') async complete(@Param('id', ParseUuidPipe) id: string, @CurrentUser() user: User) { return result(await this.service.complete(id, user), 'Actividad completada') }
+  @RequirePermissions('CRM_ACTIVITY_EDIT') @Patch(':id/cancel') async cancel(@Param('id', ParseUuidPipe) id: string, @CurrentUser() user: User) { return result(await this.service.cancel(id, user), 'Actividad cancelada') }
   @RequirePermissions('CRM_ACTIVITY_EDIT') @Put(':id') async update(@Param('id', ParseUuidPipe) id: string, @Body() dto: UpdateActivityDto, @CurrentUser() user: User) { return result(await this.service.update(id, dto, user), 'Actividad actualizada') }
 }
 

@@ -24,6 +24,7 @@ export enum TicketStatus { OPEN = 'OPEN', ASSIGNED = 'ASSIGNED', IN_PROGRESS = '
 export enum OpportunityStage { NEW = 'NEW', QUALIFICATION = 'QUALIFICATION', PROPOSAL = 'PROPOSAL', NEGOTIATION = 'NEGOTIATION', WON = 'WON', LOST = 'LOST' }
 export enum ActivityType { CALL = 'CALL', MEETING = 'MEETING', TASK = 'TASK', NOTE = 'NOTE' }
 export enum ActivityStatus { PENDING = 'PENDING', COMPLETED = 'COMPLETED', CANCELLED = 'CANCELLED' }
+export enum ActivityHistoryAction { CREATED = 'CREATED', UPDATED = 'UPDATED', COMPLETED = 'COMPLETED', CANCELLED = 'CANCELLED' }
 export enum SurveyStatus { DRAFT = 'DRAFT', PUBLISHED = 'PUBLISHED', CLOSED = 'CLOSED' }
 export enum SurveyTrigger { MANUAL = 'MANUAL', OPPORTUNITY_WON = 'OPPORTUNITY_WON' }
 export enum SurveyQuestionType { TEXT = 'TEXT', SINGLE_CHOICE = 'SINGLE_CHOICE', MULTIPLE_CHOICE = 'MULTIPLE_CHOICE', NPS = 'NPS', RATING = 'RATING', YES_NO = 'YES_NO' }
@@ -265,6 +266,17 @@ export class CrmActivity {
   @Column({ name: 'completed_at', type: 'timestamptz', nullable: true }) completedAt: Date | null
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date
+  @OneToMany(() => CrmActivityHistory, (history) => history.activity) history: CrmActivityHistory[]
+}
+
+@Entity('crm_activity_history')
+export class CrmActivityHistory {
+  @PrimaryGeneratedColumn('uuid') id: string
+  @ManyToOne(() => CrmActivity, { onDelete: 'CASCADE', nullable: false }) @JoinColumn({ name: 'activity_id' }) activity: CrmActivity
+  @ManyToOne(() => User, { nullable: false }) @JoinColumn({ name: 'changed_by' }) changedBy: User
+  @Column({ type: 'enum', enum: ActivityHistoryAction, enumName: 'crm_activity_history_action_enum' }) action: ActivityHistoryAction
+  @Column({ type: 'jsonb', nullable: true }) details: Record<string, unknown> | null
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date
 }
 
 @Entity('crm_surveys')
@@ -336,6 +348,6 @@ export class CrmSurveyAnswer {
 export const ENTITIES = [
   Permission, Role, User, RefreshToken, Category, Priority, SlaPolicy, Client, TicketCounter, Ticket,
   TicketComment, TicketAttachment, TicketHistory, SatisfactionSurvey, KnowledgeArticle,
-  CrmContact, CrmOpportunity, CrmOpportunityStageHistory, CrmActivity, CrmSurvey, CrmSurveyQuestion,
+  CrmContact, CrmOpportunity, CrmOpportunityStageHistory, CrmActivity, CrmActivityHistory, CrmSurvey, CrmSurveyQuestion,
   CrmSurveyQuestionOption, CrmSurveyInvitation, CrmSurveyResponse, CrmSurveyAnswer,
 ]

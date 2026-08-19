@@ -84,6 +84,14 @@ export async function completeActivity(id: string) {
   const response = await apiPatch<CrmActivity>(`/crm/activities/${id}/complete`)
   return response.data
 }
+export async function cancelActivity(id: string) {
+  const response = await apiPatch<CrmActivity>(`/crm/activities/${id}/cancel`)
+  return response.data
+}
+export async function updateActivity(id: string, payload: Record<string, unknown>) {
+  const response = await apiPut<CrmActivity>(`/crm/activities/${id}`, payload)
+  return response.data
+}
 
 export async function getSurveys(params: Record<string, unknown> = {}) {
   return apiGet<CrmSurvey[]>('/crm/surveys', params) as Promise<ApiResponse<CrmSurvey[]>>
