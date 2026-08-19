@@ -10,19 +10,13 @@ import { formatMoney, getOpportunityStageLabel } from '@/utils/labels'
 
 export function CrmDashboardPage() {
   const [data, setData] = useState<CrmDashboard | null>(null)
-  const [clientsTotal, setClientsTotal] = useState(0)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    void Promise.all([
-      crm.getCrmDashboard(),
-      crm.getClients({ perPage: 1 }).catch(() => null),
-    ])
-      .then(([dashboard, clients]) => {
-        setData(dashboard)
-        setClientsTotal(clients?.meta?.total ?? clients?.data.length ?? 0)
-      })
+    void crm
+      .getCrmDashboard()
+      .then(setData)
       .catch((err: { message?: string }) => setError(err.message || 'No se pudo cargar la información.'))
       .finally(() => setLoading(false))
   }, [])
@@ -42,7 +36,7 @@ export function CrmDashboardPage() {
       <PageHeader kicker="CRM" title="Panel CRM" description="Indicadores comerciales, embudo de ventas y satisfacción." />
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          ['Clientes', String(clientsTotal)],
+          ['Clientes', String(data.activeClients)],
           ['Embudo de ventas', formatMoney(pipelineTotal)],
           ['Ganadas', String(data.wonThisMonth)],
           ['NPS', String(data.nps.nps)],

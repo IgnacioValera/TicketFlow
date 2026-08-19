@@ -2,6 +2,7 @@ import { http, HttpResponse } from 'msw'
 import { ROLE_PERMISSIONS } from '@/constants/roles'
 import type { Category, Company, Priority, SlaPolicy } from '@/types/catalog.types'
 import type { User, UserRole, UserStatus } from '@/types/user.types'
+import { createCrmHandlers } from '@/mocks/crm.handlers'
 import { createTicketHandlers } from '@/mocks/ticket.handlers'
 import { validatePasswordPolicy } from '@/utils/validation'
 
@@ -1005,6 +1006,7 @@ export const handlers = [
   }),
 
   ...createTicketHandlers(mockUsers),
+  ...createCrmHandlers(),
 
   http.get('*/knowledge-articles', async ({ request }) => {
     const url = new URL(request.url)
