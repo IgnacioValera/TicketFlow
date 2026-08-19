@@ -74,6 +74,11 @@ export function Client360Page() {
             <p className="mt-1 text-sm text-slate-500">Responsable: {client.ownerName || 'Sin asignar'}</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {hasPermission(PERMISSIONS.CRM_CLIENT_EDIT) && (
+              <SecondaryButton onClick={() => navigate(`/crm/clients?editar=${client.id}`)}>
+                Editar cliente
+              </SecondaryButton>
+            )}
             {hasPermission(PERMISSIONS.CRM_OPPORTUNITY_CREATE) && (
               <SecondaryButton onClick={() => navigate(`/crm/opportunities?nuevo=1&cliente=${client.id}`)}>
                 Nueva oportunidad

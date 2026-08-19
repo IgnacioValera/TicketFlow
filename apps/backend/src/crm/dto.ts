@@ -14,6 +14,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   Max,
   MaxLength,
   Min,
@@ -23,6 +24,7 @@ import {
 } from 'class-validator'
 import { LIMITS } from '../common/limits'
 import { maxLengthMessage, requiredMessage, Trim } from '../common/validation'
+import { CLIENT_PHONE_MESSAGE, CLIENT_PHONE_PATTERN, NormalizePhone } from './client-rules'
 import { OPPORTUNITY_STATUS_FILTERS } from './opportunity-rules'
 import {
   ActivityStatus,
@@ -59,8 +61,8 @@ export class CreateClientDto {
   @ApiProperty() @Trim() @IsString() @MinLength(1, { message: requiredMessage('La región') }) @MaxLength(LIMITS.CLIENT_REGION, { message: maxLengthMessage('La región', LIMITS.CLIENT_REGION) }) region: string
   @ApiProperty({ enum: CompanyTier }) @IsEnum(CompanyTier) tier: CompanyTier
   @ApiProperty({ enum: ClientSegment }) @IsEnum(ClientSegment) segment: ClientSegment
-  @ApiProperty() @IsEmail({}, { message: 'El correo no es válido' }) @MaxLength(LIMITS.EMAIL) email: string
-  @ApiProperty() @Trim() @IsString() @MinLength(1, { message: requiredMessage('El teléfono') }) @MaxLength(LIMITS.CLIENT_PHONE, { message: maxLengthMessage('El teléfono', LIMITS.CLIENT_PHONE) }) phone: string
+  @ApiProperty() @Trim() @IsEmail({}, { message: 'El correo no es válido' }) @MaxLength(LIMITS.EMAIL) email: string
+  @ApiProperty() @NormalizePhone() @IsString() @Matches(CLIENT_PHONE_PATTERN, { message: CLIENT_PHONE_MESSAGE }) phone: string
   @ApiPropertyOptional({ enum: ClientStatus }) @IsOptional() @IsEnum(ClientStatus) status?: ClientStatus
   @ApiPropertyOptional() @IsOptional() @IsUUID('4') ownerId?: string
 }
