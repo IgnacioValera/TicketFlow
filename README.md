@@ -64,21 +64,45 @@ cd ../frontend/web-shell
 npm run build
 ```
 
-Consulta [docs/backend-api.md](docs/backend-api.md) y [docs/CRM_IMPLEMENTATION.md](docs/CRM_IMPLEMENTATION.md) para arquitectura, CRM, entidades, permisos y rutas.
+## Despliegue en Render (Blueprint)
+
+El archivo [`render.yaml`](render.yaml) define:
+
+| Recurso | Tipo | Rol |
+|---------|------|-----|
+| `ticketflow-db` | Render Postgres 16 (`free`) | Base de datos (solo red privada) |
+| `ticketflow-api` | Web service Docker (`free`) | API NestJS |
+| `ticketflow-web` | Web service Docker (`free`) | Frontend nginx |
+
+### Cómo crear el Blueprint
+
+1. Sube el repositorio a GitHub/GitLab.
+2. En el [Dashboard de Render](https://dashboard.render.com): **New → Blueprint**.
+3. Conecta el repo y confirma que detecta `render.yaml`.
+4. Aplica el Blueprint (región por defecto: Oregon).
+
+Tras el primer deploy exitoso:
+
+- La API corre migraciones (`preDeployCommand`) y el seed idempotente (`initialDeployHook`).
+- El frontend construye `VITE_API_BASE_URL` a partir de `API_ORIGIN` (URL pública de la API).
+- Usa los mismos [usuarios de demostración](#usuarios-de-demostración) (`password`).
+
+### Limitaciones del plan free
+
+- Postgres free: 1 GB y caduca a los 30 días (luego 14 días de gracia para actualizar).
+- Los web services free se duermen tras ~15 minutos de inactividad.
+- Sin disco persistente: los archivos en `uploads/` se pierden al redeploy/reinicio.
+
+Si el frontend quedó apuntando a una API vacía en el primer build, dispara un **Manual Deploy** de `ticketflow-web` para regenerar el bundle con `API_ORIGIN` ya resuelto.
 
 ## Estructura
 
 | Carpeta | Descripción |
 |---------|-------------|
 | `apps/frontend/web-shell` | Aplicación web React + Vite (mesa de ayuda) |
-| `apps/frontend/commons` | Componentes compartidos del frontend |
 | `apps/backend` | API NestJS, migración, seed y pruebas |
-| `apps/mobile` | Aplicación móvil |
-| `apps/e2e` | Pruebas end-to-end del monorepo |
-| `packages` | Paquetes compartidos |
-| `docs` | Documentación del proyecto |
-| `infra` | Infraestructura y despliegue |
-| `scripts` | Scripts de automatización |
+| `docker-compose.yml` | Stack local (PostgreSQL + API + frontend) |
+| `render.yaml` | Blueprint de despliegue en Render |
 
 ## Frontend (web-shell)
 

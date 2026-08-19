@@ -15,4 +15,4 @@ COPY --from=build /app/dist ./dist
 RUN mkdir -p uploads && chown -R node:node /app
 USER node
 EXPOSE 8000
-CMD ["sh", "-c", "npm run migration:run:prod && npm run db:seed:prod && npm run start:prod"]
+CMD ["npm", "run", "start:prod"]
