@@ -199,7 +199,7 @@ export function TicketDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
-        <Link to="/tickets" className="text-sm text-brand-teal hover:underline">
+        <Link to="/tickets" state={{ refreshTickets: true }} className="text-sm text-brand-teal hover:underline">
           ← Volver al listado
         </Link>
         <span className="text-sm text-slate-400">|</span>

@@ -576,6 +576,15 @@ export const handlers = [
   }),
 
   http.get('*/api/v1/categories', async ({ request }) => {
+    if (request.headers.get('X-TicketFlow-Empty-Catalogs') === '1') {
+      return HttpResponse.json({
+        success: true,
+        message: 'OK',
+        data: [],
+        meta: { total: 0, page: 1, perPage: 100, totalPages: 0 },
+      })
+    }
+
     const url = new URL(request.url)
     let filtered = [...mockCategories]
     const status = url.searchParams.get('status')
@@ -735,6 +744,15 @@ export const handlers = [
   }),
 
   http.get('*/priorities', async ({ request }) => {
+    if (request.headers.get('X-TicketFlow-Empty-Catalogs') === '1') {
+      return HttpResponse.json({
+        success: true,
+        message: 'OK',
+        data: [],
+        meta: { total: 0, page: 1, perPage: 100, totalPages: 0 },
+      })
+    }
+
     const url = new URL(request.url)
     let filtered = [...mockPriorities]
     const status = url.searchParams.get('status')

@@ -588,7 +588,9 @@ function filterByRole(stores: TicketStore[], user: User): TicketStore[] {
     return stores.filter((s) => s.ticket.requesterId === user.id)
   }
   if (user.role === 'AGENT') {
-    return stores.filter((s) => s.ticket.assigneeId === user.id)
+    return stores.filter(
+      (s) => s.ticket.assigneeId === user.id || s.ticket.requesterId === user.id,
+    )
   }
   return stores
 }
@@ -729,6 +731,13 @@ export function createTicketHandlers(mockUsers: User[]) {
         return HttpResponse.json(
           { success: false, message: 'No autenticado', data: null, meta: null },
           { status: 401 },
+        )
+      }
+
+      if (request.headers.get('X-TicketFlow-Fail-Create') === '1') {
+        return HttpResponse.json(
+          { success: false, message: 'Error simulado al crear el ticket', data: null, meta: null },
+          { status: 500 },
         )
       }
 
