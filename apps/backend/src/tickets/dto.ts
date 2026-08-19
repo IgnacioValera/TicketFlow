@@ -118,4 +118,8 @@ export class TicketsQueryDto {
   @ApiPropertyOptional() @IsOptional() @Transform(({ value }) => value === true || value === 'true') @IsBoolean() unassigned?: boolean
   @ApiPropertyOptional() @IsOptional() @Transform(({ value }) => value === true || value === 'true') @IsBoolean() mine?: boolean
   @ApiPropertyOptional({ enum: ['overdue', 'warning', 'on_time'] }) @IsOptional() @IsIn(['overdue', 'warning', 'on_time']) slaStatus?: 'overdue' | 'warning' | 'on_time'
+  @ApiPropertyOptional({ enum: ['open', 'inProgress', 'resolved', 'closed'] })
+  @IsOptional()
+  @IsIn(['open', 'inProgress', 'resolved', 'closed'])
+  preset?: 'open' | 'inProgress' | 'resolved' | 'closed'
 }
