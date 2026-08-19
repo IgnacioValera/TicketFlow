@@ -28,6 +28,8 @@ describe('Codificación del flujo visual', () => {
     expect(TICKET_FLOW_COPY.technicalAnalysis).toBe('Análisis técnico')
     expect(TICKET_FLOW_COPY.duration).toBe('Duración')
     expect(TICKET_FLOW_COPY.only).toBe('Sólo')
+    expect(TICKET_FLOW_COPY.loadingHistory).toBe('Cargando historial…')
+    expect(TICKET_FLOW_COPY.emptyEvents).toBe('Este ticket todavía no tiene eventos registrados.')
     expect(assignmentDescription('Agente Soporte')).toBe(
       'Agente Soporte asumió la responsabilidad operativa del caso.',
     )

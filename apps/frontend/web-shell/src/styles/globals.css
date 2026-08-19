@@ -171,6 +171,9 @@ main textarea:focus {
   background-image: radial-gradient(circle, rgba(23, 32, 51, 0.1) 1px, transparent 1px);
   background-size: 22px 22px;
 }
+.ticket-flow-scale {
+  transition: transform 0.2s ease;
+}
 .ticket-flow-line-active {
   animation: ticket-flow-dash 1s linear infinite;
 }
@@ -266,8 +269,10 @@ main textarea:focus {
   .tf-progress span,
   .tf-skeleton [class*='bg-brand-slate'],
   .ticket-flow-line-active,
-  .ticket-flow-node-active {
+  .ticket-flow-node-active,
+  .ticket-flow-scale {
     animation: none;
+    transition: none;
   }
 
   .tf-progress span {
