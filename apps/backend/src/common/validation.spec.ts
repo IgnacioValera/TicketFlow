@@ -6,6 +6,7 @@ import { CreateTicketDto, ChangeStatusDto, CreateCommentDto } from '../tickets/d
 import { CreateUserDto } from '../users/dto'
 import { CreateArticleDto } from '../knowledge/knowledge.module'
 import { DateRangeQuery } from '../analytics/analytics.controller'
+import { CreateOpportunityDto } from '../crm/dto'
 import { RoleCode, TicketStatus } from '../database/entities'
 
 function dtoErrors(errors: { property: string; constraints?: Record<string, string> }[]) {
@@ -215,6 +216,13 @@ describe('Validación de DTOs', () => {
       categoryId: 'no-uuid',
     })
     const messages = dtoErrors(await validate(dto))
+    expect(messages.some((message) => message.toLowerCase().includes('uuid'))).toBe(true)
+  })
+
+  it('rechaza oportunidad sin título ni cliente', async () => {
+    const dto = createDto(CreateOpportunityDto, { title: '   ', amount: -10, clientId: 'no-uuid' })
+    const messages = dtoErrors(await validate(dto))
+    expect(messages.some((message) => message.toLowerCase().includes('título'))).toBe(true)
     expect(messages.some((message) => message.toLowerCase().includes('uuid'))).toBe(true)
   })
 })

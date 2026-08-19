@@ -1036,8 +1036,8 @@ export const handlers = [
     })
   }),
 
-  ...createTicketHandlers(mockUsers),
   ...createCrmHandlers(),
+  ...createTicketHandlers(mockUsers),
 
   http.get('*/knowledge-articles', async ({ request }) => {
     const url = new URL(request.url)
