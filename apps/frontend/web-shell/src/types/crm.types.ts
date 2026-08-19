@@ -85,7 +85,26 @@ export interface CrmSurvey {
   description: string
   status: SurveyStatus
   trigger: SurveyTrigger
+  questionCount?: number
   questions?: CrmSurveyQuestion[]
+}
+
+export interface SurveyQuestionResults {
+  id: string
+  prompt: string
+  type: SurveyQuestionType
+  required: boolean
+  answerCount: number
+  options?: Array<{ id: string; label: string; value: string; count: number; percentage: number }>
+  ratings?: Array<{ value: number; count: number; percentage: number }>
+  texts?: string[]
+}
+
+export interface SurveyResults {
+  survey: CrmSurvey
+  totalResponses: number
+  nps: { nps: number; promoters: number; passives: number; detractors: number; total: number } | null
+  questions: SurveyQuestionResults[]
 }
 
 export interface CrmDashboard {

@@ -20,6 +20,7 @@ import {
   CreateQuestionDto,
   CreateSurveyDto,
   OpportunitiesQueryDto,
+  ReorderQuestionsDto,
   RespondSurveyDto,
   SurveysQueryDto,
   UpdateActivityDto,
@@ -85,9 +86,10 @@ export class SurveysController {
   @RequirePermissions('CRM_SURVEY_MANAGE') @Post() async create(@Body() dto: CreateSurveyDto, @CurrentUser() user: User) { return result(await this.service.create(dto, user), 'Encuesta creada') }
   @RequirePermissions('CRM_SURVEY_RESULTS') @Get(':id/results') async results(@Param('id', ParseUuidPipe) id: string) { return result(await this.service.results(id)) }
   @RequirePermissions('CRM_SURVEY_VIEW') @Get(':id') async find(@Param('id', ParseUuidPipe) id: string) { return result(await this.service.getById(id)) }
-  @RequirePermissions('CRM_SURVEY_MANAGE') @Post(':id/publish') async publish(@Param('id', ParseUuidPipe) id: string) { return result(await this.service.publish(id), 'Encuesta publicada') }
-  @RequirePermissions('CRM_SURVEY_MANAGE') @Post(':id/close') async close(@Param('id', ParseUuidPipe) id: string) { return result(await this.service.close(id), 'Encuesta cerrada') }
+  @RequirePermissions('CRM_SURVEY_MANAGE') @Post(':id/publish') async publish(@Param('id', ParseUuidPipe) id: string) { return result(await this.service.publish(id), 'Encuesta activada') }
+  @RequirePermissions('CRM_SURVEY_MANAGE') @Post(':id/close') async close(@Param('id', ParseUuidPipe) id: string) { return result(await this.service.close(id), 'Encuesta desactivada') }
   @RequirePermissions('CRM_SURVEY_MANAGE') @Post(':id/questions') async addQuestion(@Param('id', ParseUuidPipe) id: string, @Body() dto: CreateQuestionDto) { return result(await this.service.addQuestion(id, dto), 'Pregunta agregada') }
+  @RequirePermissions('CRM_SURVEY_MANAGE') @Put(':id/questions/order') async reorder(@Param('id', ParseUuidPipe) id: string, @Body() dto: ReorderQuestionsDto) { return result(await this.service.reorderQuestions(id, dto), 'Orden actualizado') }
   @RequirePermissions('CRM_SURVEY_MANAGE') @Delete(':id/questions/:questionId') async removeQuestion(@Param('id', ParseUuidPipe) id: string, @Param('questionId', ParseUuidPipe) questionId: string) { return result(await this.service.removeQuestion(id, questionId), 'Pregunta eliminada') }
   @RequirePermissions('CRM_SURVEY_MANAGE') @Put(':id') async update(@Param('id', ParseUuidPipe) id: string, @Body() dto: UpdateSurveyDto) { return result(await this.service.update(id, dto), 'Encuesta actualizada') }
 }

@@ -12,7 +12,7 @@ import { CatalogStatus, Category, Client, ClientStatus, Priority, RoleCode, Sati
 import { AssignTicketDto, ChangeStatusDto, CreateCommentDto, CreateTicketDto, EscalateTicketDto, SubmitSurveyDto, TicketsQueryDto, UpdateTicketDto } from './dto'
 import { removeTempUpload, validateUploadedFile } from './file-validation'
 import { serializeHistoryRecord, sortTicketHistories } from './ticket-history'
-import { assertStatusReason, assertTicketMutable, assertTransition, calculateSla, hasPermission } from './ticket-rules'
+import { assertStatusReason, assertTicketMutable, assertTicketSurvey, assertTransition, calculateSla, hasPermission } from './ticket-rules'
 
 @Injectable()
 export class TicketsService {
@@ -206,7 +206,13 @@ export class TicketsService {
     await unlink(join(process.cwd(), directory, item.storedName)).catch(() => undefined)
   }
   async getSla(id: string, user: User) { const ticket = await this.findVisible(id, user); return calculateSla(ticket.slaCreatedAt, ticket.slaDueAt, ticket.resolutionHours) }
-  async submitSurvey(id: string, dto: SubmitSurveyDto, user: User) { const ticket = await this.findVisible(id, user); if (ticket.requester.id !== user.id) throw new ForbiddenException('Sólo el solicitante puede responder la encuesta'); if (ticket.status !== TicketStatus.CLOSED) throw new UnprocessableEntityException('La encuesta está disponible cuando el ticket está cerrado'); if (await this.surveys.exists({ where: { ticket: { id } } })) throw new ConflictException('La encuesta ya fue respondida'); const survey = await this.surveys.save(this.surveys.create({ ticket, submittedBy: user, rating: dto.rating, comment: dto.comment?.trim() ?? null })); return { id: survey.id, ticketId: id, rating: survey.rating, comment: survey.comment ?? undefined, submittedAt: survey.submittedAt.toISOString() } }
+  async submitSurvey(id: string, dto: SubmitSurveyDto, user: User) {
+    const ticket = await this.findVisible(id, user)
+    assertTicketSurvey(ticket, user)
+    if (await this.surveys.exists({ where: { ticket: { id } } })) throw new ConflictException('La encuesta ya fue respondida')
+    const survey = await this.surveys.save(this.surveys.create({ ticket, submittedBy: user, rating: dto.rating, comment: dto.comment?.trim() ?? null }))
+    return { id: survey.id, ticketId: id, rating: survey.rating, comment: survey.comment ?? undefined, submittedAt: survey.submittedAt.toISOString() }
+  }
 
   private async findVisible(id: string, user: User, relations = false) { const ticket = await this.tickets.findOne({ where: { id }, relations: relations ? { histories: true, comments: true, attachments: true, survey: true } : {} }); if (!ticket) throw new NotFoundException('Ticket no encontrado'); await this.assertVisible(ticket, user); return ticket }
   private async assertVisible(ticket: Ticket, user: User) { if (this.isElevated(user)) return; if (isPortalRole(user.role.code) && ticket.requester.id === user.id) return; if (user.role.code === RoleCode.AGENT && ticket.assignee?.id === user.id) return; throw new ForbiddenException('No tienes acceso a este ticket') }

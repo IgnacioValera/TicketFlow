@@ -10,6 +10,7 @@ import type {
   CrmSurvey,
   Customer360,
   OpportunityStage,
+  SurveyResults,
 } from '@/types/crm.types'
 import { downloadBlob } from '@/utils/csv'
 
@@ -96,16 +97,32 @@ export async function createSurvey(payload: Record<string, unknown>) {
   const response = await apiPost<CrmSurvey>('/crm/surveys', payload)
   return response.data
 }
+export async function updateSurvey(id: string, payload: Record<string, unknown>) {
+  const response = await apiPut<CrmSurvey>(`/crm/surveys/${id}`, payload)
+  return response.data
+}
 export async function addQuestion(id: string, payload: Record<string, unknown>) {
   const response = await apiPost<CrmSurvey>(`/crm/surveys/${id}/questions`, payload)
+  return response.data
+}
+export async function removeQuestion(id: string, questionId: string) {
+  const response = await apiDelete<CrmSurvey>(`/crm/surveys/${id}/questions/${questionId}`)
+  return response.data
+}
+export async function reorderQuestions(id: string, questionIds: string[]) {
+  const response = await apiPut<CrmSurvey>(`/crm/surveys/${id}/questions/order`, { questionIds })
   return response.data
 }
 export async function publishSurvey(id: string) {
   const response = await apiPost<CrmSurvey>(`/crm/surveys/${id}/publish`)
   return response.data
 }
+export async function closeSurvey(id: string) {
+  const response = await apiPost<CrmSurvey>(`/crm/surveys/${id}/close`)
+  return response.data
+}
 export async function getSurveyResults(id: string) {
-  const response = await apiGet<Record<string, unknown>>(`/crm/surveys/${id}/results`)
+  const response = await apiGet<SurveyResults>(`/crm/surveys/${id}/results`)
   return response.data
 }
 export async function getPublicSurvey(token: string) {
