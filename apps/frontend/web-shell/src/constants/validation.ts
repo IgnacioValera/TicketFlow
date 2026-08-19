@@ -19,6 +19,9 @@ export const LIMITS = {
   FILE_MAX_BYTES: 5 * 1024 * 1024,
   PASSWORD_MIN_CHARS: 8,
   PASSWORD_MAX_BYTES: 72,
+  OPPORTUNITY_TITLE: 200,
+  NOTES: 5_000,
+  LOST_REASON: 1_000,
 } as const
 
 export const FILE_MAX_MB = 5

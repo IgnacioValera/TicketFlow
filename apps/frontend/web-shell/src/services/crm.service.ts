@@ -60,6 +60,10 @@ export async function createOpportunity(payload: Record<string, unknown>) {
   const response = await apiPost<CrmOpportunity>('/crm/opportunities', payload)
   return response.data
 }
+export async function updateOpportunity(id: string, payload: Record<string, unknown>) {
+  const response = await apiPut<CrmOpportunity>(`/crm/opportunities/${id}`, payload)
+  return response.data
+}
 export async function changeStage(id: string, payload: { stage: OpportunityStage; lostReason?: string; reopen?: boolean; reopenReason?: string }) {
   const response = await apiPatch<CrmOpportunity>(`/crm/opportunities/${id}/stage`, payload)
   return response.data
