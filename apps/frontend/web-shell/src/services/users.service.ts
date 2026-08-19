@@ -13,6 +13,11 @@ export async function getUsers(params: UsersListParams = {}) {
   return response as ApiResponse<User[]>
 }
 
+export async function getAssignableUsers() {
+  const response = await apiGet<User[]>('/users/assignable')
+  return response as ApiResponse<User[]>
+}
+
 export async function createUser(payload: CreateUserPayload): Promise<User> {
   const response = await apiPost<User>('/users', payload)
   return response.data

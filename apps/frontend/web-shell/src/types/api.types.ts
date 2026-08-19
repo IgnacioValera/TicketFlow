@@ -3,6 +3,7 @@ export interface ApiResponse<T> {
   message: string
   data: T
   meta: PaginationMeta | null
+  code?: string | null
 }
 
 export interface PaginationMeta {
@@ -18,6 +19,7 @@ export interface ApiError {
   data: null
   meta: null
   status?: number
+  code?: string | null
 }
 
 export interface PaginationParams {

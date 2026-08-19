@@ -73,6 +73,7 @@ interface ConfirmModalProps {
   cancelLabel?: string
   variant?: 'danger' | 'primary'
   loading?: boolean
+  loadingLabel?: string
 }
 
 export function ConfirmModal({
@@ -85,6 +86,7 @@ export function ConfirmModal({
   cancelLabel = 'Cancelar',
   variant = 'primary',
   loading = false,
+  loadingLabel = 'Procesando…',
 }: ConfirmModalProps) {
   const confirmClass =
     variant === 'danger'
@@ -108,11 +110,14 @@ export function ConfirmModal({
           </button>
           <button
             type="button"
-            onClick={onConfirm}
+            onClick={() => {
+              if (loading) return
+              onConfirm()
+            }}
             disabled={loading}
-            className={`rounded px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 ${confirmClass}`}
+            className={`inline-flex items-center gap-2 rounded px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 ${confirmClass}`}
           >
-            {loading ? 'Procesando...' : confirmLabel}
+            {loading ? loadingLabel : confirmLabel}
           </button>
         </>
       }

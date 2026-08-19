@@ -1,5 +1,6 @@
 import type { KeyboardEvent, MouseEvent, ReactNode } from 'react'
 import { EmptyState } from '@/components/common/EmptyState'
+import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
 
 export interface Column<T> {
   key: string
@@ -25,6 +26,7 @@ interface DataTableProps<T> {
   sortKey?: string
   sortDirection?: 'asc' | 'desc'
   onSort?: (key: string) => void
+  loadingLabel?: string
   emptyMessage?: string
   emptyDescription?: string
   emptyAction?: ReactNode
@@ -41,6 +43,7 @@ export function DataTable<T>({
   sortKey,
   sortDirection = 'asc',
   onSort,
+  loadingLabel = 'Cargando información…',
   emptyMessage = 'No hay información disponible',
   emptyDescription,
   emptyAction,
@@ -48,16 +51,7 @@ export function DataTable<T>({
   onRowClick,
 }: DataTableProps<T>) {
   if (loading) {
-    return (
-      <div className="overflow-hidden rounded border border-slate-200 bg-white">
-        <p className="sr-only">Cargando...</p>
-        <div className="animate-pulse space-y-2 p-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-8 rounded bg-slate-100" />
-          ))}
-        </div>
-      </div>
-    )
+    return <LoadingSkeleton variant="table" rows={6} label={loadingLabel} />
   }
 
   if (data.length === 0) {

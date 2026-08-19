@@ -10,7 +10,7 @@ export function ChangePasswordPage() {
   const navigate = useNavigate()
 
   const finish = async () => {
-    setLoginNotice('Su contraseña fue actualizada. Inicie sesión con la nueva contraseña.')
+    setLoginNotice('Tu contraseña se actualizó correctamente.')
     await logout()
     navigate('/login', { replace: true })
   }

@@ -11,7 +11,7 @@ async function loginAsAdmin(page: import('@playwright/test').Page) {
 test.describe('Reportes', () => {
   test('carga datos reales y actualiza al cambiar el periodo', async ({ page }) => {
     await loginAsAdmin(page)
-    await page.goto('/reports')
+    await page.goto('/reports', { waitUntil: 'domcontentloaded' })
     await expect(page.getByRole('heading', { name: 'Reportes' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Tickets por estado' })).toBeVisible()
     await expect(page.getByText('Placeholder')).toHaveCount(0)
@@ -28,7 +28,8 @@ test.describe('Reportes', () => {
 
   test('descarga un CSV con el reporte completo', async ({ page }) => {
     await loginAsAdmin(page)
-    await page.goto('/reports')
+    await page.goto('/reports', { waitUntil: 'domcontentloaded' })
+    await expect(page.getByRole('heading', { name: 'Reportes' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Exportar CSV' })).toBeEnabled()
     const [download] = await Promise.all([
       page.waitForEvent('download'),
@@ -39,7 +40,7 @@ test.describe('Reportes', () => {
 
   test('no envía un rango invertido al servidor', async ({ page }) => {
     await loginAsAdmin(page)
-    await page.goto('/reports')
+    await page.goto('/reports', { waitUntil: 'domcontentloaded' })
     await expect(page.getByRole('heading', { name: 'Reportes' })).toBeVisible()
 
     let invertedRequest = false

@@ -12,6 +12,9 @@ import { useAuth } from '@/hooks/useAuth'
 import { usePermissions } from '@/hooks/usePermissions'
 import * as usersService from '@/services/users.service'
 import type { User, UserRole, UserStatus } from '@/types/user.types'
+import { createSubmitLock } from '@/utils/submit-lock'
+import { canResetUserPassword } from '@/utils/user-admin'
+import { resolveContentStatus } from '@/utils/session-gate'
 
 const STATUS_LABELS: Record<UserStatus, string> = {
   ACTIVE: 'Activo',
@@ -35,12 +38,21 @@ export function UsersListPage() {
   const [statusModal, setStatusModal] = useState<{ user: User; status: UserStatus } | null>(null)
   const [statusLoading, setStatusLoading] = useState(false)
   const [processingUserId, setProcessingUserId] = useState<string | null>(null)
+  const [resetConfirmUser, setResetConfirmUser] = useState<User | null>(null)
   const [resetUser, setResetUser] = useState<User | null>(null)
   const [temporaryPassword, setTemporaryPassword] = useState('')
   const [passwordVisible, setPasswordVisible] = useState(false)
   const [passwordCopied, setPasswordCopied] = useState(false)
   const [resetLoading, setResetLoading] = useState(false)
   const [resetError, setResetError] = useState('')
+  const [statusLock] = useState(() => createSubmitLock())
+  const [resetLock] = useState(() => createSubmitLock())
+
+  useEffect(() => {
+    return () => {
+      setTemporaryPassword('')
+    }
+  }, [])
 
   const loadUsers = useCallback(async () => {
     setLoading(true)
@@ -69,24 +81,27 @@ export function UsersListPage() {
   }, [loadUsers])
 
   const handleStatusChange = async () => {
-    if (!statusModal) return
-    setStatusLoading(true)
-    setProcessingUserId(statusModal.user.id)
-    setError('')
-    setSuccess('')
-    try {
-      await usersService.updateUserStatus(statusModal.user.id, statusModal.status)
-      setSuccess(
-        `Estado de ${statusModal.user.fullName} actualizado a ${STATUS_LABELS[statusModal.status]}.`,
-      )
-      setStatusModal(null)
-      await loadUsers()
-    } catch (err: unknown) {
-      setError((err as { message?: string }).message || 'Error al actualizar estado')
-    } finally {
-      setStatusLoading(false)
-      setProcessingUserId(null)
-    }
+    if (!statusModal || statusLoading || statusLock.pending) return
+    await statusLock.run(async () => {
+      setStatusLoading(true)
+      setProcessingUserId(statusModal.user.id)
+      setError('')
+      setSuccess('')
+      try {
+        const updated = await usersService.updateUserStatus(statusModal.user.id, statusModal.status)
+        setUsers((current) => current.map((item) => (item.id === updated.id ? updated : item)))
+        setSuccess(
+          `Estado de ${statusModal.user.fullName} actualizado a ${STATUS_LABELS[statusModal.status]}.`,
+        )
+        setStatusModal(null)
+        await loadUsers()
+      } catch (err: unknown) {
+        setError((err as { message?: string }).message || 'Error al actualizar estado')
+      } finally {
+        setStatusLoading(false)
+        setProcessingUserId(null)
+      }
+    })
   }
 
   const closeResetModal = () => {
@@ -98,6 +113,7 @@ export function UsersListPage() {
       if (!confirmed) return
     }
     setResetUser(null)
+    setResetConfirmUser(null)
     setTemporaryPassword('')
     setPasswordVisible(false)
     setPasswordCopied(false)
@@ -105,18 +121,25 @@ export function UsersListPage() {
   }
 
   const handleResetPassword = async () => {
-    if (!resetUser) return
-    setResetLoading(true)
-    setResetError('')
-    try {
-      const response = await usersService.resetUserPassword(resetUser.id)
-      setTemporaryPassword(response.temporaryPassword)
-      setSuccess(response.message)
-    } catch (err: unknown) {
-      setResetError((err as { message?: string }).message || 'No se pudo restablecer la contraseña')
-    } finally {
-      setResetLoading(false)
-    }
+    const target = resetConfirmUser ?? resetUser
+    if (!target || resetLoading || resetLock.pending) return
+    await resetLock.run(async () => {
+      setResetLoading(true)
+      setResetError('')
+      try {
+        const response = await usersService.resetUserPassword(target.id)
+        setResetUser(target)
+        setResetConfirmUser(null)
+        setTemporaryPassword(response.temporaryPassword)
+        setPasswordVisible(false)
+        setPasswordCopied(false)
+        setSuccess(response.message)
+      } catch (err: unknown) {
+        setResetError((err as { message?: string }).message || 'No se pudo restablecer la contraseña')
+      } finally {
+        setResetLoading(false)
+      }
+    })
   }
 
   const copyTemporaryPassword = async () => {
@@ -154,18 +177,24 @@ export function UsersListPage() {
               onClick={() => navigate(`/users/${row.id}/edit`)}
               disabled={isBusy}
             />
-            {currentUser?.role === 'ADMIN' && row.status === 'ACTIVE' && (
+            {currentUser?.role === 'ADMIN' && (
               <TableActionButton
-                label={`Restablecer contraseña de ${row.fullName}`}
+                label={
+                  canResetUserPassword('ADMIN', row.status)
+                    ? `Restablecer contraseña de ${row.fullName}`
+                    : 'No se puede restablecer la contraseña de un usuario inactivo'
+                }
                 icon="key"
                 onClick={() => {
-                  setResetUser(row)
+                  if (!canResetUserPassword('ADMIN', row.status)) return
+                  setResetConfirmUser(row)
+                  setResetUser(null)
                   setTemporaryPassword('')
                   setPasswordVisible(false)
                   setPasswordCopied(false)
                   setResetError('')
                 }}
-                disabled={isBusy || resetLoading}
+                disabled={isBusy || resetLoading || !canResetUserPassword('ADMIN', row.status)}
               />
             )}
             {canManage && (
@@ -219,13 +248,9 @@ export function UsersListPage() {
             Gestiona identidades, roles y estado de acceso.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => navigate('/users/create')}
-          className="inline-flex justify-center rounded bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-hover"
-        >
+        <PrimaryButton type="button" onClick={() => navigate('/users/create')}>
           Nuevo usuario
-        </button>
+        </PrimaryButton>
       </div>
 
       <div className="ui-card mb-5 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -278,21 +303,53 @@ export function UsersListPage() {
         </div>
       )}
 
-      {error && (
-        <div className="mb-4">
-          <ErrorState message={error} onRetry={() => void loadUsers()} />
-        </div>
-      )}
-
-      {!(error && users.length === 0 && !loading) && (
+      {error && users.length === 0 && !loading ? (
+        <ErrorState
+          title="No se pudieron cargar los usuarios."
+          message={error}
+          onRetry={() => void loadUsers()}
+        />
+      ) : (
         <DataTable
           columns={columns}
           data={users}
-          loading={loading}
+          loading={resolveContentStatus({ loading, error, itemCount: users.length }) === 'loading'}
+          loadingLabel="Cargando usuarios…"
           pagination={meta}
           onPageChange={setPage}
           rowKey={(row) => row.id}
-          emptyMessage="No se encontraron usuarios"
+          emptyMessage={
+            search || roleFilter || statusFilter
+              ? 'No hay usuarios que coincidan con los filtros.'
+              : 'No hay usuarios registrados.'
+          }
+          emptyDescription={
+            search || roleFilter || statusFilter
+              ? 'Prueba con otro criterio o limpia los filtros.'
+              : 'Crea el primer usuario para comenzar.'
+          }
+          emptyAction={
+            <div className="flex flex-wrap justify-center gap-2">
+              {(search || roleFilter || statusFilter) && (
+                <SecondaryButton
+                  type="button"
+                  onClick={() => {
+                    setSearch('')
+                    setRoleFilter('')
+                    setStatusFilter('')
+                    setPage(1)
+                  }}
+                >
+                  Limpiar filtros
+                </SecondaryButton>
+              )}
+              {hasPermission(PERMISSIONS.USER_MANAGE) && (
+                <PrimaryButton type="button" onClick={() => navigate('/users/create')}>
+                  Crear usuario
+                </PrimaryButton>
+              )}
+            </div>
+          }
         />
       )}
 
@@ -314,39 +371,36 @@ export function UsersListPage() {
             : 'primary'
         }
         loading={statusLoading}
+        loadingLabel="Actualizando…"
+      />
+
+      <ConfirmModal
+        open={!!resetConfirmUser && !temporaryPassword}
+        onClose={() => {
+          if (!resetLoading) {
+            setResetConfirmUser(null)
+            setResetError('')
+          }
+        }}
+        onConfirm={() => void handleResetPassword()}
+        title="Restablecer contraseña"
+        message={
+          resetConfirmUser
+            ? `${resetError ? `${resetError} ` : ''}¿Deseas restablecer la contraseña de ${resetConfirmUser.fullName}? La contraseña actual dejará de funcionar y se mostrará una contraseña temporal una sola vez.`
+            : ''
+        }
+        confirmLabel="Restablecer"
+        variant="danger"
+        loading={resetLoading}
+        loadingLabel="Restableciendo…"
       />
 
       <Modal
-        open={!!resetUser}
+        open={!!temporaryPassword}
         onClose={closeResetModal}
-        title="Restablecer contraseña"
+        title="Contraseña temporal generada"
         size="md"
       >
-        {resetUser && !temporaryPassword && (
-          <div className="space-y-4">
-            <p className="text-sm text-text">
-              <span className="font-semibold">{resetUser.fullName}</span>
-              <span className="mt-1 block text-muted">{resetUser.email}</span>
-            </p>
-            <p className="rounded border border-warning/30 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
-              La contraseña actual dejará de funcionar. El usuario deberá cambiar la contraseña
-              temporal al iniciar sesión.
-            </p>
-            {resetError && (
-              <p className="rounded border border-danger/30 bg-red-50 px-3 py-2.5 text-sm text-danger">
-                {resetError}
-              </p>
-            )}
-            <div className="flex justify-end gap-2">
-              <SecondaryButton onClick={closeResetModal} disabled={resetLoading}>
-                Cancelar
-              </SecondaryButton>
-              <PrimaryButton onClick={() => void handleResetPassword()} disabled={resetLoading}>
-                {resetLoading ? 'Generando...' : 'Generar contraseña temporal'}
-              </PrimaryButton>
-            </div>
-          </div>
-        )}
         {temporaryPassword && (
           <div className="space-y-4">
             <div>

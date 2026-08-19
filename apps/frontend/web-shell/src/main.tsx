@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { AppRouter } from '@/App'
 import { AuthProvider } from '@/hooks/useAuth'
+import { AppErrorBoundary } from '@/components/common/AppErrorBoundary'
 import '@/styles/globals.css'
 
 async function bootstrap() {
@@ -15,7 +16,9 @@ async function bootstrap() {
     <StrictMode>
       <BrowserRouter>
         <AuthProvider>
-          <AppRouter />
+          <AppErrorBoundary>
+            <AppRouter />
+          </AppErrorBoundary>
         </AuthProvider>
       </BrowserRouter>
     </StrictMode>,

@@ -66,7 +66,11 @@ export class MustChangePasswordGuard implements CanActivate {
     }
     const user = context.switchToHttp().getRequest<{ user?: User }>().user
     if (user?.mustChangePassword) {
-      throw new ForbiddenException('Debes cambiar tu contraseña temporal antes de continuar')
+      throw new ForbiddenException({
+        statusCode: 403,
+        code: 'PASSWORD_CHANGE_REQUIRED',
+        message: 'Debes cambiar tu contraseña temporal antes de continuar.',
+      })
     }
     return true
   }

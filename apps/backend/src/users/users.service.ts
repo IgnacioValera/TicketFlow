@@ -1,11 +1,11 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import bcrypt from 'bcryptjs'
-import { Brackets, DataSource, Repository } from 'typeorm'
+import { Brackets, DataSource, QueryFailedError, Repository } from 'typeorm'
 import { parsePagination, pagination } from '../common/api'
 import { generateTemporaryPassword } from '../common/password'
 import { RefreshToken, Role, RoleCode, User, UserStatus } from '../database/entities'
-import { CreateUserDto, UpdateUserDto, UsersQueryDto } from './dto'
+import { CreateUserDto, DUPLICATE_EMAIL_MESSAGE, UpdateUserDto, UsersQueryDto } from './dto'
 
 @Injectable()
 export class UsersService {
@@ -25,6 +25,17 @@ export class UsersService {
     return { items: items.map((user) => this.serialize(user)), meta: pagination(page, perPage, total) }
   }
 
+  async listAssignable() {
+    const items = await this.users
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .where('user.status = :status', { status: UserStatus.ACTIVE })
+      .andWhere('role.code = :role', { role: RoleCode.AGENT })
+      .orderBy('user.fullName', 'ASC')
+      .getMany()
+    return items.map((user) => this.serialize(user))
+  }
+
   async find(id: string) {
     const user = await this.users.findOne({ where: { id }, relations: { role: { permissions: true } } })
     if (!user) throw new NotFoundException('Usuario no encontrado')
@@ -32,31 +43,41 @@ export class UsersService {
   }
 
   async create(dto: CreateUserDto) {
-    if (await this.users.exists({ where: { email: dto.email.toLowerCase() } })) throw new ConflictException('El correo ya está registrado')
+    await this.assertEmailAvailable(dto.email)
     const role = await this.roles.findOneBy({ code: dto.role })
     if (!role) throw new NotFoundException('Rol no encontrado')
-    const user = this.users.create({
-      fullName: dto.fullName.trim(),
-      email: dto.email.toLowerCase().trim(),
-      passwordHash: await bcrypt.hash(dto.password, 12),
-      role,
-      lastLoginAt: null,
-      mustChangePassword: false,
-    })
-    return this.serialize(await this.users.save(user))
+    try {
+      const user = this.users.create({
+        fullName: dto.fullName.trim(),
+        email: dto.email.toLowerCase(),
+        passwordHash: await bcrypt.hash(dto.password, 12),
+        role,
+        lastLoginAt: null,
+        mustChangePassword: false,
+      })
+      return this.serialize(await this.users.save(user))
+    } catch (error) {
+      this.rethrowDuplicateEmail(error)
+    }
   }
 
   async update(id: string, dto: UpdateUserDto) {
     const user = await this.find(id)
-    if (dto.email && dto.email.toLowerCase() !== user.email && await this.users.exists({ where: { email: dto.email.toLowerCase() } })) throw new ConflictException('El correo ya está registrado')
+    if (dto.email && dto.email.toLowerCase() !== user.email) {
+      await this.assertEmailAvailable(dto.email)
+    }
     if (dto.role) {
       const role = await this.roles.findOneBy({ code: dto.role })
       if (!role) throw new NotFoundException('Rol no encontrado')
       user.role = role
     }
     if (dto.fullName) user.fullName = dto.fullName.trim()
-    if (dto.email) user.email = dto.email.toLowerCase().trim()
-    return this.serialize(await this.users.save(user))
+    if (dto.email) user.email = dto.email.toLowerCase()
+    try {
+      return this.serialize(await this.users.save(user))
+    } catch (error) {
+      this.rethrowDuplicateEmail(error)
+    }
   }
 
   async setStatus(id: string, status: User['status'], actor: User) {
@@ -64,8 +85,18 @@ export class UsersService {
     if (id === actor.id && status !== UserStatus.ACTIVE) {
       throw new ForbiddenException('No puedes desactivar o bloquear tu propia cuenta')
     }
-    user.status = status
-    return this.serialize(await this.users.save(user))
+    await this.dataSource.transaction(async (manager) => {
+      await manager.update(User, user.id, { status })
+      if (status !== UserStatus.ACTIVE) {
+        await manager
+          .createQueryBuilder()
+          .update(RefreshToken)
+          .set({ revokedAt: new Date() })
+          .where('user_id = :userId AND revoked_at IS NULL', { userId: user.id })
+          .execute()
+      }
+    })
+    return this.serialize(await this.find(id))
   }
 
   async resetPassword(id: string, actor: User) {
@@ -103,4 +134,23 @@ export class UsersService {
       createdAt: user.createdAt?.toISOString(),
     }
   }
+
+  private async assertEmailAvailable(email: string) {
+    const exists = await this.users
+      .createQueryBuilder('user')
+      .where('LOWER(user.email) = LOWER(:email)', { email })
+      .getExists()
+    if (exists) throw new ConflictException(DUPLICATE_EMAIL_MESSAGE)
+  }
+
+  private rethrowDuplicateEmail(error: unknown): never {
+    if (isUniqueViolation(error)) throw new ConflictException(DUPLICATE_EMAIL_MESSAGE)
+    throw error
+  }
+}
+
+function isUniqueViolation(error: unknown) {
+  if (!(error instanceof QueryFailedError)) return false
+  const driver = error.driverError as { code?: string } | undefined
+  return driver?.code === '23505'
 }

@@ -156,9 +156,56 @@ describe('Validación de DTOs', () => {
     expect(await validate(dto)).toHaveLength(0)
   })
 
+  it('rechaza un nombre vacío o con solo espacios', async () => {
+    const dto = createDto(CreateUserDto, {
+      fullName: '   ',
+      email: 'ana@helpdesk.com',
+      password: 'Password1!',
+      role: RoleCode.AGENT,
+    })
+    expect((await validate(dto)).length).toBeGreaterThan(0)
+  })
+
+  it('rechaza un correo inválido', async () => {
+    const dto = createDto(CreateUserDto, {
+      fullName: 'Ana Pérez',
+      email: 'no-es-correo',
+      password: 'Password1!',
+      role: RoleCode.AGENT,
+    })
+    const messages = dtoErrors(await validate(dto))
+    expect(messages.some((message) => message.toLowerCase().includes('correo'))).toBe(true)
+  })
+
+  it('normaliza el correo a minúsculas y sin espacios', () => {
+    const dto = createDto(CreateUserDto, {
+      fullName: 'Ana Pérez',
+      email: '  Ana@HelpDesk.COM  ',
+      password: 'Password1!',
+      role: RoleCode.AGENT,
+    })
+    expect(dto.email).toBe('ana@helpdesk.com')
+  })
+
+  it('rechaza un rol fuera de los administrables', async () => {
+    const dto = createDto(CreateUserDto, {
+      fullName: 'Ana Pérez',
+      email: 'ana@helpdesk.com',
+      password: 'Password1!',
+      role: 'FOO',
+    })
+    const messages = dtoErrors(await validate(dto))
+    expect(messages.some((message) => message.toLowerCase().includes('rol'))).toBe(true)
+  })
+
   it('permite login con password de usuarios existentes sin complejidad', async () => {
     const dto = createDto(LoginDto, { email: 'admin@helpdesk.com', password: 'password' })
     expect(await validate(dto)).toHaveLength(0)
+  })
+
+  it('normaliza el correo de login y no exige complejidad', () => {
+    const dto = createDto(LoginDto, { email: '  Admin@HelpDesk.COM  ', password: 'password' })
+    expect(dto.email).toBe('admin@helpdesk.com')
   })
 
   it('rechaza artículo con categoría UUID inválido', async () => {

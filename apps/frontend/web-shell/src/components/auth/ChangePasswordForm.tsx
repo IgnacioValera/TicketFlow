@@ -4,6 +4,7 @@ import { PasswordRequirements } from '@/components/common/PasswordRequirements'
 import { PrimaryButton, SecondaryButton } from '@/components/common/UiControls'
 import { errorMessage } from '@/utils/validation'
 import { newPasswordFormError } from '@/utils/password-form'
+import { createSubmitLock } from '@/utils/submit-lock'
 import * as authService from '@/services/auth.service'
 
 interface ChangePasswordFormProps {
@@ -24,26 +25,30 @@ export function ChangePasswordForm({
   const [confirmation, setConfirmation] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [submitLock] = useState(() => createSubmitLock())
 
   const formError = newPasswordFormError(currentPassword, newPassword, confirmation)
   const canSubmit = !formError && !submitting
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
+    if (submitting || submitLock.pending) return
     setError('')
     if (formError) {
       setError(formError)
       return
     }
-    setSubmitting(true)
-    try {
-      await authService.changePassword({ currentPassword, newPassword })
-      await onSuccess()
-    } catch (err: unknown) {
-      setError(errorMessage(err, 'No se pudo actualizar la contraseña'))
-    } finally {
-      setSubmitting(false)
-    }
+    await submitLock.run(async () => {
+      setSubmitting(true)
+      try {
+        await authService.changePassword({ currentPassword, newPassword })
+        await onSuccess()
+      } catch (err: unknown) {
+        setError(errorMessage(err, 'No se pudo actualizar la contraseña'))
+      } finally {
+        setSubmitting(false)
+      }
+    })
   }
 
   return (
@@ -59,6 +64,7 @@ export function ChangePasswordForm({
         value={currentPassword}
         onChange={(event) => setCurrentPassword(event.target.value)}
         autoComplete="current-password"
+        disabled={submitting}
       />
       <div>
         <PasswordField
@@ -67,6 +73,7 @@ export function ChangePasswordForm({
           value={newPassword}
           onChange={(event) => setNewPassword(event.target.value)}
           autoComplete="new-password"
+          disabled={submitting}
         />
         <PasswordRequirements password={newPassword} />
       </div>
@@ -76,6 +83,7 @@ export function ChangePasswordForm({
         value={confirmation}
         onChange={(event) => setConfirmation(event.target.value)}
         autoComplete="new-password"
+        disabled={submitting}
       />
       <div className="flex flex-wrap justify-end gap-2 pt-1">
         {onCancel && (
@@ -83,8 +91,8 @@ export function ChangePasswordForm({
             Cancelar
           </SecondaryButton>
         )}
-        <PrimaryButton type="submit" disabled={!canSubmit}>
-          {submitting ? 'Actualizando...' : submitLabel}
+        <PrimaryButton type="submit" disabled={!canSubmit} loading={submitting} loadingText="Actualizando…">
+          {submitLabel}
         </PrimaryButton>
       </div>
     </form>
