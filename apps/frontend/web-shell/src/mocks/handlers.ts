@@ -4,6 +4,7 @@ import type { Category, Company, Priority, SlaPolicy } from '@/types/catalog.typ
 import type { User, UserRole, UserStatus } from '@/types/user.types'
 import { createCrmHandlers } from '@/mocks/crm.handlers'
 import { createTicketHandlers } from '@/mocks/ticket.handlers'
+import { mockKnowledgeArticles, findMockKnowledgeArticle, findMockKnowledgeArticleIncludingInactive, isKnowledgeUuid } from '@/mocks/knowledge-data'
 import { validatePasswordPolicy } from '@/utils/validation'
 
 const mockPasswords: Record<string, string> = {
@@ -69,27 +70,6 @@ const mockUsers: User[] = [
     mustChangePassword: false,
     lastLoginAt: null,
     createdAt: '2026-04-01T09:00:00.000Z',
-  },
-]
-
-const mockKnowledge: Array<{
-  id: string
-  title: string
-  content: string
-  tags: string
-  topic: string
-  category: { id: string; name: string } | null
-  updatedAt: string
-}> = [
-  {
-    id: 'k1',
-    title: 'Cómo restablecer la contraseña',
-    content:
-      'Si olvidaste tu contraseña, selecciona “¿Olvidaste tu contraseña?” en la pantalla de inicio de sesión. TicketFlow te indicará que debes solicitar el restablecimiento a un administrador.',
-    tags: 'contraseña, acceso, cuenta, administrador',
-    topic: 'Accesos',
-    category: { id: '3', name: 'Accesos' },
-    updatedAt: '2026-08-17T12:00:00.000Z',
   },
 ]
 
@@ -1039,10 +1019,29 @@ export const handlers = [
   ...createCrmHandlers(),
   ...createTicketHandlers(mockUsers),
 
+  http.get('*/knowledge-articles/:id', async ({ params }) => {
+    const id = String(params.id)
+    if (isKnowledgeUuid(id)) {
+      return HttpResponse.json(
+        { success: false, message: 'Artículo no encontrado', data: null, meta: null },
+        { status: 404 },
+      )
+    }
+    const article = findMockKnowledgeArticle(id)
+    if (!article) {
+      return HttpResponse.json(
+        { success: false, message: 'Artículo no encontrado', data: null, meta: null },
+        { status: 404 },
+      )
+    }
+    return HttpResponse.json({ success: true, message: 'OK', data: article, meta: null })
+  }),
+
   http.get('*/knowledge-articles', async ({ request }) => {
     const url = new URL(request.url)
     const search = (url.searchParams.get('search') ?? '').toLowerCase()
-    const filtered = mockKnowledge.filter((article) => {
+    const filtered = mockKnowledgeArticles.filter((article) => {
+      if (article.status !== 'ACTIVE') return false
       if (!search) return true
       return (
         article.title.toLowerCase().includes(search) ||
@@ -1054,17 +1053,38 @@ export const handlers = [
   }),
 
   http.post('*/knowledge-articles', async ({ request }) => {
-    const body = (await request.json()) as { title: string; content: string; tags?: string }
-    const article = {
-      id: String(mockKnowledge.length + 1),
-      title: body.title,
-      content: body.content,
-      tags: body.tags ?? '',
-      topic: 'General',
-      category: null,
-      updatedAt: new Date().toISOString(),
+    const body = (await request.json()) as {
+      title: string
+      content: string
+      tags?: string
+      categoryId?: string | null
     }
-    mockKnowledge.push(article)
+    if (body.categoryId) {
+      const category = mockCategories.find((item) => item.id === body.categoryId)
+      if (!category) {
+        return HttpResponse.json(
+          { success: false, message: 'Categoría no encontrada', data: null, meta: null },
+          { status: 404 },
+        )
+      }
+    }
+    const article = {
+      id: `k${Date.now()}`,
+      title: body.title.trim(),
+      content: body.content.trim(),
+      tags: body.tags?.trim() ?? '',
+      topic: 'General',
+      category: body.categoryId
+        ? mockCategories
+            .filter((item) => item.id === body.categoryId)
+            .map((item) => ({ id: item.id, name: item.name }))[0] ?? null
+        : null,
+      author: { id: '1', fullName: 'Admin Sistema' },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: 'ACTIVE' as const,
+    }
+    mockKnowledgeArticles.push(article)
     return HttpResponse.json(
       { success: true, message: 'Artículo creado', data: article, meta: null },
       { status: 201 },
@@ -1072,36 +1092,66 @@ export const handlers = [
   }),
 
   http.put('*/knowledge-articles/:id', async ({ params, request }) => {
-    const body = (await request.json()) as { title?: string; content?: string; tags?: string }
-    const index = mockKnowledge.findIndex((article) => article.id === params.id)
+    const body = (await request.json()) as {
+      title?: string
+      content?: string
+      tags?: string
+      categoryId?: string | null
+    }
+    const index = mockKnowledgeArticles.findIndex((article) => article.id === params.id)
     if (index === -1) {
       return HttpResponse.json(
         { success: false, message: 'Artículo no encontrado', data: null, meta: null },
         { status: 404 },
       )
     }
-    mockKnowledge[index] = { ...mockKnowledge[index], ...body, updatedAt: new Date().toISOString() }
+    if (body.categoryId) {
+      const category = mockCategories.find((item) => item.id === body.categoryId)
+      if (!category) {
+        return HttpResponse.json(
+          { success: false, message: 'Categoría no encontrada', data: null, meta: null },
+          { status: 404 },
+        )
+      }
+    }
+    const current = mockKnowledgeArticles[index]
+    mockKnowledgeArticles[index] = {
+      ...current,
+      title: body.title?.trim() ?? current.title,
+      content: body.content?.trim() ?? current.content,
+      tags: body.tags !== undefined ? body.tags.trim() : current.tags,
+      category:
+        body.categoryId === null
+          ? null
+          : body.categoryId
+            ? {
+                id: body.categoryId,
+                name: mockCategories.find((item) => item.id === body.categoryId)?.name ?? 'General',
+              }
+            : current.category,
+      updatedAt: new Date().toISOString(),
+    }
     return HttpResponse.json({
       success: true,
       message: 'Artículo actualizado',
-      data: mockKnowledge[index],
+      data: mockKnowledgeArticles[index],
       meta: null,
     })
   }),
 
   http.delete('*/knowledge-articles/:id', async ({ params }) => {
-    const index = mockKnowledge.findIndex((article) => article.id === params.id)
-    if (index === -1) {
+    const article = findMockKnowledgeArticleIncludingInactive(String(params.id))
+    if (!article) {
       return HttpResponse.json(
         { success: false, message: 'Artículo no encontrado', data: null, meta: null },
         { status: 404 },
       )
     }
-    const [removed] = mockKnowledge.splice(index, 1)
+    article.status = 'INACTIVE'
     return HttpResponse.json({
       success: true,
       message: 'Artículo desactivado',
-      data: removed,
+      data: article,
       meta: null,
     })
   }),

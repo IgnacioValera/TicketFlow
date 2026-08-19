@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Injectable, Module, NotFoundException, Param, Post, Put, Query } from '@nestjs/common'
 import { ApiBearerAuth, ApiProperty, ApiPropertyOptional, ApiTags, PartialType } from '@nestjs/swagger'
 import { InjectRepository, TypeOrmModule } from '@nestjs/typeorm'
-import { IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator'
+import { IsOptional, IsString, IsUUID, MaxLength, MinLength, ValidateIf, Allow } from 'class-validator'
 import { Repository } from 'typeorm'
 import { result } from '../common/api'
 import { LIMITS } from '../common/limits'
@@ -36,10 +36,12 @@ export class CreateArticleDto {
   @MaxLength(LIMITS.ARTICLE_TAGS, { message: maxLengthMessage('Las etiquetas', LIMITS.ARTICLE_TAGS) })
   tags?: string
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ nullable: true })
   @IsOptional()
+  @Allow()
+  @ValidateIf((_, value) => value !== null)
   @IsUUID('4', { message: 'El identificador de categoría no es un UUID válido' })
-  categoryId?: string
+  categoryId?: string | null
 }
 
 export class UpdateArticleDto extends PartialType(CreateArticleDto) {}
@@ -65,7 +67,10 @@ export class KnowledgeService {
   }
 
   async create(dto: CreateArticleDto, user: User) {
-    const category = dto.categoryId === undefined ? null : await this.resolveCategory(dto.categoryId)
+    const category =
+      dto.categoryId === undefined || dto.categoryId === null
+        ? null
+        : await this.resolveCategory(dto.categoryId)
     const saved = await this.articles.save(this.articles.create({
       title: dto.title.trim(),
       content: dto.content.trim(),
@@ -82,7 +87,8 @@ export class KnowledgeService {
     if (dto.content) article.content = dto.content.trim()
     if (dto.tags !== undefined) article.tags = dto.tags.trim()
     if (dto.categoryId !== undefined) {
-      article.category = (await this.resolveCategory(dto.categoryId)) ?? null
+      article.category =
+        dto.categoryId === null ? null : (await this.resolveCategory(dto.categoryId)) ?? null
     }
     return this.serialize(await this.articles.save(article))
   }
@@ -94,7 +100,9 @@ export class KnowledgeService {
   }
 
   async find(id: string) {
-    return this.serialize(await this.findEntity(id))
+    const article = await this.findEntity(id)
+    if (article.status !== CatalogStatus.ACTIVE) throw new NotFoundException('Artículo no encontrado')
+    return this.serialize(article)
   }
 
   private async findEntity(id: string) {
@@ -120,7 +128,7 @@ export class KnowledgeService {
 }
 
 @ApiTags('Base de conocimiento') @ApiBearerAuth() @Controller('knowledge-articles')
-class KnowledgeController {
+export class KnowledgeController {
   constructor(private readonly service: KnowledgeService) {}
   @Get() async list(@Query('search') search?: string) { return result(await this.service.list(search)) }
   @Get(':id') async find(@Param('id', ParseUuidPipe) id: string) { return result(await this.service.find(id)) }
