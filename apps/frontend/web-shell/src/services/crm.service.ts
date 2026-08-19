@@ -52,6 +52,10 @@ export async function updateContact(id: string, payload: Record<string, unknown>
   const response = await apiPut<CrmContact>(`/crm/contacts/${id}`, payload)
   return response.data
 }
+export async function updateContactStatus(id: string, status: 'ACTIVE' | 'INACTIVE') {
+  const response = await apiPatch<CrmContact>(`/crm/contacts/${id}/status`, { status })
+  return response.data
+}
 
 export async function getOpportunities(params: Record<string, unknown> = {}) {
   return apiGet<CrmOpportunity[]>('/crm/opportunities', params) as Promise<ApiResponse<CrmOpportunity[]>>

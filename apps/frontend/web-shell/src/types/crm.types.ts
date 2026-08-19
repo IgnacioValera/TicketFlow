@@ -4,6 +4,7 @@ export type ClientTier = 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM'
 export type OpportunityStage = 'NEW' | 'QUALIFICATION' | 'PROPOSAL' | 'NEGOTIATION' | 'WON' | 'LOST'
 export type ActivityType = 'CALL' | 'MEETING' | 'TASK' | 'NOTE'
 export type ActivityStatus = 'PENDING' | 'COMPLETED' | 'CANCELLED'
+export type ContactStatus = 'ACTIVE' | 'INACTIVE'
 export type SurveyStatus = 'DRAFT' | 'PUBLISHED' | 'CLOSED'
 export type SurveyTrigger = 'MANUAL' | 'OPPORTUNITY_WON'
 export type SurveyQuestionType = 'TEXT' | 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE' | 'NPS' | 'RATING' | 'YES_NO'
@@ -28,6 +29,7 @@ export interface CrmContact {
   id: string
   clientId: string
   clientName: string
+  status: ContactStatus
   firstName: string
   lastName: string
   email: string

@@ -11,6 +11,7 @@ import {
   IsInt,
   IsNumber,
   IsOptional,
+  Matches,
   IsString,
   IsUUID,
   Max,
@@ -29,6 +30,7 @@ import {
   ClientSegment,
   ClientStatus,
   CompanyTier,
+  ContactStatus,
   OpportunityStage,
   SurveyQuestionType,
   SurveyStatus,
@@ -68,6 +70,7 @@ export class UpdateClientDto extends PartialType(CreateClientDto) {}
 
 export class ContactsQueryDto extends CrmPaginationDto {
   @ApiPropertyOptional() @IsOptional() @IsUUID('4') clientId?: string
+  @ApiPropertyOptional({ enum: ContactStatus }) @IsOptional() @IsEnum(ContactStatus) status?: ContactStatus
 }
 
 export class CreateContactDto {
@@ -75,12 +78,16 @@ export class CreateContactDto {
   @ApiProperty() @Trim() @IsString() @MinLength(1, { message: requiredMessage('El nombre') }) @MaxLength(LIMITS.CONTACT_NAME, { message: maxLengthMessage('El nombre', LIMITS.CONTACT_NAME) }) firstName: string
   @ApiProperty() @Trim() @IsString() @MinLength(1, { message: requiredMessage('El apellido') }) @MaxLength(LIMITS.CONTACT_NAME, { message: maxLengthMessage('El apellido', LIMITS.CONTACT_NAME) }) lastName: string
   @ApiProperty() @IsEmail({}, { message: 'El correo no es válido' }) @MaxLength(LIMITS.EMAIL) email: string
-  @ApiPropertyOptional() @IsOptional() @Trim() @IsString() @MaxLength(LIMITS.CLIENT_PHONE) phone?: string
+  @ApiPropertyOptional() @IsOptional() @Trim() @IsString() @Matches(/^[0-9+().\-\s]{7,40}$/, { message: 'El teléfono no es válido' }) @MaxLength(LIMITS.CLIENT_PHONE) phone?: string
   @ApiPropertyOptional() @IsOptional() @Trim() @IsString() @MaxLength(LIMITS.CONTACT_JOB) jobTitle?: string
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isPrimary?: boolean
+  @ApiPropertyOptional({ enum: ContactStatus }) @IsOptional() @IsEnum(ContactStatus) status?: ContactStatus
 }
 
 export class UpdateContactDto extends PartialType(CreateContactDto) {}
+export class UpdateContactStatusDto {
+  @ApiProperty({ enum: ContactStatus }) @IsEnum(ContactStatus) status: ContactStatus
+}
 
 export class OpportunitiesQueryDto extends CrmPaginationDto {
   @ApiPropertyOptional() @IsOptional() @IsUUID('4') clientId?: string

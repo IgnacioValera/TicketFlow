@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { Brackets, Repository } from 'typeorm'
 import { pagination, parsePagination } from '../common/api'
 import { toCsv } from '../common/csv'
-import { CrmContact, User } from '../database/entities'
+import { ContactStatus, CrmContact, User } from '../database/entities'
 import { applyClientScope } from './access'
 import { ContactsQueryDto, CreateContactDto, UpdateContactDto } from './dto'
 import { ClientsService } from './clients.service'
@@ -20,6 +20,7 @@ export class ContactsService {
     const qb = this.contacts.createQueryBuilder('contact').leftJoinAndSelect('contact.client', 'client').leftJoinAndSelect('client.owner', 'owner')
     applyClientScope(qb, user)
     if (query.clientId) qb.andWhere('client.id = :clientId', { clientId: query.clientId })
+    if (query.status) qb.andWhere('contact.status = :status', { status: query.status })
     if (query.search) {
       qb.andWhere(new Brackets((where) => where.where('LOWER(contact.firstName) LIKE :q').orWhere('LOWER(contact.lastName) LIKE :q').orWhere('LOWER(contact.email) LIKE :q')), { q: `%${query.search.toLowerCase()}%` })
     }
@@ -30,7 +31,7 @@ export class ContactsService {
   async create(dto: CreateContactDto, user: User) {
     const client = await this.clients.getAccessible(dto.clientId, user)
     const contact = await this.contacts.save(this.contacts.create({
-      client, firstName: dto.firstName.trim(), lastName: dto.lastName.trim(), email: dto.email.toLowerCase().trim(),
+      client, status: dto.status ?? ContactStatus.ACTIVE, firstName: dto.firstName.trim(), lastName: dto.lastName.trim(), email: dto.email.toLowerCase().trim(),
       phone: dto.phone?.trim() ?? '', jobTitle: dto.jobTitle?.trim() ?? '', isPrimary: Boolean(dto.isPrimary),
     }))
     if (contact.isPrimary) await this.clearOtherPrimaries(client.id, contact.id)
@@ -40,9 +41,8 @@ export class ContactsService {
   async update(id: string, dto: UpdateContactDto, user: User) {
     const contact = await this.find(id)
     await this.clients.getAccessible(contact.client.id, user)
-    if (dto.clientId && dto.clientId !== contact.client.id) {
-      contact.client = await this.clients.getAccessible(dto.clientId, user)
-    }
+    if (dto.clientId && dto.clientId !== contact.client.id) throw new UnprocessableEntityException('No se puede cambiar el cliente de un contacto')
+    if (dto.status) contact.status = dto.status
     if (dto.firstName) contact.firstName = dto.firstName.trim()
     if (dto.lastName) contact.lastName = dto.lastName.trim()
     if (dto.email) contact.email = dto.email.toLowerCase().trim()
@@ -57,8 +57,16 @@ export class ContactsService {
   async remove(id: string, user: User) {
     const contact = await this.find(id)
     await this.clients.getAccessible(contact.client.id, user)
-    await this.contacts.remove(contact)
-    return { id }
+    contact.status = ContactStatus.INACTIVE
+    await this.contacts.save(contact)
+    return this.serialize(contact)
+  }
+
+  async setStatus(id: string, status: ContactStatus, user: User) {
+    const contact = await this.find(id)
+    await this.clients.getAccessible(contact.client.id, user)
+    contact.status = status
+    return this.serialize(await this.contacts.save(contact))
   }
 
   async exportCsv(query: ContactsQueryDto, user: User) {
@@ -71,7 +79,7 @@ export class ContactsService {
 
   serialize(item: CrmContact) {
     return {
-      id: item.id, clientId: item.client.id, clientName: item.client.name, firstName: item.firstName, lastName: item.lastName,
+      id: item.id, clientId: item.client.id, clientName: item.client.name, status: item.status, firstName: item.firstName, lastName: item.lastName,
       email: item.email, phone: item.phone, jobTitle: item.jobTitle, isPrimary: item.isPrimary,
       createdAt: item.createdAt.toISOString(),
     }

@@ -25,6 +25,7 @@ export enum OpportunityStage { NEW = 'NEW', QUALIFICATION = 'QUALIFICATION', PRO
 export enum ActivityType { CALL = 'CALL', MEETING = 'MEETING', TASK = 'TASK', NOTE = 'NOTE' }
 export enum ActivityStatus { PENDING = 'PENDING', COMPLETED = 'COMPLETED', CANCELLED = 'CANCELLED' }
 export enum ActivityHistoryAction { CREATED = 'CREATED', UPDATED = 'UPDATED', COMPLETED = 'COMPLETED', CANCELLED = 'CANCELLED' }
+export enum ContactStatus { ACTIVE = 'ACTIVE', INACTIVE = 'INACTIVE' }
 export enum SurveyStatus { DRAFT = 'DRAFT', PUBLISHED = 'PUBLISHED', CLOSED = 'CLOSED' }
 export enum SurveyTrigger { MANUAL = 'MANUAL', OPPORTUNITY_WON = 'OPPORTUNITY_WON' }
 export enum SurveyQuestionType { TEXT = 'TEXT', SINGLE_CHOICE = 'SINGLE_CHOICE', MULTIPLE_CHOICE = 'MULTIPLE_CHOICE', NPS = 'NPS', RATING = 'RATING', YES_NO = 'YES_NO' }
@@ -211,6 +212,7 @@ export class KnowledgeArticle {
 export class CrmContact {
   @PrimaryGeneratedColumn('uuid') id: string
   @ManyToOne(() => Client, { nullable: false, onDelete: 'CASCADE' }) @JoinColumn({ name: 'client_id' }) client: Client
+  @Column({ type: 'enum', enum: ContactStatus, enumName: 'crm_contact_status_enum', default: ContactStatus.ACTIVE }) status: ContactStatus
   @Column({ name: 'first_name', length: 80 }) firstName: string
   @Column({ name: 'last_name', length: 80 }) lastName: string
   @Column({ length: 200 }) email: string

@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
 import { result } from '../common/api'
 import { ParseUuidPipe } from '../common/parse-uuid.pipe'
 import { CurrentUser, Public, RequirePermissions } from '../common/security'
-import { User } from '../database/entities'
+import { ContactStatus, User } from '../database/entities'
 import { ActivitiesService } from './activities.service'
 import { ClientsService } from './clients.service'
 import { ContactsService } from './contacts.service'
@@ -25,6 +25,7 @@ import {
   UpdateActivityDto,
   UpdateClientDto,
   UpdateContactDto,
+  UpdateContactStatusDto,
   UpdateOpportunityDto,
   UpdateSurveyDto,
 } from './dto'
@@ -55,6 +56,7 @@ export class ContactsController {
   @RequirePermissions('CRM_EXPORT') @Get('export') @Header('Content-Type', 'text/csv; charset=utf-8') async export(@Query() query: ContactsQueryDto, @CurrentUser() user: User) { return csvFile(await this.service.exportCsv(query, user), 'contactos.csv') }
   @RequirePermissions('CRM_CONTACT_CREATE') @Post() async create(@Body() dto: CreateContactDto, @CurrentUser() user: User) { return result(await this.service.create(dto, user), 'Contacto creado') }
   @RequirePermissions('CRM_CONTACT_EDIT') @Put(':id') async update(@Param('id', ParseUuidPipe) id: string, @Body() dto: UpdateContactDto, @CurrentUser() user: User) { return result(await this.service.update(id, dto, user), 'Contacto actualizado') }
+  @RequirePermissions('CRM_CONTACT_EDIT') @Patch(':id/status') async status(@Param('id', ParseUuidPipe) id: string, @Body() dto: UpdateContactStatusDto, @CurrentUser() user: User) { return result(await this.service.setStatus(id, dto.status as ContactStatus, user), 'Estado del contacto actualizado') }
   @RequirePermissions('CRM_CONTACT_EDIT') @Delete(':id') async remove(@Param('id', ParseUuidPipe) id: string, @CurrentUser() user: User) { return result(await this.service.remove(id, user), 'Contacto eliminado') }
 }
 

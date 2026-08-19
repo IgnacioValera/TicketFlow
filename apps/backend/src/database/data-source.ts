@@ -8,6 +8,7 @@ import { MustChangePasswordAndKnowledge1763000000000 } from './migrations/176300
 import { RepairMojibakeTexts1764000000000 } from './migrations/1764000000000-RepairMojibakeTexts'
 import { ActivityHistory1765000000000 } from './migrations/1765000000000-ActivityHistory'
 import { BackfillActivityHistory1766000000000 } from './migrations/1766000000000-BackfillActivityHistory'
+import { ContactStatus1767000000000 } from './migrations/1767000000000-ContactStatus'
 
 const AppDataSource = new DataSource({
   type: 'postgres',
@@ -26,6 +27,7 @@ const AppDataSource = new DataSource({
     RepairMojibakeTexts1764000000000,
     ActivityHistory1765000000000,
     BackfillActivityHistory1766000000000,
+    ContactStatus1767000000000,
   ],
   migrationsTransactionMode: 'each',
   synchronize: false,
