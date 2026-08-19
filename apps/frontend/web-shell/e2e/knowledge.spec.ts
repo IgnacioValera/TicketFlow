@@ -75,6 +75,25 @@ test.describe('Base de conocimiento', () => {
     await expect(page.getByRole('link', { name: `${title} actualizada` })).toBeVisible()
   })
 
+  test('admin ve confirmación al desactivar un artículo', async ({ page }) => {
+    await login(page)
+    await openKnowledge(page)
+    await page.getByRole('button', { name: 'Nuevo artículo' }).click()
+    const title = `Artículo temporal ${Date.now()}`
+    await page.getByLabel('Título').fill(title)
+    await page.getByLabel('Contenido').fill(
+      'Contenido temporal para validar la confirmación al desactivar un artículo de prueba.',
+    )
+    await page.getByRole('button', { name: 'Publicar' }).click()
+    await expect(page.getByRole('link', { name: title })).toBeVisible()
+
+    await page.getByRole('button', { name: `Eliminar ${title}` }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Eliminar' }).click()
+    await expect(page.getByRole('status')).toContainText('Artículo desactivado')
+    await expect(page.getByRole('status')).toContainText(title)
+    await expect(page.getByRole('link', { name: title })).toHaveCount(0)
+  })
+
   test('requester no puede acceder al módulo', async ({ page }) => {
     await login(page, 'requester@helpdesk.com')
     await page.goto('/knowledge', { waitUntil: 'domcontentloaded' })

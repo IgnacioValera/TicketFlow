@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AppIcon } from '@/components/common/AppIcon'
 import { ConfirmModal, Modal } from '@/components/common/Modal'
+import { ConfirmToast } from '@/components/common/FeedbackAlert'
 import { EmptyState } from '@/components/common/EmptyState'
 import { FormField } from '@/components/common/FormField'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -38,6 +39,7 @@ export function KnowledgePage() {
   const [error, setError] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<KnowledgeArticle | null>(null)
   const [saving, setSaving] = useState(false)
+  const [toast, setToast] = useState<{ title: string; message: string } | null>(null)
 
   const load = async (query = search) => {
     setItems(await crm.getKnowledge(query || undefined))
@@ -50,6 +52,12 @@ export function KnowledgePage() {
   useEffect(() => {
     void categoriesService.getCategories({ status: 'ACTIVE', perPage: 100 }).then((r) => setCategories(r.data))
   }, [])
+
+  useEffect(() => {
+    if (!toast) return
+    const timer = window.setTimeout(() => setToast(null), 6000)
+    return () => window.clearTimeout(timer)
+  }, [toast])
 
   useEffect(() => {
     const editId = (location.state as { editId?: string } | null)?.editId
@@ -119,13 +127,24 @@ export function KnowledgePage() {
 
   const remove = async () => {
     if (!deleteTarget) return
-    await crm.deleteKnowledge(deleteTarget.id)
-    setDeleteTarget(null)
-    await load()
+    const title = deleteTarget.title
+    try {
+      await crm.deleteKnowledge(deleteTarget.id)
+      setDeleteTarget(null)
+      await load()
+      setToast({
+        title: 'Artículo desactivado',
+        message: `“${title}” ya no aparecerá en la base de conocimiento.`,
+      })
+    } catch (err: unknown) {
+      setDeleteTarget(null)
+      setError(errorMessage(err, 'No se pudo desactivar el artículo'))
+    }
   }
 
   return (
     <div className="space-y-5">
+      <ConfirmToast open={Boolean(toast)} title={toast?.title ?? ''} message={toast?.message ?? ''} />
       <PageHeader
         kicker="Mesa de ayuda"
         title="Base de conocimiento"
