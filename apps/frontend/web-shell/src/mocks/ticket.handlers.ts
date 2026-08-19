@@ -1,6 +1,13 @@
 import { http, HttpResponse } from 'msw'
 import { calculateSlaStatus, matchesSlaFilter } from '@/utils/sla.utils'
 import {
+  assertMutableTicket,
+  validateAssign,
+  validateAttachmentFile,
+  validateClose,
+  validateStatusChange,
+} from '@/mocks/mock-ticket-guards'
+import {
   aggregateSatisfaction,
   aggregateSlaCompliance,
   aggregateTicketsByAgent,
@@ -659,6 +666,14 @@ function addHistory(
   })
 }
 
+function jsonError(message: string, status: number) {
+  return HttpResponse.json({ success: false, message, data: null, meta: null }, { status })
+}
+
+function guardResponse(error: { status: number; message: string } | null) {
+  return error ? jsonError(error.message, error.status) : null
+}
+
 export function createTicketHandlers(mockUsers: User[]) {
   return [
     http.get('*/api/v1/tickets', async ({ request }) => {
@@ -828,11 +843,10 @@ export function createTicketHandlers(mockUsers: User[]) {
           { status: 401 },
         )
       const store = ticketStores.find((s) => s.ticket.id === params.id)
-      if (!store)
-        return HttpResponse.json(
-          { success: false, message: 'No encontrado', data: null, meta: null },
-          { status: 404 },
-        )
+      if (!store) return jsonError('No encontrado', 404)
+
+      const mutable = guardResponse(assertMutableTicket(store.ticket))
+      if (mutable) return mutable
 
       const body = (await request.json()) as {
         title?: string
@@ -871,19 +885,20 @@ export function createTicketHandlers(mockUsers: User[]) {
 
     http.patch('*/api/v1/tickets/:id/status', async ({ params, request }) => {
       const user = findUserFromRequest(request, mockUsers)
+      if (!user) return jsonError('No autenticado', 401)
       const store = ticketStores.find((s) => s.ticket.id === params.id)
-      if (!store)
-        return HttpResponse.json(
-          { success: false, message: 'No encontrado', data: null, meta: null },
-          { status: 404 },
-        )
+      if (!store) return jsonError('No encontrado', 404)
+
       const body = (await request.json()) as { status: TicketStatus; reason?: string }
+      const validation = guardResponse(validateStatusChange(store.ticket, user, body.status, body.reason))
+      if (validation) return validation
+
       const old = store.ticket.status
       store.ticket.status = body.status
-      if (body.status === 'ASSIGNED' && !store.ticket.assigneeId) {
-        /* keep */
+      if (body.status === 'CLOSED') {
+        store.ticket.closedAt = new Date().toISOString()
       }
-      addHistory(store, old, body.status, user!, body.reason)
+      addHistory(store, old, body.status, user, body.reason)
       return HttpResponse.json({
         success: true,
         message: 'Estado actualizado',
@@ -894,19 +909,16 @@ export function createTicketHandlers(mockUsers: User[]) {
 
     http.patch('*/api/v1/tickets/:id/assign', async ({ params, request }) => {
       const user = findUserFromRequest(request, mockUsers)
+      if (!user) return jsonError('No autenticado', 401)
       const store = ticketStores.find((s) => s.ticket.id === params.id)
-      if (!store)
-        return HttpResponse.json(
-          { success: false, message: 'No encontrado', data: null, meta: null },
-          { status: 404 },
-        )
+      if (!store) return jsonError('No encontrado', 404)
+
+      const assignValidation = guardResponse(validateAssign(user, store.ticket))
+      if (assignValidation) return assignValidation
+
       const body = (await request.json()) as { assigneeId: string }
       const agent = mockUsers.find((u) => u.id === body.assigneeId && u.role === 'AGENT')
-      if (!agent)
-        return HttpResponse.json(
-          { success: false, message: 'Agente invalido', data: null, meta: null },
-          { status: 422 },
-        )
+      if (!agent) return jsonError('Agente invalido', 422)
       const old = store.ticket.status
       store.ticket.assigneeId = agent.id
       store.ticket.assigneeName = agent.fullName
@@ -923,14 +935,18 @@ export function createTicketHandlers(mockUsers: User[]) {
     }),
 
     http.patch('*/api/v1/tickets/:id/escalate', async ({ params, request }) => {
+      const user = findUserFromRequest(request, mockUsers)
+      if (!user) return jsonError('No autenticado', 401)
       const store = ticketStores.find((s) => s.ticket.id === params.id)
-      if (!store)
-        return HttpResponse.json(
-          { success: false, message: 'No encontrado', data: null, meta: null },
-          { status: 404 },
-        )
-      const user = findUserFromRequest(request, mockUsers)!
+      if (!store) return jsonError('No encontrado', 404)
+
+      const mutable = guardResponse(assertMutableTicket(store.ticket))
+      if (mutable) return mutable
+
       const body = (await request.json()) as { reason: string }
+      const validation = guardResponse(validateStatusChange(store.ticket, user, 'ESCALATED', body.reason))
+      if (validation) return validation
+
       const old = store.ticket.status
       store.ticket.status = 'ESCALATED'
       addHistory(store, old, 'ESCALATED', user, body.reason)
@@ -943,13 +959,14 @@ export function createTicketHandlers(mockUsers: User[]) {
     }),
 
     http.patch('*/api/v1/tickets/:id/close', async ({ params, request }) => {
+      const user = findUserFromRequest(request, mockUsers)
+      if (!user) return jsonError('No autenticado', 401)
       const store = ticketStores.find((s) => s.ticket.id === params.id)
-      if (!store)
-        return HttpResponse.json(
-          { success: false, message: 'No encontrado', data: null, meta: null },
-          { status: 404 },
-        )
-      const user = findUserFromRequest(request, mockUsers)!
+      if (!store) return jsonError('No encontrado', 404)
+
+      const closeValidation = guardResponse(validateClose(user, store.ticket))
+      if (closeValidation) return closeValidation
+
       const old = store.ticket.status
       store.ticket.status = 'CLOSED'
       store.ticket.closedAt = new Date().toISOString()
@@ -976,13 +993,14 @@ export function createTicketHandlers(mockUsers: User[]) {
     }),
 
     http.post('*/api/v1/tickets/:id/comments', async ({ params, request }) => {
-      const user = findUserFromRequest(request, mockUsers)!
+      const user = findUserFromRequest(request, mockUsers)
+      if (!user) return jsonError('No autenticado', 401)
       const store = ticketStores.find((s) => s.ticket.id === params.id)
-      if (!store)
-        return HttpResponse.json(
-          { success: false, message: 'No encontrado', data: null, meta: null },
-          { status: 404 },
-        )
+      if (!store) return jsonError('No encontrado', 404)
+
+      const mutable = guardResponse(assertMutableTicket(store.ticket))
+      if (mutable) return mutable
+
       const body = (await request.json()) as { body: string; isInternal?: boolean }
       const isInternal = user.role === 'CLIENT' || user.role === 'REQUESTER' ? false : Boolean(body.isInternal)
       const comment: TicketComment = {
@@ -1017,20 +1035,20 @@ export function createTicketHandlers(mockUsers: User[]) {
     }),
 
     http.post('*/api/v1/tickets/:id/attachments', async ({ params, request }) => {
-      const user = findUserFromRequest(request, mockUsers)!
+      const user = findUserFromRequest(request, mockUsers)
+      if (!user) return jsonError('No autenticado', 401)
       const store = ticketStores.find((s) => s.ticket.id === params.id)
-      if (!store)
-        return HttpResponse.json(
-          { success: false, message: 'No encontrado', data: null, meta: null },
-          { status: 404 },
-        )
+      if (!store) return jsonError('No encontrado', 404)
+
+      const mutable = guardResponse(assertMutableTicket(store.ticket))
+      if (mutable) return mutable
+
       const formData = await request.formData()
       const file = formData.get('file') as File | null
-      if (!file)
-        return HttpResponse.json(
-          { success: false, message: 'Archivo requerido', data: null, meta: null },
-          { status: 422 },
-        )
+      if (!file) return jsonError('Archivo requerido', 422)
+
+      const fileValidation = guardResponse(validateAttachmentFile(file))
+      if (fileValidation) return fileValidation
       const attachment: TicketAttachment = {
         id: `a-${Date.now()}`,
         ticketId: store.ticket.id,

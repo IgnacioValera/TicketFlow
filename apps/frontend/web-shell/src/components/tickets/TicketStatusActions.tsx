@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { usePermissions } from '@/hooks/usePermissions'
 import type { Ticket, TicketStatus } from '@/types/ticket.types'
 import { errorMessage, maxLengthAfterTrim, requiredTrimmed } from '@/utils/validation'
-import { getAllowedTransitions, STATUS_ACTION_LABELS } from '@/utils/ticket-state-machine'
+import { getAllowedTransitions, STATUS_ACTION_LABELS, statusRequiresReason } from '@/utils/ticket-state-machine'
 import { ConfirmModal, Modal } from '@/components/common/Modal'
 
 interface TicketStatusActionsProps {
@@ -14,16 +14,6 @@ interface TicketStatusActionsProps {
   onEscalate: (reason: string) => Promise<void>
   onClose: () => Promise<void>
   loading?: boolean
-}
-
-function requiresReason(from: TicketStatus, to: TicketStatus) {
-  return (
-    to === 'ESCALATED' ||
-    to === 'CANCELLED' ||
-    to === 'WAITING_USER' ||
-    to === 'RESOLVED' ||
-    (from === 'CLOSED' && to === 'IN_PROGRESS')
-  )
 }
 
 export function TicketStatusActions({
@@ -67,7 +57,7 @@ export function TicketStatusActions({
 
   const handleStatusClick = async (status: TicketStatus) => {
     setActionError('')
-    if (requiresReason(ticket.status, status) || status === 'ESCALATED') {
+    if (statusRequiresReason(ticket.status, status) || status === 'ESCALATED') {
       setReasonModal({ type: status === 'ESCALATED' ? 'escalate' : 'status', status })
       return
     }

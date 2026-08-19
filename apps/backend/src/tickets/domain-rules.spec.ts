@@ -95,6 +95,16 @@ describe('Reglas de dominio', () => {
     }
   })
 
+  it('rechaza cancelado sin transiciones disponibles', () => {
+    expect(TRANSITIONS[TicketStatus.CANCELLED]).toEqual([])
+    try {
+      assertTransition(TicketStatus.CANCELLED, TicketStatus.IN_PROGRESS, elevatedUser, false, false)
+      throw new Error('debería fallar')
+    } catch (error) {
+      expect(httpStatus(error)).toBe(422)
+    }
+  })
+
   it('permite reapertura CLOSED a IN_PROGRESS', () => {
     expect(TRANSITIONS[TicketStatus.CLOSED]).toContain(TicketStatus.IN_PROGRESS)
     expect(() => assertTransition(TicketStatus.CLOSED, TicketStatus.IN_PROGRESS, elevatedUser, false, true)).not.toThrow()

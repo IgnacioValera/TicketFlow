@@ -61,3 +61,23 @@ export const STATUS_ACTION_LABELS: Partial<Record<TicketStatus, string>> = {
   CLOSED: 'Cerrar',
   CANCELLED: 'Cancelar',
 }
+
+export function isTicketFinalized(status: TicketStatus): boolean {
+  return status === 'CLOSED' || status === 'CANCELLED'
+}
+
+export function statusRequiresReason(from: TicketStatus, to: TicketStatus): boolean {
+  if (
+    to === 'CANCELLED' ||
+    to === 'WAITING_USER' ||
+    to === 'RESOLVED' ||
+    to === 'ESCALATED'
+  ) {
+    return true
+  }
+  return from === 'CLOSED' && to === 'IN_PROGRESS'
+}
+
+export function canTransition(from: TicketStatus, to: TicketStatus, ctx: TransitionContext): boolean {
+  return canTransitionTo(from, to, ctx)
+}

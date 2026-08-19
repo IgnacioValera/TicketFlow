@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { DataTable, type Column } from '@/components/common/DataTable'
 import { PageHeader } from '@/components/common/PageHeader'
 import { ErrorState } from '@/components/common/ErrorState'
+import { SecondaryButton } from '@/components/common/UiControls'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { SlaSemaphore } from '@/components/tickets/SlaSemaphore'
 import { TicketsKanbanBoard } from '@/components/tickets/TicketsKanbanBoard'
@@ -15,6 +16,7 @@ import * as prioritiesService from '@/services/priorities.service'
 import type { Category, Priority } from '@/types/catalog.types'
 import type { Ticket, TicketStatus, SlaFilterStatus } from '@/types/ticket.types'
 import { calculateSlaStatus } from '@/utils/sla.utils'
+import { isTicketFinalized } from '@/utils/ticket-state-machine'
 
 type ListTab = 'all' | 'mine' | 'unassigned'
 type ViewMode = 'table' | 'kanban'
@@ -23,6 +25,8 @@ export function TicketsListPage() {
   const { user } = useAuth()
   const { hasPermission } = usePermissions()
   const { tickets, loading, error, loadTickets } = useTickets()
+  const location = useLocation()
+  const navigate = useNavigate()
 
   const [page, setPage] = useState(1)
   const [meta, setMeta] = useState({ page: 1, perPage: 10, total: 0, totalPages: 1 })
@@ -34,6 +38,7 @@ export function TicketsListPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [priorities, setPriorities] = useState<Priority[]>([])
   const [viewMode, setViewMode] = useState<ViewMode>('table')
+  const [refreshToken, setRefreshToken] = useState(0)
 
   const defaultTab: ListTab = useMemo(() => {
     if (user?.role === 'AGENT') return 'mine'
@@ -42,6 +47,21 @@ export function TicketsListPage() {
   }, [user?.role])
 
   const [tab, setTab] = useState<ListTab>(defaultTab)
+
+  const hasFilters = Boolean(
+    search || statusFilter || priorityFilter || categoryFilter || slaFilter || tab !== defaultTab,
+  )
+
+  const clearFilters = () => {
+    setSearch('')
+    setStatusFilter('')
+    setPriorityFilter('')
+    setCategoryFilter('')
+    setSlaFilter('')
+    setTab(defaultTab)
+    setPage(1)
+    navigate('/tickets', { replace: true })
+  }
 
   useEffect(() => {
     const loadCatalogs = async () => {
@@ -54,6 +74,13 @@ export function TicketsListPage() {
     }
     void loadCatalogs()
   }, [])
+
+  useEffect(() => {
+    if ((location.state as { refreshTickets?: boolean } | null)?.refreshTickets) {
+      setRefreshToken((value) => value + 1)
+      navigate(location.pathname, { replace: true, state: null })
+    }
+  }, [location.pathname, location.state, navigate])
 
   const fetchTickets = useCallback(async () => {
     try {
@@ -86,14 +113,14 @@ export function TicketsListPage() {
 
   useEffect(() => {
     void fetchTickets()
-  }, [fetchTickets])
+  }, [fetchTickets, location.key, refreshToken])
 
   const columns: Column<Ticket>[] = [
     {
       key: 'folio',
       header: 'Folio',
       render: (row) => (
-        <Link to={`/tickets/${row.id}`} className="font-medium text-brand-teal hover:underline">
+        <Link to={`/tickets/${row.id}`} state={{ fromList: true }} className="font-medium text-brand-teal hover:underline">
           {row.folio}
         </Link>
       ),
@@ -102,7 +129,16 @@ export function TicketsListPage() {
     {
       key: 'status',
       header: 'Estado',
-      render: (row) => <StatusBadge status={row.status} />,
+      render: (row) => (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <StatusBadge status={row.status} />
+          {isTicketFinalized(row.status) && (
+            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              Solo lectura
+            </span>
+          )}
+        </div>
+      ),
     },
     {
       key: 'priorityName',
@@ -119,7 +155,7 @@ export function TicketsListPage() {
       key: 'sla',
       header: 'SLA',
       render: (row) => {
-        const sla = calculateSlaStatus(row.createdAt, row.slaDueAt, row.resolutionHours)
+        const sla = calculateSlaStatus(row.slaCreatedAt, row.slaDueAt, row.resolutionHours)
         return <SlaSemaphore sla={sla} compact />
       },
     },
@@ -139,7 +175,7 @@ export function TicketsListPage() {
           description="Consulta, filtra y da seguimiento a cada solicitud."
         />
         <div className="flex flex-wrap items-center gap-2">
-            <div
+          <div
             className="inline-flex rounded border border-border bg-surface p-1"
             role="group"
             aria-label="Cambiar vista de tickets"
@@ -154,14 +190,6 @@ export function TicketsListPage() {
               }`}
               aria-pressed={viewMode === 'table'}
             >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 10h16M4 14h16M4 18h16"
-                />
-              </svg>
               Tabla
             </button>
             <button
@@ -178,14 +206,6 @@ export function TicketsListPage() {
               }`}
               aria-pressed={viewMode === 'kanban'}
             >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 4h3v16H6zM11 4h3v10h-3zM16 4h3v13h-3z"
-                />
-              </svg>
               Kanban
             </button>
           </div>
@@ -254,7 +274,7 @@ export function TicketsListPage() {
       )}
 
       <div
-        className={`ui-card mb-5 grid gap-3 p-4 sm:grid-cols-2 ${
+        className={`ui-card mb-3 grid gap-3 p-4 sm:grid-cols-2 ${
           viewMode === 'kanban' ? 'xl:grid-cols-4' : 'xl:grid-cols-5'
         }`}
       >
@@ -333,6 +353,22 @@ export function TicketsListPage() {
         </select>
       </div>
 
+      {hasFilters && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-sm text-slate-500">Filtros activos</span>
+          <SecondaryButton onClick={clearFilters}>Limpiar filtros</SecondaryButton>
+        </div>
+      )}
+
+      {error && (
+        <div className="mb-4 rounded-lg border border-brand-scarlet/30 bg-red-50 px-3 py-2 text-sm text-brand-scarlet">
+          {error}
+          <button type="button" onClick={() => void fetchTickets()} className="ml-3 font-medium underline">
+            Reintentar
+          </button>
+        </div>
+      )}
+
       {error && tickets.length === 0 && !loading ? (
         <ErrorState message={error} onRetry={() => void fetchTickets()} />
       ) : viewMode === 'kanban' ? (
@@ -346,7 +382,7 @@ export function TicketsListPage() {
           onPageChange={setPage}
           rowKey={(row) => row.id}
           emptyMessage={
-            search || statusFilter || priorityFilter || categoryFilter || slaFilter
+            hasFilters
               ? 'No hay tickets que coincidan con los filtros.'
               : 'No hay tickets para mostrar.'
           }
