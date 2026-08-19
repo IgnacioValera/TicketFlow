@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import { calculateSlaStatus, matchesSlaFilter } from '@/utils/sla.utils'
+import { buildDashboardSummary, statusesForPreset, TERMINAL_STATUSES } from '@/utils/dashboard.utils'
 import {
   assertMutableTicket,
   validateAssign,
@@ -625,6 +626,23 @@ function guardResponse(error: { status: number; message: string } | null) {
 
 export function createTicketHandlers(mockUsers: User[]) {
   return [
+    http.get('*/api/v1/dashboard/summary', async ({ request }) => {
+      const user = findUserFromRequest(request, mockUsers)
+      if (!user) {
+        return HttpResponse.json(
+          { success: false, message: 'No autenticado', data: null, meta: null },
+          { status: 401 },
+        )
+      }
+
+      const url = new URL(request.url)
+      const scopeParam = url.searchParams.get('scope')
+      const own = user.role === 'AGENT' || scopeParam === 'OWN'
+      const tickets = filterByRole([...ticketStores], user).map((store) => store.ticket)
+      const summary = buildDashboardSummary(tickets, own ? 'OWN' : 'GLOBAL')
+      return jsonOk(summary)
+    }),
+
     http.get('*/api/v1/tickets', async ({ request }) => {
       const user = findUserFromRequest(request, mockUsers)
       if (!user)
@@ -637,6 +655,7 @@ export function createTicketHandlers(mockUsers: User[]) {
       let filtered = filterByRole([...ticketStores], user)
 
       const status = url.searchParams.get('status') as TicketStatus | null
+      const preset = url.searchParams.get('preset') as 'open' | 'inProgress' | 'resolved' | 'closed' | null
       const priorityId = url.searchParams.get('priorityId')
       const categoryId = url.searchParams.get('categoryId')
       const assigneeId = url.searchParams.get('assigneeId')
@@ -645,7 +664,10 @@ export function createTicketHandlers(mockUsers: User[]) {
       const slaStatus = (url.searchParams.get('sla_status') ??
         url.searchParams.get('slaStatus')) as 'overdue' | 'warning' | 'on_time' | null
 
-      if (status) filtered = filtered.filter((s) => s.ticket.status === status)
+      if (preset) {
+        const allowed = statusesForPreset(preset)
+        filtered = filtered.filter((s) => allowed.includes(s.ticket.status))
+      } else if (status) filtered = filtered.filter((s) => s.ticket.status === status)
       if (priorityId) filtered = filtered.filter((s) => s.ticket.priorityId === priorityId)
       if (categoryId) filtered = filtered.filter((s) => s.ticket.categoryId === categoryId)
       if (assigneeId) filtered = filtered.filter((s) => s.ticket.assigneeId === assigneeId)
@@ -660,6 +682,7 @@ export function createTicketHandlers(mockUsers: User[]) {
       }
       if (slaStatus) {
         filtered = filtered.filter((s) => {
+          if (slaStatus !== 'on_time' && TERMINAL_STATUSES.includes(s.ticket.status)) return false
           const sla = calculateSlaStatus(
             s.ticket.slaCreatedAt,
             s.ticket.slaDueAt,

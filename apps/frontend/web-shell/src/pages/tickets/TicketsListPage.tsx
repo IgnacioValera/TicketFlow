@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { DataTable, type Column } from '@/components/common/DataTable'
 import { PageHeader } from '@/components/common/PageHeader'
 import { ErrorState } from '@/components/common/ErrorState'
@@ -14,12 +14,24 @@ import { useTickets } from '@/hooks/useTickets'
 import * as categoriesService from '@/services/categories.service'
 import * as prioritiesService from '@/services/priorities.service'
 import type { Category, Priority } from '@/types/catalog.types'
-import type { Ticket, TicketStatus, SlaFilterStatus } from '@/types/ticket.types'
+import type { Ticket, TicketStatus, SlaFilterStatus, TicketPreset } from '@/types/ticket.types'
 import { calculateSlaStatus } from '@/utils/sla.utils'
 import { isTicketFinalized } from '@/utils/ticket-state-machine'
+import { statusesForPreset } from '@/utils/dashboard.utils'
 
 type ListTab = 'all' | 'mine' | 'unassigned'
 type ViewMode = 'table' | 'kanban'
+
+function readSearchParam(
+  params: URLSearchParams,
+  keys: string[],
+): string | null {
+  for (const key of keys) {
+    const value = params.get(key)
+    if (value) return value
+  }
+  return null
+}
 
 export function TicketsListPage() {
   const { user } = useAuth()
@@ -27,11 +39,13 @@ export function TicketsListPage() {
   const { tickets, loading, error, loadTickets } = useTickets()
   const location = useLocation()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
 
   const [page, setPage] = useState(1)
   const [meta, setMeta] = useState({ page: 1, perPage: 10, total: 0, totalPages: 1 })
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<TicketStatus | ''>('')
+  const [presetFilter, setPresetFilter] = useState<TicketPreset | ''>('')
   const [priorityFilter, setPriorityFilter] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [slaFilter, setSlaFilter] = useState<SlaFilterStatus | ''>('')
@@ -49,12 +63,13 @@ export function TicketsListPage() {
   const [tab, setTab] = useState<ListTab>(defaultTab)
 
   const hasFilters = Boolean(
-    search || statusFilter || priorityFilter || categoryFilter || slaFilter || tab !== defaultTab,
+    search || statusFilter || presetFilter || priorityFilter || categoryFilter || slaFilter || tab !== defaultTab,
   )
 
   const clearFilters = () => {
     setSearch('')
     setStatusFilter('')
+    setPresetFilter('')
     setPriorityFilter('')
     setCategoryFilter('')
     setSlaFilter('')
@@ -62,6 +77,26 @@ export function TicketsListPage() {
     setPage(1)
     navigate('/tickets', { replace: true })
   }
+
+  useEffect(() => {
+    const preset = readSearchParam(searchParams, ['preset']) as TicketPreset | null
+    const status = readSearchParam(searchParams, ['status']) as TicketStatus | null
+    const slaStatus = readSearchParam(searchParams, ['slaStatus', 'sla_status']) as SlaFilterStatus | null
+    const searchQuery = readSearchParam(searchParams, ['search'])
+    const priorityId = readSearchParam(searchParams, ['priorityId'])
+    const categoryId = readSearchParam(searchParams, ['categoryId'])
+    const unassigned = searchParams.get('unassigned') === 'true'
+    const mine = searchParams.get('mine') === 'true'
+
+    setPresetFilter(preset && statusesForPreset(preset) ? preset : '')
+    setStatusFilter(preset ? '' : status ?? '')
+    setSlaFilter(slaStatus ?? '')
+    setSearch(searchQuery ?? '')
+    setPriorityFilter(priorityId ?? '')
+    setCategoryFilter(categoryId ?? '')
+    setTab(unassigned ? 'unassigned' : mine ? 'mine' : defaultTab)
+    setPage(1)
+  }, [searchParams, defaultTab])
 
   useEffect(() => {
     const loadCatalogs = async () => {
@@ -88,7 +123,8 @@ export function TicketsListPage() {
         page: viewMode === 'kanban' ? 1 : page,
         perPage: viewMode === 'kanban' ? 100 : 10,
         search: search || undefined,
-        status: viewMode === 'kanban' ? undefined : statusFilter || undefined,
+        preset: viewMode === 'kanban' ? undefined : presetFilter || undefined,
+        status: viewMode === 'kanban' ? undefined : presetFilter ? undefined : statusFilter || undefined,
         priorityId: priorityFilter || undefined,
         categoryId: categoryFilter || undefined,
         slaStatus: slaFilter || undefined,
@@ -104,6 +140,7 @@ export function TicketsListPage() {
     page,
     search,
     statusFilter,
+    presetFilter,
     priorityFilter,
     categoryFilter,
     slaFilter,
@@ -197,6 +234,7 @@ export function TicketsListPage() {
               onClick={() => {
                 setViewMode('kanban')
                 setStatusFilter('')
+                setPresetFilter('')
                 setPage(1)
               }}
               className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition ${
@@ -293,6 +331,7 @@ export function TicketsListPage() {
             value={statusFilter}
             onChange={(e) => {
               setStatusFilter(e.target.value as TicketStatus | '')
+              setPresetFilter('')
               setPage(1)
             }}
             className="min-w-0 rounded-lg border border-brand-slate px-3 py-2 text-sm"

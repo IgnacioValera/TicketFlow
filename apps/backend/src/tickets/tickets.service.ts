@@ -12,6 +12,7 @@ import { CatalogStatus, Category, Client, ClientStatus, Priority, RoleCode, Sati
 import { AssignTicketDto, ChangeStatusDto, CreateCommentDto, CreateTicketDto, EscalateTicketDto, SubmitSurveyDto, TicketsQueryDto, UpdateTicketDto } from './dto'
 import { removeTempUpload, validateUploadedFile } from './file-validation'
 import { serializeHistoryRecord, sortTicketHistories } from './ticket-history'
+import { statusesForPreset } from '../analytics/dashboard-rules'
 import { assertStatusReason, assertTicketMutable, assertTicketSurvey, assertTransition, calculateSla, hasPermission } from './ticket-rules'
 
 @Injectable()
@@ -42,15 +43,27 @@ export class TicketsService {
     if (isPortalRole(user.role.code)) qb.andWhere('requester.id = :currentUserId', { currentUserId: user.id })
     else if (user.role.code === RoleCode.AGENT) qb.andWhere('assignee.id = :currentUserId', { currentUserId: user.id })
     else if (query.mine) qb.andWhere('(requester.id = :currentUserId OR assignee.id = :currentUserId)', { currentUserId: user.id })
-    if (query.status) qb.andWhere('ticket.status = :status', { status: query.status })
+    if (query.preset) qb.andWhere('ticket.status IN (:...presetStatuses)', { presetStatuses: statusesForPreset(query.preset) })
+    else if (query.status) qb.andWhere('ticket.status = :status', { status: query.status })
     if (query.priorityId) qb.andWhere('priority.id = :priorityId', { priorityId: query.priorityId })
     if (query.categoryId) qb.andWhere('category.id = :categoryId', { categoryId: query.categoryId })
     if (query.assigneeId) qb.andWhere('assignee.id = :assigneeId', { assigneeId: query.assigneeId })
     if (query.unassigned) qb.andWhere('ticket.assignee_id IS NULL').andWhere('ticket.status = :open', { open: TicketStatus.OPEN })
     if (query.search) qb.andWhere(new Brackets((where) => where.where('LOWER(ticket.title) LIKE :q').orWhere('LOWER(ticket.folio) LIKE :q')), { q: `%${query.search.toLowerCase()}%` })
-    if (query.slaStatus === 'overdue') qb.andWhere('ticket.slaDueAt <= NOW()')
-    if (query.slaStatus === 'warning') qb.andWhere('ticket.slaDueAt > NOW()').andWhere('(EXTRACT(EPOCH FROM (ticket.slaDueAt - NOW())) / NULLIF(EXTRACT(EPOCH FROM (ticket.slaDueAt - ticket.slaCreatedAt)), 0)) <= 0.5')
-    if (query.slaStatus === 'on_time') qb.andWhere('ticket.slaDueAt > NOW()').andWhere('(EXTRACT(EPOCH FROM (ticket.slaDueAt - NOW())) / NULLIF(EXTRACT(EPOCH FROM (ticket.slaDueAt - ticket.slaCreatedAt)), 0)) > 0.5')
+    const activeSlaStatuses = [TicketStatus.CLOSED, TicketStatus.CANCELLED]
+    if (query.slaStatus === 'overdue') {
+      qb.andWhere('ticket.slaDueAt <= NOW()').andWhere('ticket.status NOT IN (:...activeSlaStatuses)', { activeSlaStatuses })
+    }
+    if (query.slaStatus === 'warning') {
+      qb.andWhere('ticket.slaDueAt > NOW()')
+        .andWhere('ticket.status NOT IN (:...activeSlaStatuses)', { activeSlaStatuses })
+        .andWhere('(EXTRACT(EPOCH FROM (ticket.slaDueAt - NOW())) / NULLIF(EXTRACT(EPOCH FROM (ticket.slaDueAt - ticket.slaCreatedAt)), 0)) <= 0.5')
+    }
+    if (query.slaStatus === 'on_time') {
+      qb.andWhere('ticket.slaDueAt > NOW()')
+        .andWhere('ticket.status NOT IN (:...activeSlaStatuses)', { activeSlaStatuses })
+        .andWhere('(EXTRACT(EPOCH FROM (ticket.slaDueAt - NOW())) / NULLIF(EXTRACT(EPOCH FROM (ticket.slaDueAt - ticket.slaCreatedAt)), 0)) > 0.5')
+    }
     const [items, total] = await qb.orderBy('ticket.createdAt', 'DESC').skip(skip).take(perPage).getManyAndCount()
     return { items: items.map((ticket) => this.serialize(ticket)), meta: pagination(page, perPage, total) }
   }
