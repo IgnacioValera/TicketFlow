@@ -92,14 +92,22 @@ export function KnowledgePage() {
     setError('')
     try {
       const categoryValue = form.categoryId.trim()
-      const payload = {
+      const base = {
         title: form.title.trim(),
         content: form.content.trim(),
         tags: form.tags.trim() || undefined,
-        categoryId: categoryValue ? categoryValue : editing ? null : undefined,
       }
-      if (editing) await crm.updateKnowledge(editing.id, payload)
-      else await crm.createKnowledge(payload)
+      if (editing) {
+        await crm.updateKnowledge(editing.id, {
+          ...base,
+          categoryId: categoryValue ? categoryValue : null,
+        })
+      } else {
+        await crm.createKnowledge({
+          ...base,
+          ...(categoryValue ? { categoryId: categoryValue } : {}),
+        })
+      }
       setOpen(false)
       await load()
     } catch (err: unknown) {
