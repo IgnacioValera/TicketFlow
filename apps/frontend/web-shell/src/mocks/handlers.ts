@@ -1018,8 +1018,8 @@ export const handlers = [
           kpis: [
             { key: 'open', label: 'Abiertos', value: 8 },
             { key: 'overdue', label: 'Vencidos', value: 2 },
-            { key: 'resolved', label: 'Resueltos', value: 21 },
             { key: 'inProgress', label: 'En proceso', value: 5 },
+            { key: 'resolved', label: 'Resueltos', value: 21 },
             { key: 'sla', label: 'SLA a tiempo', value: 66.7 },
           ],
           trend: [
@@ -1032,8 +1032,8 @@ export const handlers = [
           distribution: [
             { name: 'Abiertos', value: 8 },
             { name: 'Vencidos', value: 2 },
-            { name: 'Resueltos', value: 21 },
             { name: 'En proceso', value: 5 },
+            { name: 'Resueltos', value: 21 },
           ],
         }
       : {
@@ -1041,8 +1041,8 @@ export const handlers = [
           kpis: [
             { key: 'open', label: 'Abiertos', value: 42 },
             { key: 'overdue', label: 'Vencidos', value: 11 },
-            { key: 'resolved', label: 'Resueltos', value: 164 },
             { key: 'inProgress', label: 'En proceso', value: 27 },
+            { key: 'resolved', label: 'Resueltos', value: 164 },
             { key: 'sla', label: 'SLA a tiempo', value: 72.5 },
           ],
           trend: [
@@ -1055,8 +1055,8 @@ export const handlers = [
           distribution: [
             { name: 'Abiertos', value: 42 },
             { name: 'Vencidos', value: 11 },
-            { name: 'Resueltos', value: 164 },
             { name: 'En proceso', value: 27 },
+            { name: 'Resueltos', value: 164 },
           ],
         }
 

@@ -40,12 +40,12 @@ export class AnalyticsService {
     const kpis = [
       { key: 'open', label: 'Abiertos', value: count([TicketStatus.OPEN, TicketStatus.ASSIGNED]) },
       { key: 'overdue', label: 'Vencidos', value: overdue },
-      { key: 'resolved', label: 'Resueltos', value: count([TicketStatus.RESOLVED, TicketStatus.CLOSED]) },
       {
         key: 'inProgress',
         label: 'En proceso',
         value: count([TicketStatus.IN_PROGRESS, TicketStatus.WAITING_USER, TicketStatus.ESCALATED]),
       },
+      { key: 'resolved', label: 'Resueltos', value: count([TicketStatus.RESOLVED, TicketStatus.CLOSED]) },
       { key: 'sla', label: 'SLA a tiempo', value: sla.withinPercentage },
     ]
     return {

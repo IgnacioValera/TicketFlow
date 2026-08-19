@@ -10,8 +10,8 @@ import type { DashboardSummary, KpiMetric } from '@/types/dashboard.types'
 const KPI_TONE: Record<Exclude<KpiMetric['key'], 'sla'>, 'accent' | 'danger' | 'success' | 'neutral'> = {
   open: 'accent',
   overdue: 'danger',
-  resolved: 'success',
   inProgress: 'neutral',
+  resolved: 'success',
 }
 
 function slaTone(value: number): 'success' | 'warning' | 'danger' {

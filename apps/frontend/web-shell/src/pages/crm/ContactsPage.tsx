@@ -15,15 +15,20 @@ export function ContactsPage() {
   const [clients, setClients] = useState<CrmClient[]>([])
   const [meta, setMeta] = useState({ page: 1, perPage: 10, total: 0, totalPages: 1 })
   const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(10)
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ clientId: '', firstName: '', lastName: '', email: '', phone: '', jobTitle: '' })
 
   const load = useCallback(async () => {
-    const response = await crm.getContacts({ page, perPage: 10 })
+    const response = await crm.getContacts({
+      page,
+      perPage,
+      search: search || undefined,
+    })
     setItems(response.data)
     if (response.meta) setMeta(response.meta)
-  }, [page])
+  }, [page, perPage, search])
   useEffect(() => {
     void load()
   }, [load])
@@ -50,12 +55,6 @@ export function ContactsPage() {
     await load()
   }
 
-  const visible = items.filter((item) => {
-    const term = search.trim().toLowerCase()
-    if (!term) return true
-    return `${item.firstName} ${item.lastName} ${item.email} ${item.clientName}`.toLowerCase().includes(term)
-  })
-
   return (
     <div className="space-y-4">
       <PageHeader
@@ -79,9 +78,13 @@ export function ContactsPage() {
       />
       <DataTable
         columns={columns}
-        data={visible}
-        pagination={meta}
+        data={items}
+        pagination={{ ...meta, page, perPage }}
         onPageChange={setPage}
+        onPerPageChange={(value) => {
+          setPerPage(value)
+          setPage(1)
+        }}
         rowKey={(row) => row.id}
         emptyMessage="No hay contactos"
         emptyDescription="Aún no hay contactos registrados."

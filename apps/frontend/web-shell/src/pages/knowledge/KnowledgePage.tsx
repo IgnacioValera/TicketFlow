@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { AppIcon } from '@/components/common/AppIcon'
+import { TablePagination } from '@/components/common/DataTable'
 import { ConfirmModal, Modal } from '@/components/common/Modal'
 import { EmptyState } from '@/components/common/EmptyState'
 import { FormField } from '@/components/common/FormField'
@@ -29,6 +30,8 @@ export function KnowledgePage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [search, setSearch] = useState('')
   const [topicFilter, setTopicFilter] = useState('')
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(10)
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<KnowledgeArticle | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -55,6 +58,10 @@ export function KnowledgePage() {
   const visible = useMemo(() => {
     return items.filter((item) => !topicFilter || knowledgeTopic(item) === topicFilter)
   }, [items, topicFilter])
+
+  const totalPages = Math.max(1, Math.ceil(visible.length / perPage))
+  const currentPage = Math.min(page, totalPages)
+  const paged = visible.slice((currentPage - 1) * perPage, currentPage * perPage)
 
   const openCreate = () => {
     setEditing(null)
@@ -121,6 +128,7 @@ export function KnowledgePage() {
             onChange={(event) => {
               const value = event.target.value
               setSearch(value)
+              setPage(1)
               void load(value)
             }}
             placeholder="Buscar por título, contenido o etiquetas"
@@ -129,7 +137,10 @@ export function KnowledgePage() {
         </div>
         <select
           value={topicFilter}
-          onChange={(event) => setTopicFilter(event.target.value)}
+          onChange={(event) => {
+            setTopicFilter(event.target.value)
+            setPage(1)
+          }}
           className="rounded border border-slate-300 bg-white px-3 py-2 text-sm"
         >
           <option value="">Todas las categorías</option>
@@ -151,8 +162,9 @@ export function KnowledgePage() {
           }
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {visible.map((item) => (
+        <div className="overflow-hidden rounded border border-slate-200 bg-white">
+          <div className="grid gap-4 p-4 md:grid-cols-2">
+          {paged.map((item) => (
             <SurfaceCard key={item.id} as="article" className="flex flex-col p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -192,6 +204,20 @@ export function KnowledgePage() {
               )}
             </SurfaceCard>
           ))}
+          </div>
+          <TablePagination
+            pagination={{
+              page: currentPage,
+              perPage,
+              total: visible.length,
+              totalPages,
+            }}
+            onPageChange={setPage}
+            onPerPageChange={(value) => {
+              setPerPage(value)
+              setPage(1)
+            }}
+          />
         </div>
       )}
 

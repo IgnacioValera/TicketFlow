@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { SurveyStatusBadge } from '@/components/common/CrmBadge'
+import { TablePagination } from '@/components/common/DataTable'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ErrorState } from '@/components/common/ErrorState'
 import { ConfirmToast } from '@/components/common/FeedbackAlert'
@@ -29,6 +30,9 @@ export function SurveysPage() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(10)
+  const [meta, setMeta] = useState({ page: 1, perPage: 10, total: 0, totalPages: 1 })
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(EMPTY_SURVEY_FORM)
   const [formError, setFormError] = useState('')
@@ -52,15 +56,21 @@ export function SurveysPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const response = await crm.getSurveys({ perPage: 50, status: status || undefined })
+      const response = await crm.getSurveys({
+        page,
+        perPage,
+        search: search || undefined,
+        status: status || undefined,
+      })
       setItems(response.data)
+      if (response.meta) setMeta(response.meta)
       setError('')
     } catch (err: unknown) {
       setError(getErrorMessages(err, 'No se pudo cargar la información.')[0])
     } finally {
       setLoading(false)
     }
-  }, [status])
+  }, [page, perPage, search, status])
 
   useEffect(() => {
     void load()
@@ -114,9 +124,8 @@ export function SurveysPage() {
     }
   }
 
-  const visible = items.filter((item) => item.title.toLowerCase().includes(search.trim().toLowerCase()))
   const canManage = hasPermission(PERMISSIONS.CRM_SURVEY_MANAGE)
-  const emptyBecauseFilter = items.length > 0 || Boolean(search.trim()) || Boolean(status)
+  const emptyBecauseFilter = Boolean(search.trim()) || Boolean(status)
 
   return (
     <div className="space-y-4">
@@ -134,9 +143,19 @@ export function SurveysPage() {
           className="max-w-xs"
           placeholder="Buscar encuestas..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value)
+            setPage(1)
+          }}
         />
-        <SelectInput className="w-40" value={status} onChange={(e) => setStatus(e.target.value)}>
+        <SelectInput
+          className="w-40"
+          value={status}
+          onChange={(e) => {
+            setStatus(e.target.value)
+            setPage(1)
+          }}
+        >
           <option value="">Todos los estados</option>
           {(Object.keys(SURVEY_STATUS_LABELS) as SurveyStatus[]).map((item) => (
             <option key={item} value={item}>
@@ -149,7 +168,7 @@ export function SurveysPage() {
         <p className="text-sm text-slate-600">Cargando...</p>
       ) : error ? (
         <ErrorState message={error} onRetry={() => void load()} />
-      ) : visible.length === 0 ? (
+      ) : items.length === 0 ? (
         <EmptyState
           title={emptyBecauseFilter ? 'Sin coincidencias' : 'No hay encuestas'}
           description={
@@ -164,44 +183,54 @@ export function SurveysPage() {
           }
         />
       ) : (
-        <ul className="divide-y divide-slate-100 overflow-hidden rounded border border-slate-200 bg-white">
-          {visible.map((item) => (
-            <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-              <div>
-                <p className="font-medium text-brand-navy">{item.title}</p>
-                <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                  <SurveyStatusBadge status={item.status} />
-                  {getSurveyTriggerLabel(item.trigger)}
-                  {` · ${item.questionCount ?? item.questions?.length ?? 0} preguntas`}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-3 text-sm">
-                {canManage && (
-                  <>
-                    <Link className="font-medium text-brand-teal hover:underline" to={`/crm/surveys/${item.id}`}>
-                      Editar
+        <div className="overflow-hidden rounded border border-slate-200 bg-white">
+          <ul className="divide-y divide-slate-100">
+            {items.map((item) => (
+              <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                <div>
+                  <p className="font-medium text-brand-navy">{item.title}</p>
+                  <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                    <SurveyStatusBadge status={item.status} />
+                    {getSurveyTriggerLabel(item.trigger)}
+                    {` · ${item.questionCount ?? item.questions?.length ?? 0} preguntas`}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 text-sm">
+                  {canManage && (
+                    <>
+                      <Link className="font-medium text-brand-teal hover:underline" to={`/crm/surveys/${item.id}`}>
+                        Editar
+                      </Link>
+                      {(item.status === 'DRAFT' || item.status === 'CLOSED') && (
+                        <button type="button" className="font-medium text-brand-teal hover:underline" onClick={() => void toggleStatus(item)}>
+                          Activar
+                        </button>
+                      )}
+                      {item.status === 'PUBLISHED' && (
+                        <button type="button" className="font-medium text-brand-teal hover:underline" onClick={() => void toggleStatus(item)}>
+                          Desactivar
+                        </button>
+                      )}
+                    </>
+                  )}
+                  {hasPermission(PERMISSIONS.CRM_SURVEY_RESULTS) && (
+                    <Link className="font-medium text-brand-teal hover:underline" to={`/crm/surveys/${item.id}/results`}>
+                      Resultados
                     </Link>
-                    {(item.status === 'DRAFT' || item.status === 'CLOSED') && (
-                      <button type="button" className="font-medium text-brand-teal hover:underline" onClick={() => void toggleStatus(item)}>
-                        Activar
-                      </button>
-                    )}
-                    {item.status === 'PUBLISHED' && (
-                      <button type="button" className="font-medium text-brand-teal hover:underline" onClick={() => void toggleStatus(item)}>
-                        Desactivar
-                      </button>
-                    )}
-                  </>
-                )}
-                {hasPermission(PERMISSIONS.CRM_SURVEY_RESULTS) && (
-                  <Link className="font-medium text-brand-teal hover:underline" to={`/crm/surveys/${item.id}/results`}>
-                    Resultados
-                  </Link>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <TablePagination
+            pagination={{ ...meta, page, perPage }}
+            onPageChange={setPage}
+            onPerPageChange={(value) => {
+              setPerPage(value)
+              setPage(1)
+            }}
+          />
+        </div>
       )}
       <Modal open={open} onClose={closeModal} title="Nueva encuesta">
         <form onSubmit={(e) => void submit(e)} className="space-y-3">

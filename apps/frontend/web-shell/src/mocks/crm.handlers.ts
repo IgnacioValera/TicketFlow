@@ -661,13 +661,22 @@ export function createCrmHandlers(users: User[] = []) {
     }),
     http.get('*/api/v1/crm/contacts', ({ request }) => {
       const url = new URL(request.url)
+      const page = Number(url.searchParams.get('page') ?? 1)
+      const perPage = Number(url.searchParams.get('perPage') ?? 10)
       const clientId = url.searchParams.get('clientId')
-      const items = clientId ? mockContacts.filter((item) => item.clientId === clientId) : mockContacts
+      const search = (url.searchParams.get('search') ?? '').toLowerCase()
+      let items = clientId ? mockContacts.filter((item) => item.clientId === clientId) : mockContacts
+      if (search) {
+        items = items.filter((item) =>
+          `${item.firstName} ${item.lastName} ${item.email} ${item.clientName}`.toLowerCase().includes(search),
+        )
+      }
+      const start = (page - 1) * perPage
       return HttpResponse.json({
         success: true,
         message: 'OK',
-        data: items,
-        meta: { page: 1, perPage: 100, total: items.length, totalPages: 1 },
+        data: items.slice(start, start + perPage),
+        meta: { page, perPage, total: items.length, totalPages: Math.max(1, Math.ceil(items.length / perPage)) },
       })
     }),
     http.get('*/api/v1/crm/opportunities', ({ request }) => {
@@ -863,13 +872,20 @@ export function createCrmHandlers(users: User[] = []) {
     http.get('*/api/v1/crm/surveys', ({ request }) => {
       hydrateMockStore()
       const url = new URL(request.url)
+      const page = Number(url.searchParams.get('page') ?? 1)
+      const perPage = Number(url.searchParams.get('perPage') ?? 10)
       const status = url.searchParams.get('status') as SurveyStatus | null
-      const items = surveys.filter((survey) => !status || survey.status === status).map(serialize)
+      const search = (url.searchParams.get('search') ?? '').toLowerCase()
+      let items = surveys.filter((survey) => !status || survey.status === status)
+      if (search) {
+        items = items.filter((survey) => survey.title.toLowerCase().includes(search))
+      }
+      const start = (page - 1) * perPage
       return HttpResponse.json({
         success: true,
         message: 'OK',
-        data: items,
-        meta: { page: 1, perPage: 50, total: items.length, totalPages: 1 },
+        data: items.slice(start, start + perPage).map(serialize),
+        meta: { page, perPage, total: items.length, totalPages: Math.max(1, Math.ceil(items.length / perPage)) },
       })
     }),
     http.post('*/api/v1/crm/surveys', async ({ request }) => {
