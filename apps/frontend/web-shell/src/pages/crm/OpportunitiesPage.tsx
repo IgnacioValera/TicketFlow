@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type DragEvent, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AppIcon } from '@/components/common/AppIcon'
 import { OpportunityStageBadge } from '@/components/common/CrmBadge'
@@ -9,14 +9,17 @@ import { FormField } from '@/components/common/FormField'
 import { Modal } from '@/components/common/Modal'
 import { PageHeader } from '@/components/common/PageHeader'
 import { PrimaryButton, SecondaryButton, SelectInput, TextArea, TextInput } from '@/components/common/UiControls'
+import { OpportunitySurveyCard } from '@/components/crm/OpportunitySurveyCard'
+import { SurveyInvitationModal } from '@/components/crm/SurveyInvitationModal'
 import { PERMISSIONS } from '@/constants/permissions'
 import { LIMITS } from '@/constants/validation'
 import { useAuth } from '@/hooks/useAuth'
 import { usePermissions } from '@/hooks/usePermissions'
 import * as crm from '@/services/crm.service'
-import type { CrmClient, CrmContact, CrmOpportunity, OpportunityStage } from '@/types/crm.types'
+import type { CrmClient, CrmContact, CrmOpportunity, CrmSurvey, OpportunityStage } from '@/types/crm.types'
 import { PROBABILITY_BY_STAGE } from '@/types/crm.types'
 import { getErrorMessages } from '@/utils/errors'
+import { invitationRequestSurveyId, type CreatedSurveyInvitation, type SurveyInvitationCard } from '@/utils/opportunity-survey'
 import {
   ALL_STAGES,
   EMPTY_OPPORTUNITY_FORM,
@@ -61,7 +64,13 @@ export function OpportunitiesPage() {
   const [reopenFor, setReopenFor] = useState<{ item: CrmOpportunity; stage: OpportunityStage } | null>(null)
   const [lostReason, setLostReason] = useState('')
   const [reopenReason, setReopenReason] = useState('')
-  const [copyUrl, setCopyUrl] = useState('')
+  const [createdInvitation, setCreatedInvitation] = useState<CreatedSurveyInvitation | null>(null)
+  const [detail, setDetail] = useState<CrmOpportunity | null>(null)
+  const [manualSurveys, setManualSurveys] = useState<CrmSurvey[]>([])
+  const [selectedManualId, setSelectedManualId] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const movingRef = useRef(false)
+  const savingRef = useRef(false)
   const [form, setForm] = useState<OpportunityFormValues>(EMPTY_OPPORTUNITY_FORM)
   const [fieldErrors, setFieldErrors] = useState<OpportunityFormErrors>({})
   const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -140,6 +149,49 @@ export function OpportunitiesPage() {
     setOpen(true)
   }
 
+  const openDetail = async (item: CrmOpportunity) => {
+    const fresh = await crm.getOpportunity(item.id)
+    setDetail(fresh)
+    const surveys = await crm.getSurveys({ status: 'PUBLISHED' })
+    setManualSurveys(surveys.data.filter((survey) => survey.trigger === 'MANUAL'))
+    setSelectedManualId('')
+  }
+
+  const generateFromDetail = async (confirmRegenerate = false) => {
+    if (!detail || generating) return
+    const card = detail.surveyInvitation
+    const cardSurveyId = card && 'surveyId' in card ? card.surveyId ?? undefined : undefined
+    const surveyId = invitationRequestSurveyId({
+      selectedManualId,
+      stage: detail.stage,
+      cardSurveyId,
+      confirmRegenerate,
+    })
+    if (!confirmRegenerate && !surveyId && detail.stage !== 'WON') {
+      setError('Selecciona una encuesta manual activa. La de Oportunidad ganada se envía al marcarla como Ganada.')
+      return
+    }
+    setGenerating(true)
+    try {
+      const result = await crm.createSurveyInvitation(detail.id, {
+        surveyId,
+        confirmRegenerate,
+      })
+      if (result.created && result.responseUrl) {
+        setDetail(null)
+        setCreatedInvitation(result)
+      }
+      else {
+        const fresh = await crm.getOpportunity(detail.id)
+        setDetail(fresh)
+      }
+    } catch (err: unknown) {
+      setError(getErrorMessages(err, 'No se pudo generar la encuesta.')[0])
+    } finally {
+      setGenerating(false)
+    }
+  }
+
   useEffect(() => {
     if (searchParams.get('nuevo') === '1') {
       openCreate(searchParams.get('cliente') ?? '')
@@ -197,14 +249,28 @@ export function OpportunitiesPage() {
     stage: OpportunityStage,
     extra?: { lostReason?: string; reopen?: boolean; reopenReason?: string },
   ) => {
-    const updated = await crm.changeStage(id, { stage, ...extra })
-    if (updated.invitations?.length) setCopyUrl(updated.invitations[0].url)
-    await load()
-    const item = items.find((entry) => entry.id === id)
-    setToast({
-      title: 'Etapa actualizada',
-      message: `${item?.title ?? 'La oportunidad'} pasó a ${getOpportunityStageLabel(stage)} (${updated.probability}%).`,
-    })
+    if (movingRef.current) return
+    movingRef.current = true
+    try {
+      const updated = await crm.changeStage(id, { stage, ...extra })
+      const invitation = updated.surveyInvitation
+      if (invitation && 'created' in invitation && invitation.created && invitation.responseUrl) {
+        setDetail(null)
+        setCreatedInvitation(invitation)
+      } else if (invitation && 'message' in invitation && invitation.message) {
+        setToast({ title: 'Etapa actualizada', message: invitation.message })
+      }
+      await load()
+      const item = items.find((entry) => entry.id === id)
+      if (!(invitation && 'message' in invitation && invitation.message && !invitation.created)) {
+        setToast({
+          title: 'Etapa actualizada',
+          message: `${item?.title ?? 'La oportunidad'} pasó a ${getOpportunityStageLabel(stage)} (${updated.probability}%).`,
+        })
+      }
+    } finally {
+      movingRef.current = false
+    }
   }
 
   const requestMove = async (item: CrmOpportunity, stage: OpportunityStage) => {
@@ -240,42 +306,57 @@ export function OpportunitiesPage() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    if (saving) return
+    if (saving || savingRef.current) return
     const nextErrors = validateOpportunityForm(form)
     setFieldErrors(nextErrors)
     if (Object.keys(nextErrors).length) return
 
+    savingRef.current = true
     setSaving(true)
     setError('')
     try {
       const payload = buildOpportunityPayload(form)
       const wasEditing = Boolean(editing)
+      let skipGenericToast = false
       if (editing) {
-        if (payload.stage !== editing.stage) {
-          if (!canMove) throw new Error('No tienes permiso para cambiar la etapa.')
-          await crm.changeStage(editing.id, {
-            stage: payload.stage,
+        const stageChanged = payload.stage !== editing.stage
+        if (stageChanged && !canMove) throw new Error('No tienes permiso para cambiar la etapa.')
+        const { stage, ...rest } = payload
+        await crm.updateOpportunity(editing.id, rest)
+        if (stageChanged) {
+          const updated = await crm.changeStage(editing.id, {
+            stage,
             reopen: opportunityStatus(editing.stage) !== 'OPEN',
             reopenReason: opportunityStatus(editing.stage) !== 'OPEN' ? 'Actualización de la oportunidad' : undefined,
           })
+          const invitation = updated.surveyInvitation
+          if (invitation && 'created' in invitation && invitation.created && invitation.responseUrl) {
+            setCreatedInvitation(invitation)
+            skipGenericToast = true
+          } else if (invitation && 'created' in invitation && invitation.message) {
+            setToast({ title: 'Etapa actualizada', message: invitation.message })
+            skipGenericToast = true
+          }
         }
-        await crm.updateOpportunity(editing.id, payload)
       } else {
         await crm.createOpportunity(payload)
       }
       resetForm()
       await load()
-      setToast({
-        title: wasEditing ? 'Oportunidad actualizada' : 'Oportunidad creada',
-        message: wasEditing
-          ? `${payload.title} se actualizó correctamente.`
-          : `${payload.title} se asoció a la cartera.`,
-      })
+      if (!skipGenericToast) {
+        setToast({
+          title: wasEditing ? 'Oportunidad actualizada' : 'Oportunidad creada',
+          message: wasEditing
+            ? `${payload.title} se actualizó correctamente.`
+            : `${payload.title} se asoció a la cartera.`,
+        })
+      }
     } catch (err: unknown) {
       const mapped = mapOpportunityApiError((err as { message?: unknown }).message)
       if (Object.keys(mapped).length) setFieldErrors(mapped)
       else setError(getErrorMessages(err, 'Se produjo un error al guardar.')[0])
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }
@@ -300,18 +381,39 @@ export function OpportunitiesPage() {
         header: 'Acciones',
         render: (row) =>
           canEdit ? (
+            <div className="flex gap-3">
+              <button
+                type="button"
+                className="text-sm font-medium text-brand-teal hover:underline"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  openEdit(row)
+                }}
+              >
+                Editar
+              </button>
+              <button
+                type="button"
+                className="text-sm font-medium text-brand-teal hover:underline"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  void openDetail(row)
+                }}
+              >
+                Ver detalle
+              </button>
+            </div>
+          ) : (
             <button
               type="button"
               className="text-sm font-medium text-brand-teal hover:underline"
               onClick={(event) => {
                 event.stopPropagation()
-                openEdit(row)
+                void openDetail(row)
               }}
             >
-              Editar
+              Ver detalle
             </button>
-          ) : (
-            '—'
           ),
       },
     ],
@@ -328,13 +430,6 @@ export function OpportunitiesPage() {
           canCreate ? <PrimaryButton onClick={() => openCreate()}>+ Nueva oportunidad</PrimaryButton> : undefined
         }
       />
-      {copyUrl && (
-        <div className="flex flex-wrap items-center gap-2 rounded border border-slate-200 bg-white px-3 py-2 text-sm">
-          Enlace de encuesta:
-          <code className="max-w-md truncate text-xs">{copyUrl}</code>
-          <SecondaryButton onClick={() => void navigator.clipboard.writeText(copyUrl)}>Copiar</SecondaryButton>
-        </div>
-      )}
       <div className="flex flex-wrap items-center gap-2">
         <TextInput
           className="max-w-xs"
@@ -497,23 +592,13 @@ export function OpportunitiesPage() {
                               Editar
                             </button>
                           )}
-                          {item.stage === 'WON' && (
-                            <button
-                              type="button"
-                              className="text-xs font-medium text-brand-teal hover:underline"
-                              onClick={async () => {
-                                const surveys = await crm.getSurveys({ status: 'PUBLISHED' })
-                                const survey =
-                                  surveys.data.find((entry) => entry.trigger === 'OPPORTUNITY_WON') ??
-                                  surveys.data[0]
-                                if (!survey) return
-                                const link = await crm.copySurveyLink(item.id, survey.id)
-                                setCopyUrl(link.url)
-                              }}
-                            >
-                              Copiar enlace de encuesta
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-brand-teal hover:underline"
+                            onClick={() => void openDetail(item)}
+                          >
+                            Ver detalle
+                          </button>
                         </div>
                       </article>
                     ))}
@@ -526,6 +611,35 @@ export function OpportunitiesPage() {
       )}
 
       <ConfirmToast open={Boolean(toast)} title={toast?.title ?? ''} message={toast?.message ?? ''} />
+      <SurveyInvitationModal
+        invitation={createdInvitation}
+        onClose={() => {
+          setCreatedInvitation(null)
+        }}
+      />
+      <Modal
+        open={Boolean(detail)}
+        onClose={() => setDetail(null)}
+        title={detail?.title ?? 'Oportunidad'}
+        size="lg"
+      >
+        {detail ? (
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600">
+              {detail.clientName} · {formatMoney(detail.amount, detail.currency)} · {getOpportunityStageLabel(detail.stage)}
+            </p>
+            <OpportunitySurveyCard
+              card={detail.surveyInvitation as SurveyInvitationCard | null}
+              stage={detail.stage}
+              manualSurveys={manualSurveys}
+              selectedManualId={selectedManualId}
+              onManualChange={setSelectedManualId}
+              generating={generating}
+              onGenerate={(confirm) => void generateFromDetail(confirm)}
+            />
+          </div>
+        ) : null}
+      </Modal>
       <Modal open={open} onClose={() => !saving && resetForm()} title={editing ? 'Editar oportunidad' : 'Nueva oportunidad'}>
         <form onSubmit={(e) => void submit(e)} className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Información general</p>
@@ -581,8 +695,9 @@ export function OpportunitiesPage() {
                 onChange={(e) => setForm((c) => ({ ...c, amount: formatAmountInput(e.target.value) }))}
               />
             </FormField>
-            <FormField label="Etapa">
+            <FormField label="Etapa" htmlFor="opportunity-stage">
               <SelectInput
+                id="opportunity-stage"
                 value={form.stage}
                 onChange={(e) => {
                   const stage = e.target.value as OpportunityStage

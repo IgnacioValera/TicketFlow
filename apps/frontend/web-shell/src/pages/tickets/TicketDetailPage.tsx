@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { ErrorState } from '@/components/common/ErrorState'
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
 import { StatusBadge } from '@/components/common/StatusBadge'
@@ -11,6 +11,7 @@ import { TicketForm } from '@/components/tickets/TicketForm'
 import { TicketStatusActions } from '@/components/tickets/TicketStatusActions'
 import { TicketSurveyModal } from '@/components/tickets/TicketSurveyModal'
 import { TicketTimeline } from '@/components/tickets/TicketTimeline'
+import { PrimaryButton } from '@/components/common/UiControls'
 import { PERMISSIONS } from '@/constants/permissions'
 import { useAuth } from '@/hooks/useAuth'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -21,6 +22,8 @@ import type { TicketStatus } from '@/types/ticket.types'
 
 export function TicketDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const location = useLocation()
+  const createdState = location.state as { created?: boolean; folio?: string } | null
   const { user } = useAuth()
   const { hasPermission } = usePermissions()
   const {
@@ -49,6 +52,7 @@ export function TicketDetailPage() {
   const [editLoading, setEditLoading] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
   const [surveyOpen, setSurveyOpen] = useState(false)
+  const [surveySkippedFor, setSurveySkippedFor] = useState<string | null>(null)
   const [priorities, setPriorities] = useState<Priority[]>([])
   const [priorityLoading, setPriorityLoading] = useState(false)
   const [actionError, setActionError] = useState('')
@@ -62,13 +66,18 @@ export function TicketDetailPage() {
     void refresh().catch(() => undefined)
   }, [refresh])
 
+  const canRespondSurvey =
+    Boolean(ticket) &&
+    ticket?.status === 'CLOSED' &&
+    !ticket?.survey &&
+    user?.id === ticket?.requesterId &&
+    hasPermission(PERMISSIONS.SURVEY_RESPOND)
+
   useEffect(() => {
-    if (ticket?.status === 'CLOSED' && !ticket.survey && user?.id === ticket.requesterId) {
-      if (hasPermission(PERMISSIONS.SURVEY_RESPOND)) {
-        setSurveyOpen(true)
-      }
+    if (canRespondSurvey && ticket && surveySkippedFor !== ticket.id) {
+      setSurveyOpen(true)
     }
-  }, [ticket, user, hasPermission])
+  }, [canRespondSurvey, ticket, surveySkippedFor])
 
   useEffect(() => {
     const load = async () => {
@@ -209,6 +218,16 @@ export function TicketDetailPage() {
           Ver flujo visual
         </Link>
       </div>
+
+      {createdState?.created && (
+        <div
+          className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+          role="status"
+        >
+          Ticket creado correctamente. Folio asignado:{' '}
+          <span className="font-mono font-semibold">{createdState.folio ?? ticket.folio}</span>
+        </div>
+      )}
 
       {actionError && (
         <div className="rounded-lg border border-brand-scarlet/30 bg-red-50 px-3 py-2 text-sm text-brand-scarlet">
@@ -368,7 +387,7 @@ export function TicketDetailPage() {
             />
           </div>
 
-          {ticket.survey && (
+          {ticket.survey ? (
             <div className="ui-card p-4">
               <h3 className="mb-2 text-sm font-semibold text-brand-navy">Encuesta</h3>
               <p className="text-sm">
@@ -378,7 +397,13 @@ export function TicketDetailPage() {
                 <p className="mt-1 text-sm text-slate-600">{ticket.survey.comment}</p>
               )}
             </div>
-          )}
+          ) : canRespondSurvey ? (
+            <div className="ui-card p-4">
+              <h3 className="mb-2 text-sm font-semibold text-brand-navy">Encuesta</h3>
+              <p className="mb-3 text-sm text-slate-600">El ticket está cerrado. Puedes responder la encuesta una sola vez.</p>
+              <PrimaryButton type="button" onClick={() => setSurveyOpen(true)}>Responder encuesta</PrimaryButton>
+            </div>
+          ) : null}
         </aside>
       </div>
 
@@ -391,7 +416,10 @@ export function TicketDetailPage() {
 
       <TicketSurveyModal
         open={surveyOpen}
-        onClose={() => setSurveyOpen(false)}
+        onClose={() => {
+          if (ticket) setSurveySkippedFor(ticket.id)
+          setSurveyOpen(false)
+        }}
         onSubmit={async (rating, comment) => {
           await submitSurvey(ticket.id, { rating, comment })
           await refresh()

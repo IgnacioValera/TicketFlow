@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Brackets, Repository } from 'typeorm'
+import { Brackets, Not, Repository } from 'typeorm'
 import { pagination, parsePagination } from '../common/api'
 import { assertSlaHours } from '../common/validation'
 import { CatalogStatus, Category, Priority, SlaPolicy } from '../database/entities'
@@ -36,13 +36,17 @@ export class CatalogsService {
     assertSlaHours(dto.responseHours, dto.resolutionHours)
     await this.ensureUnique(this.policies, dto.name)
     const priority = await this.find(this.priorities, dto.priorityId, 'Prioridad')
-    if (await this.policies.exists({ where: { priority: { id: priority.id } } })) throw new ConflictException('Ya existe una política SLA para esa prioridad')
+    await this.ensureUniquePriority(priority.id)
     return this.serializePolicy(await this.policies.save(this.policies.create({ name: dto.name.trim(), priority, responseHours: dto.responseHours, resolutionHours: dto.resolutionHours })))
   }
   async updatePolicy(id: string, dto: UpdateSlaPolicyDto) {
-    const item = await this.find(this.policies, id, 'Política SLA')
+    const item = await this.findPolicy(id)
     if (dto.name) { await this.ensureUnique(this.policies, dto.name, id); item.name = dto.name.trim() }
-    if (dto.priorityId) item.priority = await this.find(this.priorities, dto.priorityId, 'Prioridad')
+    if (dto.priorityId) {
+      const priority = await this.find(this.priorities, dto.priorityId, 'Prioridad')
+      await this.ensureUniquePriority(priority.id, id)
+      item.priority = priority
+    }
     const responseHours = dto.responseHours !== undefined ? dto.responseHours : item.responseHours
     const resolutionHours = dto.resolutionHours !== undefined ? dto.resolutionHours : item.resolutionHours
     if (dto.responseHours !== undefined || dto.resolutionHours !== undefined) {
@@ -55,6 +59,19 @@ export class CatalogsService {
   serializePolicy(item: SlaPolicy) { return { id: item.id, name: item.name, priorityId: item.priority.id, priorityName: item.priority.name, responseHours: item.responseHours, resolutionHours: item.resolutionHours, status: item.status } }
 
   private async listCatalog<T extends Category | Priority>(repository: Repository<T>, query: CatalogQueryDto, alias: string) { const { page, perPage, skip } = parsePagination(query.page, query.perPage); const qb = repository.createQueryBuilder(alias); if (query.status) qb.andWhere(`${alias}.status = :status`, { status: query.status }); if (query.search) qb.andWhere(`(LOWER(${alias}.name) LIKE :q OR LOWER(${alias}.description) LIKE :q)`, { q: `%${query.search.toLowerCase()}%` }); const [items, total] = await qb.orderBy(`${alias}.name`, 'ASC').skip(skip).take(perPage).getManyAndCount(); return { items, meta: pagination(page, perPage, total) } }
+  private async ensureUniquePriority(priorityId: string, excludeId?: string) {
+    const exists = await this.policies.exists({
+      where: excludeId
+        ? { priority: { id: priorityId }, id: Not(excludeId) }
+        : { priority: { id: priorityId } },
+    })
+    if (exists) throw new ConflictException('Ya existe una política SLA para esa prioridad')
+  }
+  private async findPolicy(id: string) {
+    const item = await this.policies.findOne({ where: { id }, relations: { priority: true } })
+    if (!item) throw new NotFoundException('Política SLA no encontrada')
+    return item
+  }
   private async ensureUnique<T extends { id: string; name: string }>(repository: Repository<T>, name: string, excludeId?: string) { const qb = repository.createQueryBuilder('item').where('LOWER(item.name) = LOWER(:name)', { name: name.trim() }); if (excludeId) qb.andWhere('item.id <> :excludeId', { excludeId }); if (await qb.getExists()) throw new ConflictException('Ya existe un registro con ese nombre') }
   private async find<T extends { id: string }>(repository: Repository<T>, id: string, label: string): Promise<T> { const item = await repository.findOne({ where: { id } as never }); if (!item) throw new NotFoundException(`${label} no encontrada`); return item }
 }
