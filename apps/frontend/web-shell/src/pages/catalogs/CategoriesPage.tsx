@@ -38,6 +38,7 @@ export function CategoriesPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<CatalogStatus | ''>('')
   const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(10)
   const [meta, setMeta] = useState({ page: 1, perPage: 10, total: 0, totalPages: 1 })
 
   const [formOpen, setFormOpen] = useState(false)
@@ -64,7 +65,7 @@ export function CategoriesPage() {
     try {
       const response = await categoriesService.getCategories({
         page,
-        perPage: 10,
+        perPage,
         search: search || undefined,
         status: statusFilter || undefined,
       })
@@ -75,7 +76,7 @@ export function CategoriesPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, search, statusFilter])
+  }, [page, perPage, search, statusFilter])
 
   useEffect(() => {
     void loadCategories()
@@ -260,8 +261,12 @@ export function CategoriesPage() {
           columns={columns}
           data={categories}
           loading={loading}
-          pagination={meta}
+          pagination={{ ...meta, page, perPage }}
           onPageChange={setPage}
+          onPerPageChange={(value) => {
+            setPerPage(value)
+            setPage(1)
+          }}
           rowKey={(row) => row.id}
           emptyMessage="No se encontraron categorías"
         />
