@@ -976,66 +976,6 @@ export const handlers = [
     return HttpResponse.json({ success: true, message: 'OK', data: company, meta: null })
   }),
 
-  http.get('*/api/v1/dashboard/summary', async ({ request }) => {
-    const user = findUserByToken(request.headers.get('Authorization'))
-    const url = new URL(request.url)
-    const scopeParam = url.searchParams.get('scope')
-    const isAgent = user?.role === 'AGENT' || scopeParam === 'OWN'
-
-    const summary = isAgent
-      ? {
-          scope: 'OWN',
-          kpis: [
-            { key: 'open', label: 'Abiertos', value: 8 },
-            { key: 'overdue', label: 'Vencidos', value: 2 },
-            { key: 'resolved', label: 'Resueltos', value: 21 },
-            { key: 'inProgress', label: 'En proceso', value: 5 },
-          ],
-          trend: [
-            { period: 'Lun', open: 4, inProgress: 3, resolved: 5 },
-            { period: 'Mar', open: 5, inProgress: 4, resolved: 4 },
-            { period: 'Mie', open: 6, inProgress: 3, resolved: 6 },
-            { period: 'Jue', open: 5, inProgress: 4, resolved: 5 },
-            { period: 'Vie', open: 8, inProgress: 5, resolved: 4 },
-          ],
-          distribution: [
-            { name: 'Abiertos', value: 8 },
-            { name: 'En proceso', value: 5 },
-            { name: 'Resueltos', value: 21 },
-            { name: 'Vencidos', value: 2 },
-          ],
-        }
-      : {
-          scope: 'GLOBAL',
-          kpis: [
-            { key: 'open', label: 'Abiertos', value: 42 },
-            { key: 'overdue', label: 'Vencidos', value: 11 },
-            { key: 'resolved', label: 'Resueltos', value: 164 },
-            { key: 'inProgress', label: 'En proceso', value: 27 },
-          ],
-          trend: [
-            { period: 'Lun', open: 32, inProgress: 24, resolved: 28 },
-            { period: 'Mar', open: 36, inProgress: 26, resolved: 30 },
-            { period: 'Mie', open: 35, inProgress: 23, resolved: 34 },
-            { period: 'Jue', open: 40, inProgress: 25, resolved: 29 },
-            { period: 'Vie', open: 42, inProgress: 27, resolved: 43 },
-          ],
-          distribution: [
-            { name: 'Abiertos', value: 42 },
-            { name: 'En proceso', value: 27 },
-            { name: 'Resueltos', value: 164 },
-            { name: 'Vencidos', value: 11 },
-          ],
-        }
-
-    return HttpResponse.json({
-      success: true,
-      message: 'OK',
-      data: summary,
-      meta: null,
-    })
-  }),
-
   ...createCrmHandlers(),
   ...createTicketHandlers(mockUsers),
 
