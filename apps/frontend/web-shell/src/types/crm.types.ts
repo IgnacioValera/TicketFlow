@@ -93,7 +93,14 @@ export interface CrmDashboard {
   conversionRate: number
   nps: { nps: number; promoters: number; passives: number; detractors: number; total: number }
   activitiesDue: number
+  pendingActivities: number
   wonThisMonth: number
+  wonAmountThisMonth: number
+  lostThisMonth: number
+  activeClients: number
+  contacts: number
+  openOpportunities: number
+  openPipelineAmount: number
   topClients: Array<{ id: string; name: string; score: number; segment: ClientSegment }>
 }
 

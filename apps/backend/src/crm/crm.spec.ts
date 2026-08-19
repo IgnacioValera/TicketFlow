@@ -4,6 +4,7 @@ import { clientAccessMode, canAccessClient } from './access'
 import { calculateNps, classifyNps } from './nps'
 import { assertStageChange, probabilityForStage } from './opportunity-rules'
 import { OpportunityStage } from '../database/entities'
+import { conversionRate, mapPipeline } from './dashboard-metrics'
 import { calculateClientScore } from './score'
 import { createSurveyToken, hashSurveyToken } from './survey-token'
 
@@ -24,6 +25,29 @@ describe('Score CRM', () => {
       totalActivities: 8, closedTickets: 4, totalTickets: 4, ageDays: 730,
     })
     expect(result.score).toBe(100)
+  })
+})
+
+describe('Métricas del panel CRM', () => {
+  it('calcula conversión sólo con oportunidades cerradas', () => {
+    expect(conversionRate(0, 0)).toBe(0)
+    expect(conversionRate(1, 1)).toBe(50)
+    expect(conversionRate(3, 1)).toBe(75)
+  })
+
+  it('completa todas las etapas del embudo aunque no haya filas', () => {
+    const pipeline = mapPipeline([{ stage: OpportunityStage.WON, count: '2', amount: '15000' }])
+    expect(pipeline).toHaveLength(6)
+    expect(pipeline.find((item) => item.stage === OpportunityStage.WON)).toEqual({
+      stage: OpportunityStage.WON,
+      count: 2,
+      amount: 15000,
+    })
+    expect(pipeline.find((item) => item.stage === OpportunityStage.NEW)).toEqual({
+      stage: OpportunityStage.NEW,
+      count: 0,
+      amount: 0,
+    })
   })
 })
 
