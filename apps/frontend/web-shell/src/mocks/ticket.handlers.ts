@@ -28,7 +28,7 @@ interface TicketStore {
   survey: TicketSurvey | null
 }
 
-let folioCounter = 8
+let folioCounter = 20
 
 const mockCategories = [
   { id: '1', name: 'Hardware' },
@@ -426,6 +426,122 @@ const ticketStores: TicketStore[] = [
     ],
     survey: null,
   },
+  {
+    ticket: buildTicket({
+      id: 't8',
+      folio: 'HD-2026-0008',
+      title: 'Reapertura por falla recurrente',
+      description: 'El incidente se reabrió después de una resolución incompleta.',
+      status: 'IN_PROGRESS',
+      requesterId: '4',
+      requesterName: 'Usuario Solicitante',
+      categoryId: '1',
+      priorityId: '4',
+      assigneeId: '2',
+      assigneeName: 'Agente Soporte',
+      createdAt: hoursAgo(72),
+      slaDueAt: hoursFromNow(6),
+    }),
+    comments: [],
+    attachments: [],
+    statusHistory: [
+      {
+        id: 'h16',
+        ticketId: 't8',
+        oldStatus: null,
+        newStatus: 'OPEN',
+        changedBy: '4',
+        changedByName: 'Usuario Solicitante',
+        createdAt: hoursAgo(72),
+      },
+      {
+        id: 'h17',
+        ticketId: 't8',
+        oldStatus: 'OPEN',
+        newStatus: 'ASSIGNED',
+        changedBy: '3',
+        changedByName: 'Supervisor Mesa',
+        createdAt: hoursAgo(70),
+      },
+      {
+        id: 'h18',
+        ticketId: 't8',
+        oldStatus: 'ASSIGNED',
+        newStatus: 'IN_PROGRESS',
+        changedBy: '2',
+        changedByName: 'Agente Soporte',
+        createdAt: hoursAgo(68),
+      },
+      {
+        id: 'h19',
+        ticketId: 't8',
+        oldStatus: 'IN_PROGRESS',
+        newStatus: 'WAITING_USER',
+        changedBy: '2',
+        changedByName: 'Agente Soporte',
+        reason: 'Se solicitó evidencia adicional',
+        createdAt: hoursAgo(60),
+      },
+      {
+        id: 'h20',
+        ticketId: 't8',
+        oldStatus: 'WAITING_USER',
+        newStatus: 'IN_PROGRESS',
+        changedBy: '2',
+        changedByName: 'Agente Soporte',
+        createdAt: hoursAgo(50),
+      },
+      {
+        id: 'h21',
+        ticketId: 't8',
+        oldStatus: 'IN_PROGRESS',
+        newStatus: 'ESCALATED',
+        changedBy: '2',
+        changedByName: 'Agente Soporte',
+        reason: 'Requiere infraestructura',
+        createdAt: hoursAgo(40),
+      },
+      {
+        id: 'h22',
+        ticketId: 't8',
+        oldStatus: 'ESCALATED',
+        newStatus: 'RESOLVED',
+        changedBy: '3',
+        changedByName: 'Supervisor Mesa',
+        createdAt: hoursAgo(20),
+      },
+      {
+        id: 'h23',
+        ticketId: 't8',
+        oldStatus: 'RESOLVED',
+        newStatus: 'IN_PROGRESS',
+        changedBy: '4',
+        changedByName: 'Usuario Solicitante',
+        reason: 'La falla volvió a presentarse',
+        createdAt: hoursAgo(8),
+      },
+    ],
+    survey: null,
+  },
+  {
+    ticket: buildTicket({
+      id: 't9',
+      folio: 'HD-2026-0099',
+      title: 'Ticket sin historial',
+      description: 'Caso utilizado para validar el estado vacío del flujo.',
+      status: 'OPEN',
+      requesterId: '4',
+      requesterName: 'Usuario Solicitante',
+      categoryId: '2',
+      priorityId: '1',
+      createdAt: hoursAgo(1),
+      slaDueAt: hoursFromNow(70),
+    }),
+    comments: [],
+    attachments: [],
+    statusHistory: [],
+    survey: null,
+  },
 ]
 
 function findUserFromRequest(request: Request, mockUsers: User[]): User | undefined {
@@ -454,7 +570,10 @@ function paginate<T>(items: T[], page = 1, perPage = 10) {
 function enrichTicket(store: TicketStore): Ticket {
   return {
     ...store.ticket,
-    statusHistory: store.statusHistory,
+    statusHistory: store.statusHistory.map((item) => ({
+      ...item,
+      eventType: item.eventType ?? inferMockEventType(item.oldStatus, item.newStatus),
+    })),
     comments: store.comments,
     attachments: store.attachments,
     survey: store.survey,
@@ -513,6 +632,13 @@ function ticketsForReport(request: Request, mockUsers: User[]) {
   return { tickets, startDate: range.startDate, endDate: range.endDate }
 }
 
+function inferMockEventType(oldStatus: TicketStatus | null, newStatus: TicketStatus) {
+  if (!oldStatus && newStatus === 'OPEN') return 'CREATED'
+  if (oldStatus === newStatus) return 'UPDATED'
+  if (newStatus === 'ASSIGNED') return 'ASSIGNED'
+  return 'STATUS_CHANGED'
+}
+
 function addHistory(
   store: TicketStore,
   oldStatus: TicketStatus | null,
@@ -523,6 +649,7 @@ function addHistory(
   store.statusHistory.push({
     id: `h-${Date.now()}`,
     ticketId: store.ticket.id,
+    eventType: inferMockEventType(oldStatus, newStatus),
     oldStatus,
     newStatus,
     changedBy: user.id,
