@@ -17,12 +17,16 @@ interface PaginationState {
   totalPages: number
 }
 
+const DEFAULT_PER_PAGE_OPTIONS = [5, 10, 20, 50]
+
 interface DataTableProps<T> {
   columns: Column<T>[]
   data: T[]
   loading?: boolean
   pagination?: PaginationState
   onPageChange?: (page: number) => void
+  onPerPageChange?: (perPage: number) => void
+  perPageOptions?: number[]
   sortKey?: string
   sortDirection?: 'asc' | 'desc'
   onSort?: (key: string) => void
@@ -40,6 +44,8 @@ export function DataTable<T>({
   loading = false,
   pagination,
   onPageChange,
+  onPerPageChange,
+  perPageOptions = DEFAULT_PER_PAGE_OPTIONS,
   sortKey,
   sortDirection = 'asc',
   onSort,
@@ -133,12 +139,30 @@ export function DataTable<T>({
         </table>
       </div>
 
-      {pagination && pagination.totalPages > 1 && (
+      {pagination && (pagination.totalPages > 1 || onPerPageChange) && (
         <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-slate-600">
             Página {pagination.page} de {pagination.totalPages} ({pagination.total} registros)
           </p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {onPerPageChange && (
+              <label className="flex items-center gap-2 text-sm text-slate-600">
+                Mostrar
+                <select
+                  value={pagination.perPage}
+                  onChange={(event) => onPerPageChange(Number(event.target.value))}
+                  aria-label="Registros por página"
+                  className="rounded border border-slate-300 bg-white px-2 py-1.5 text-sm font-medium hover:border-brand-teal focus:border-brand-teal focus:outline-none"
+                >
+                  {perPageOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                por página
+              </label>
+            )}
             <button
               type="button"
               disabled={pagination.page <= 1}

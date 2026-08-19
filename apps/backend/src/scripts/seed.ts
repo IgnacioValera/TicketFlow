@@ -208,7 +208,8 @@ async function seed() {
     const rawSat = 'demo-won-satisfaction-token'
     const invitation = await invitationRepo.save(invitationRepo.create({
       survey: satisfaction, opportunity: won, contact: won.contact, client: won.client,
-      tokenHash: hashSurveyToken(rawSat), expiresAt: invitationExpiry(), usedAt: new Date(),
+      createdBy: sales, trigger: SurveyTrigger.OPPORTUNITY_WON,
+      tokenHash: hashSurveyToken(rawSat), expiresAt: invitationExpiry(), usedAt: new Date(), revokedAt: null,
     }))
     const responseRepo = AppDataSource.getRepository(CrmSurveyResponse)
     const answerRepo = AppDataSource.getRepository(CrmSurveyAnswer)
@@ -218,7 +219,8 @@ async function seed() {
     const rawNps = 'demo-nps-token'
     const npsInvitation = await invitationRepo.save(invitationRepo.create({
       survey: npsSurvey, opportunity: null, contact: won.contact, client: won.client,
-      tokenHash: hashSurveyToken(rawNps), expiresAt: invitationExpiry(), usedAt: new Date(),
+      createdBy: sales, trigger: SurveyTrigger.MANUAL,
+      tokenHash: hashSurveyToken(rawNps), expiresAt: invitationExpiry(), usedAt: new Date(), revokedAt: null,
     }))
     const npsResponse = await responseRepo.save(responseRepo.create({ invitation: npsInvitation, survey: npsSurvey, npsScore: 9 }))
     await answerRepo.save(answerRepo.create({ response: npsResponse, question: qNps, textValue: null, numberValue: 9, optionIds: null }))

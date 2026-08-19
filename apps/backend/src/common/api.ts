@@ -7,6 +7,7 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  Logger,
   NestInterceptor,
   StreamableFile,
 } from '@nestjs/common'
@@ -54,6 +55,8 @@ export class ApiResponseInterceptor implements NestInterceptor {
 
 @Catch()
 export class ApiExceptionFilter {
+  private readonly logger = new Logger(ApiExceptionFilter.name)
+
   catch(exception: unknown, host: ArgumentsHost) {
     const response = host.switchToHttp().getResponse<Response>()
     const status = exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR
@@ -81,6 +84,13 @@ export class ApiExceptionFilter {
         code: null,
       })
       return
+    }
+
+    if (status === HttpStatus.INTERNAL_SERVER_ERROR) {
+      this.logger.error(
+        exception instanceof Error ? exception.message : 'Error interno del servidor',
+        exception instanceof Error ? exception.stack : undefined,
+      )
     }
 
     response.status(status).json({ success: false, message, data: null, meta: null, code })

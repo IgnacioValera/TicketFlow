@@ -307,9 +307,12 @@ export class CrmSurveyInvitation {
   @ManyToOne(() => CrmOpportunity, { nullable: true, onDelete: 'CASCADE' }) @JoinColumn({ name: 'opportunity_id' }) opportunity: CrmOpportunity | null
   @ManyToOne(() => CrmContact, { nullable: true, onDelete: 'SET NULL' }) @JoinColumn({ name: 'contact_id' }) contact: CrmContact | null
   @ManyToOne(() => Client, { nullable: true, onDelete: 'CASCADE' }) @JoinColumn({ name: 'client_id' }) client: Client | null
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' }) @JoinColumn({ name: 'created_by' }) createdBy: User | null
+  @Column({ type: 'enum', enum: SurveyTrigger, enumName: 'crm_survey_trigger_enum', default: SurveyTrigger.MANUAL }) trigger: SurveyTrigger
   @Index({ unique: true }) @Column({ name: 'token_hash', length: 64 }) tokenHash: string
   @Column({ name: 'expires_at', type: 'timestamptz' }) expiresAt: Date
   @Column({ name: 'used_at', type: 'timestamptz', nullable: true }) usedAt: Date | null
+  @Column({ name: 'revoked_at', type: 'timestamptz', nullable: true }) revokedAt: Date | null
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date
 }
 

@@ -11,13 +11,9 @@ import { LIMITS } from '@/constants/validation'
 import { usePermissions } from '@/hooks/usePermissions'
 import * as prioritiesService from '@/services/priorities.service'
 import * as slaPoliciesService from '@/services/sla-policies.service'
-import type { CatalogStatus, Priority, SlaPolicy } from '@/types/catalog.types'
+import type { Priority, SlaPolicy } from '@/types/catalog.types'
+import { getErrorMessages } from '@/utils/errors'
 import { validateSlaHours } from '@/utils/validation'
-
-const STATUS_LABELS: Record<CatalogStatus, string> = {
-  ACTIVE: 'Activa',
-  INACTIVE: 'Inactiva',
-}
 
 type SlaPolicyFormState = {
   name: string
@@ -41,16 +37,25 @@ export function SlaPoliciesPage() {
   const [priorities, setPriorities] = useState<Priority[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<CatalogStatus | ''>('')
-  const [page, setPage] = useState(1)
-  const [meta, setMeta] = useState({ page: 1, perPage: 10, total: 0, totalPages: 1 })
 
   const [formOpen, setFormOpen] = useState(false)
   const [editingPolicy, setEditingPolicy] = useState<SlaPolicy | null>(null)
   const [formState, setFormState] = useState<SlaPolicyFormState>(INITIAL_FORM)
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
+
+  const usedPriorityIds = useMemo(() => new Set(policies.map((policy) => policy.priorityId)), [policies])
+  const availablePriorities = useMemo(
+    () => priorities.filter((priority) => !usedPriorityIds.has(priority.id)),
+    [priorities, usedPriorityIds],
+  )
+  const formPriorities = useMemo(() => {
+    if (!editingPolicy) return availablePriorities
+    return priorities.filter(
+      (priority) => priority.id === editingPolicy.priorityId || !usedPriorityIds.has(priority.id),
+    )
+  }, [availablePriorities, editingPolicy, priorities, usedPriorityIds])
+  const canCreate = canManage && availablePriorities.length > 0
 
   const resetForm = () => {
     setFormState(INITIAL_FORM)
@@ -62,20 +67,14 @@ export function SlaPoliciesPage() {
     setLoading(true)
     setError('')
     try {
-      const response = await slaPoliciesService.getSlaPolicies({
-        page,
-        perPage: 10,
-        search: search || undefined,
-        status: statusFilter || undefined,
-      })
+      const response = await slaPoliciesService.getSlaPolicies({ perPage: 20 })
       setPolicies(response.data)
-      if (response.meta) setMeta(response.meta)
     } catch (err: unknown) {
-      setError((err as { message?: string }).message || 'Error al cargar políticas SLA')
+      setError(getErrorMessages(err, 'Error al cargar políticas SLA')[0])
     } finally {
       setLoading(false)
     }
-  }, [page, search, statusFilter])
+  }, [])
 
   const loadPriorities = useCallback(async () => {
     try {
@@ -98,7 +97,7 @@ export function SlaPoliciesPage() {
     resetForm()
     setFormState({
       ...INITIAL_FORM,
-      priorityId: priorities[0]?.id ?? '',
+      priorityId: availablePriorities[0]?.id ?? '',
     })
     setFormOpen(true)
   }
@@ -164,7 +163,7 @@ export function SlaPoliciesPage() {
       closeFormModal()
       await loadPolicies()
     } catch (err: unknown) {
-      setFormError((err as { message?: string }).message || 'No se pudo guardar la política SLA')
+      setFormError(getErrorMessages(err, 'No se pudo guardar la política SLA')[0])
     } finally {
       setSaving(false)
     }
@@ -183,11 +182,6 @@ export function SlaPoliciesPage() {
         key: 'resolutionHours',
         header: 'Resolución (h)',
         render: (row) => `${row.resolutionHours} h`,
-      },
-      {
-        key: 'status',
-        header: 'Estado',
-        render: (row) => STATUS_LABELS[row.status],
       },
       {
         key: 'actions',
@@ -213,36 +207,9 @@ export function SlaPoliciesPage() {
           title="Políticas SLA"
           description="Tiempos de respuesta y resolución por prioridad."
           actions={
-            <PrimaryButton onClick={openCreateModal} disabled={!canManage || priorities.length === 0}>
-              Nueva política
-            </PrimaryButton>
+            canCreate ? <PrimaryButton onClick={openCreateModal}>Nueva política</PrimaryButton> : undefined
           }
         />
-      </div>
-
-      <div className="ui-card mb-5 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
-        <input
-          type="search"
-          placeholder="Buscar por nombre..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value)
-            setPage(1)
-          }}
-          className="rounded-lg border border-brand-slate px-3 py-2 text-sm focus:border-brand-teal focus:outline-none"
-        />
-        <select
-          value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value as CatalogStatus | '')
-            setPage(1)
-          }}
-          className="rounded-lg border border-brand-slate px-3 py-2 text-sm"
-        >
-          <option value="">Todos los estados</option>
-          <option value="ACTIVE">Activa</option>
-          <option value="INACTIVE">Inactiva</option>
-        </select>
       </div>
 
       {error ? (
@@ -252,10 +219,12 @@ export function SlaPoliciesPage() {
           columns={columns}
           data={policies}
           loading={loading}
-          pagination={meta}
-          onPageChange={setPage}
           rowKey={(row) => row.id}
-          emptyMessage="No se encontraron políticas SLA"
+          emptyMessage="No hay políticas SLA"
+          emptyDescription="Crea una política por cada prioridad activa."
+          emptyAction={
+            canCreate ? <PrimaryButton onClick={openCreateModal}>Nueva política</PrimaryButton> : undefined
+          }
         />
       )}
 
@@ -305,7 +274,7 @@ export function SlaPoliciesPage() {
               className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
             >
               <option value="">Seleccionar prioridad</option>
-              {priorities.map((priority) => (
+              {formPriorities.map((priority) => (
                 <option key={priority.id} value={priority.id}>
                   {priority.name}
                 </option>

@@ -545,6 +545,15 @@ export const handlers = [
   }),
 
   http.get('*/api/v1/categories', async ({ request }) => {
+    if (request.headers.get('X-TicketFlow-Empty-Catalogs') === '1') {
+      return HttpResponse.json({
+        success: true,
+        message: 'OK',
+        data: [],
+        meta: { total: 0, page: 1, perPage: 100, totalPages: 0 },
+      })
+    }
+
     const url = new URL(request.url)
     let filtered = [...mockCategories]
     const status = url.searchParams.get('status')
@@ -704,6 +713,15 @@ export const handlers = [
   }),
 
   http.get('*/priorities', async ({ request }) => {
+    if (request.headers.get('X-TicketFlow-Empty-Catalogs') === '1') {
+      return HttpResponse.json({
+        success: true,
+        message: 'OK',
+        data: [],
+        meta: { total: 0, page: 1, perPage: 100, totalPages: 0 },
+      })
+    }
+
     const url = new URL(request.url)
     let filtered = [...mockPriorities]
     const status = url.searchParams.get('status')
@@ -958,6 +976,12 @@ export const handlers = [
         { status: 422 },
       )
     }
+    if (mockSlaPolicies.some((policy) => policy.priorityId === priority.id)) {
+      return HttpResponse.json(
+        { success: false, message: 'Ya existe una política SLA para esa prioridad', data: null, meta: null },
+        { status: 409 },
+      )
+    }
 
     const newPolicy: SlaPolicy = {
       id: String(mockSlaPolicies.length + 1),
@@ -994,6 +1018,12 @@ export const handlers = [
     }
 
     const priority = mockPriorities.find((item) => item.id === body.priorityId)
+    if (priority && mockSlaPolicies.some((policy) => policy.priorityId === priority.id && policy.id !== params.id)) {
+      return HttpResponse.json(
+        { success: false, message: 'Ya existe una política SLA para esa prioridad', data: null, meta: null },
+        { status: 409 },
+      )
+    }
 
     const updatedPolicy: SlaPolicy = {
       ...mockSlaPolicies[index],
@@ -1115,7 +1145,7 @@ export const handlers = [
     })
   }),
 
-  ...createCrmHandlers(),
+  ...createCrmHandlers(mockUsers),
   ...createTicketHandlers(mockUsers),
 
   http.get('*/knowledge-articles', async ({ request }) => {

@@ -6,7 +6,7 @@ import { CreateTicketDto, ChangeStatusDto, CreateCommentDto } from '../tickets/d
 import { CreateUserDto } from '../users/dto'
 import { CreateArticleDto } from '../knowledge/knowledge.module'
 import { DateRangeQuery } from '../analytics/analytics.controller'
-import { CreateOpportunityDto } from '../crm/dto'
+import { CreateOpportunityDto, CreateSurveyDto } from '../crm/dto'
 import { RoleCode, TicketStatus } from '../database/entities'
 
 function dtoErrors(errors: { property: string; constraints?: Record<string, string> }[]) {
@@ -243,5 +243,11 @@ describe('Validación de DTOs', () => {
     const messages = dtoErrors(await validate(dto))
     expect(messages.some((message) => message.toLowerCase().includes('título'))).toBe(true)
     expect(messages.some((message) => message.toLowerCase().includes('uuid'))).toBe(true)
+  })
+
+  it('rechaza encuesta con título vacío', async () => {
+    const dto = createDto(CreateSurveyDto, { title: '   ' })
+    const messages = dtoErrors(await validate(dto))
+    expect(messages.some((message) => message.toLowerCase().includes('título'))).toBe(true)
   })
 })
