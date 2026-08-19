@@ -2,7 +2,7 @@ import { BadRequestException, UnprocessableEntityException } from '@nestjs/commo
 import { RoleCode } from '../database/entities'
 import { clientAccessMode, canAccessClient } from './access'
 import { calculateNps, classifyNps } from './nps'
-import { assertStageChange, probabilityForStage } from './opportunity-rules'
+import { assertStageChange, probabilityForStage, stagesForStatus, summarizeOpportunities } from './opportunity-rules'
 import { OpportunityStage } from '../database/entities'
 import { conversionRate, mapPipeline } from './dashboard-metrics'
 import { calculateClientScore } from './score'
@@ -73,10 +73,34 @@ describe('Etapas de oportunidad', () => {
     expect(() => assertStageChange(OpportunityStage.LOST, OpportunityStage.NEW, { reopen: true, reopenReason: 'El cliente regresó' })).not.toThrow()
   })
 
+  it('no reabre de una etapa terminal a otra terminal', () => {
+    expect(() => assertStageChange(OpportunityStage.LOST, OpportunityStage.WON, { reopen: true, reopenReason: 'Cambio de criterio' })).toThrow(UnprocessableEntityException)
+  })
+
   it('asigna probabilidad por etapa', () => {
     expect(probabilityForStage(OpportunityStage.WON, 10)).toBe(100)
     expect(probabilityForStage(OpportunityStage.LOST)).toBe(0)
     expect(probabilityForStage(OpportunityStage.PROPOSAL)).toBe(50)
+  })
+
+  it('filtra etapas abiertas, ganadas y perdidas', () => {
+    expect(stagesForStatus('OPEN')).toEqual([
+      OpportunityStage.NEW,
+      OpportunityStage.QUALIFICATION,
+      OpportunityStage.PROPOSAL,
+      OpportunityStage.NEGOTIATION,
+    ])
+    expect(stagesForStatus('WON')).toEqual([OpportunityStage.WON])
+    expect(stagesForStatus('LOST')).toEqual([OpportunityStage.LOST])
+  })
+
+  it('calcula totales sólo con los registros recibidos', () => {
+    expect(
+      summarizeOpportunities([
+        { amount: 100, stage: OpportunityStage.PROPOSAL, probability: 50 },
+        { amount: 40, stage: OpportunityStage.LOST, probability: 0 },
+      ]),
+    ).toEqual({ count: 2, amount: 140, weighted: 50 })
   })
 })
 

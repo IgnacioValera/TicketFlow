@@ -3,80 +3,225 @@ import { useSearchParams } from 'react-router-dom'
 import { AppIcon } from '@/components/common/AppIcon'
 import { OpportunityStageBadge } from '@/components/common/CrmBadge'
 import { DataTable, type Column } from '@/components/common/DataTable'
+import { ConfirmToast } from '@/components/common/FeedbackAlert'
+import { ErrorState } from '@/components/common/ErrorState'
 import { FormField } from '@/components/common/FormField'
 import { Modal } from '@/components/common/Modal'
 import { PageHeader } from '@/components/common/PageHeader'
 import { PrimaryButton, SecondaryButton, SelectInput, TextArea, TextInput } from '@/components/common/UiControls'
 import { PERMISSIONS } from '@/constants/permissions'
+import { LIMITS } from '@/constants/validation'
+import { useAuth } from '@/hooks/useAuth'
 import { usePermissions } from '@/hooks/usePermissions'
 import * as crm from '@/services/crm.service'
-import type { CrmClient, CrmOpportunity, OpportunityStage } from '@/types/crm.types'
+import type { CrmClient, CrmContact, CrmOpportunity, OpportunityStage } from '@/types/crm.types'
 import { PROBABILITY_BY_STAGE } from '@/types/crm.types'
-import { formatDate, formatMoney, getOpportunityStageLabel, OPPORTUNITY_STAGE_LABELS } from '@/utils/labels'
-
-const STAGES: OpportunityStage[] = ['NEW', 'QUALIFICATION', 'PROPOSAL', 'NEGOTIATION', 'WON', 'LOST']
-const EMPTY_FORM = {
-  clientId: '',
-  title: '',
-  amount: '0',
-  stage: 'NEW' as OpportunityStage,
-  probability: '10',
-  expectedCloseDate: '',
-  notes: '',
-}
+import { getErrorMessages } from '@/utils/errors'
+import {
+  ALL_STAGES,
+  EMPTY_OPPORTUNITY_FORM,
+  buildOpportunityPayload,
+  formFromOpportunity,
+  formatAmountInput,
+  mapOpportunityApiError,
+  opportunityStatus,
+  summarizeOpportunities,
+  validateLostReason,
+  validateOpportunityForm,
+  validateReopenReason,
+  type OpportunityFormErrors,
+  type OpportunityFormValues,
+} from '@/utils/opportunity-form'
+import {
+  formatDate,
+  formatMoney,
+  getOpportunityStageLabel,
+  getOpportunityStatusLabel,
+  OPPORTUNITY_STAGE_LABELS,
+  OPPORTUNITY_STATUS_LABELS,
+} from '@/utils/labels'
 
 export function OpportunitiesPage() {
+  const { user } = useAuth()
   const { hasPermission } = usePermissions()
   const [searchParams, setSearchParams] = useSearchParams()
   const [items, setItems] = useState<CrmOpportunity[]>([])
   const [clients, setClients] = useState<CrmClient[]>([])
+  const [contacts, setContacts] = useState<CrmContact[]>([])
   const [view, setView] = useState<'kanban' | 'list'>('kanban')
+  const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [stageFilter, setStageFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [clientFilter, setClientFilter] = useState('')
+  const [ownerFilter, setOwnerFilter] = useState('')
   const [open, setOpen] = useState(false)
-  const [lostFor, setLostFor] = useState<CrmOpportunity | null>(null)
+  const [editing, setEditing] = useState<CrmOpportunity | null>(null)
+  const [lostFor, setLostFor] = useState<{ item: CrmOpportunity; stage: OpportunityStage } | null>(null)
+  const [reopenFor, setReopenFor] = useState<{ item: CrmOpportunity; stage: OpportunityStage } | null>(null)
   const [lostReason, setLostReason] = useState('')
+  const [reopenReason, setReopenReason] = useState('')
   const [copyUrl, setCopyUrl] = useState('')
-  const [form, setForm] = useState(EMPTY_FORM)
+  const [form, setForm] = useState<OpportunityFormValues>(EMPTY_OPPORTUNITY_FORM)
+  const [fieldErrors, setFieldErrors] = useState<OpportunityFormErrors>({})
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [overStage, setOverStage] = useState<OpportunityStage | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [toast, setToast] = useState<{ title: string; message: string } | null>(null)
+
+  const canCreate = hasPermission(PERMISSIONS.CRM_OPPORTUNITY_CREATE)
+  const canEdit = hasPermission(PERMISSIONS.CRM_OPPORTUNITY_EDIT)
+  const canMove = hasPermission(PERMISSIONS.CRM_OPPORTUNITY_MOVE)
 
   useEffect(() => {
-    if (searchParams.get('nuevo') !== '1') return
-    setOpen(true)
-    const next = new URLSearchParams(searchParams)
-    next.delete('nuevo')
-    setSearchParams(next, { replace: true })
-  }, [searchParams, setSearchParams])
+    const timer = window.setTimeout(() => setSearch(searchInput), 300)
+    return () => window.clearTimeout(timer)
+  }, [searchInput])
+
+  useEffect(() => {
+    if (!toast) return
+    const timer = window.setTimeout(() => setToast(null), 6000)
+    return () => window.clearTimeout(timer)
+  }, [toast])
 
   const load = useCallback(async () => {
-    const response = await crm.getOpportunities({ page: 1, perPage: 100, stage: stageFilter || undefined })
-    setItems(response.data)
-  }, [stageFilter])
+    try {
+      const response = await crm.getOpportunities({
+        page: 1,
+        perPage: 100,
+        search: search || undefined,
+        stage: stageFilter || undefined,
+        status: statusFilter || undefined,
+        clientId: clientFilter || undefined,
+        ownerId: ownerFilter || undefined,
+      })
+      setItems(response.data)
+      setError('')
+    } catch (err: unknown) {
+      setError(getErrorMessages(err, 'No se pudo cargar la información.')[0])
+    }
+  }, [search, stageFilter, statusFilter, clientFilter, ownerFilter])
+
   useEffect(() => {
     void load()
   }, [load])
+
   useEffect(() => {
     void crm.getClients({ perPage: 100 }).then((response) => setClients(response.data))
   }, [])
 
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase()
-    if (!term) return items
-    return items.filter(
-      (item) =>
-        item.title.toLowerCase().includes(term) ||
-        item.clientName.toLowerCase().includes(term) ||
-        (item.ownerName ?? '').toLowerCase().includes(term),
-    )
-  }, [items, search])
+  useEffect(() => {
+    if (!form.clientId) {
+      setContacts([])
+      return
+    }
+    void crm.getContacts({ clientId: form.clientId, perPage: 100 }).then((response) => setContacts(response.data))
+  }, [form.clientId])
 
-  const canMove = hasPermission(PERMISSIONS.CRM_OPPORTUNITY_MOVE)
+  const resetForm = () => {
+    setOpen(false)
+    setEditing(null)
+    setForm({ ...EMPTY_OPPORTUNITY_FORM, ownerId: user?.id ?? '' })
+    setFieldErrors({})
+  }
 
-  const move = async (id: string, stage: OpportunityStage, extra?: { lostReason?: string }) => {
+  const openCreate = (clientId = '') => {
+    setEditing(null)
+    setForm({ ...EMPTY_OPPORTUNITY_FORM, clientId, ownerId: user?.id ?? '' })
+    setFieldErrors({})
+    setOpen(true)
+  }
+
+  const openEdit = (item: CrmOpportunity) => {
+    setEditing(item)
+    setForm(formFromOpportunity(item))
+    setFieldErrors({})
+    setOpen(true)
+  }
+
+  useEffect(() => {
+    if (searchParams.get('nuevo') === '1') {
+      openCreate(searchParams.get('cliente') ?? '')
+      const next = new URLSearchParams(searchParams)
+      next.delete('nuevo')
+      next.delete('cliente')
+      setSearchParams(next, { replace: true })
+      return
+    }
+    const editId = searchParams.get('editar')
+    if (!editId) return
+    const found = items.find((item) => item.id === editId)
+    if (found) {
+      openEdit(found)
+      const next = new URLSearchParams(searchParams)
+      next.delete('editar')
+      setSearchParams(next, { replace: true })
+      return
+    }
+    void crm.getOpportunities({ perPage: 100 }).then((response) => {
+      const match = response.data.find((item) => item.id === editId)
+      if (match) openEdit(match)
+      const next = new URLSearchParams(searchParams)
+      next.delete('editar')
+      setSearchParams(next, { replace: true })
+    })
+  }, [searchParams, setSearchParams, items, user?.id])
+
+  const owners = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const client of clients) {
+      if (client.ownerId) map.set(client.ownerId, client.ownerName || client.ownerId)
+    }
+    for (const item of items) {
+      if (item.ownerId) map.set(item.ownerId, item.ownerName || item.ownerId)
+    }
+    if (user?.id) map.set(user.id, user.fullName)
+    return [...map.entries()].map(([id, name]) => ({ id, name }))
+  }, [clients, items, user])
+
+  const totals = useMemo(() => summarizeOpportunities(items), [items])
+  const hasFilters = Boolean(searchInput || stageFilter || statusFilter || clientFilter || ownerFilter)
+
+  const clearFilters = () => {
+    setSearchInput('')
+    setSearch('')
+    setStageFilter('')
+    setStatusFilter('')
+    setClientFilter('')
+    setOwnerFilter('')
+  }
+
+  const move = async (
+    id: string,
+    stage: OpportunityStage,
+    extra?: { lostReason?: string; reopen?: boolean; reopenReason?: string },
+  ) => {
     const updated = await crm.changeStage(id, { stage, ...extra })
     if (updated.invitations?.length) setCopyUrl(updated.invitations[0].url)
     await load()
+    const item = items.find((entry) => entry.id === id)
+    setToast({
+      title: 'Etapa actualizada',
+      message: `${item?.title ?? 'La oportunidad'} pasó a ${getOpportunityStageLabel(stage)} (${updated.probability}%).`,
+    })
+  }
+
+  const requestMove = async (item: CrmOpportunity, stage: OpportunityStage) => {
+    if (item.stage === stage || !canMove) return
+    if (opportunityStatus(item.stage) !== 'OPEN') {
+      if (stage === 'WON' || stage === 'LOST') {
+        setError('Reabre la oportunidad a una etapa abierta')
+        return
+      }
+      setReopenFor({ item, stage })
+      return
+    }
+    if (stage === 'LOST') {
+      setLostFor({ item, stage })
+      return
+    }
+    await move(item.id, stage)
   }
 
   const onDrop = async (event: DragEvent<HTMLElement>, stage: OpportunityStage) => {
@@ -85,41 +230,92 @@ export function OpportunitiesPage() {
     setDraggingId(null)
     const id = event.dataTransfer.getData('text/plain')
     const current = items.find((item) => item.id === id)
-    if (!current || current.stage === stage || !canMove) return
-    if (stage === 'LOST') {
-      setLostFor(current)
-      return
+    if (!current) return
+    try {
+      await requestMove(current, stage)
+    } catch (err: unknown) {
+      setError(getErrorMessages(err, 'No se pudo cambiar la etapa.')[0])
     }
-    await move(id, stage)
   }
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    await crm.createOpportunity({
-      clientId: form.clientId,
-      title: form.title,
-      amount: Number(form.amount),
-      stage: form.stage,
-      probability: Number(form.probability),
-      expectedCloseDate: form.expectedCloseDate || undefined,
-      notes: form.notes || undefined,
-    })
-    setOpen(false)
-    setForm(EMPTY_FORM)
-    await load()
+    if (saving) return
+    const nextErrors = validateOpportunityForm(form)
+    setFieldErrors(nextErrors)
+    if (Object.keys(nextErrors).length) return
+
+    setSaving(true)
+    setError('')
+    try {
+      const payload = buildOpportunityPayload(form)
+      const wasEditing = Boolean(editing)
+      if (editing) {
+        if (payload.stage !== editing.stage) {
+          if (!canMove) throw new Error('No tienes permiso para cambiar la etapa.')
+          await crm.changeStage(editing.id, {
+            stage: payload.stage,
+            reopen: opportunityStatus(editing.stage) !== 'OPEN',
+            reopenReason: opportunityStatus(editing.stage) !== 'OPEN' ? 'Actualización de la oportunidad' : undefined,
+          })
+        }
+        await crm.updateOpportunity(editing.id, payload)
+      } else {
+        await crm.createOpportunity(payload)
+      }
+      resetForm()
+      await load()
+      setToast({
+        title: wasEditing ? 'Oportunidad actualizada' : 'Oportunidad creada',
+        message: wasEditing
+          ? `${payload.title} se actualizó correctamente.`
+          : `${payload.title} se asoció a la cartera.`,
+      })
+    } catch (err: unknown) {
+      const mapped = mapOpportunityApiError((err as { message?: unknown }).message)
+      if (Object.keys(mapped).length) setFieldErrors(mapped)
+      else setError(getErrorMessages(err, 'Se produjo un error al guardar.')[0])
+    } finally {
+      setSaving(false)
+    }
   }
 
   const columns: Column<CrmOpportunity>[] = useMemo(
     () => [
       { key: 'title', header: 'Oportunidad', render: (row) => <span className="font-medium">{row.title}</span> },
       { key: 'clientName', header: 'Cliente' },
+      { key: 'contactName', header: 'Contacto', render: (row) => row.contactName || '—' },
       { key: 'amount', header: 'Importe', render: (row) => formatMoney(row.amount, row.currency) },
       { key: 'stage', header: 'Etapa', render: (row) => <OpportunityStageBadge stage={row.stage} /> },
+      {
+        key: 'status',
+        header: 'Estado',
+        render: (row) => getOpportunityStatusLabel(opportunityStatus(row.stage)),
+      },
       { key: 'probability', header: 'Probabilidad', render: (row) => `${row.probability}%` },
       { key: 'ownerName', header: 'Responsable', render: (row) => row.ownerName || '—' },
       { key: 'expectedCloseDate', header: 'Cierre estimado', render: (row) => formatDate(row.expectedCloseDate) },
+      {
+        key: 'actions',
+        header: 'Acciones',
+        render: (row) =>
+          canEdit ? (
+            <button
+              type="button"
+              className="text-sm font-medium text-brand-teal hover:underline"
+              onClick={(event) => {
+                event.stopPropagation()
+                openEdit(row)
+              }}
+            >
+              Editar
+            </button>
+          ) : (
+            '—'
+          ),
+      },
     ],
-    [],
+    [canEdit],
   )
 
   return (
@@ -129,9 +325,7 @@ export function OpportunitiesPage() {
         title="Oportunidades"
         description="Embudo de ventas: sigue cada oportunidad desde nueva hasta ganada o perdida."
         actions={
-          hasPermission(PERMISSIONS.CRM_OPPORTUNITY_CREATE) ? (
-            <PrimaryButton onClick={() => setOpen(true)}>+ Nueva oportunidad</PrimaryButton>
-          ) : undefined
+          canCreate ? <PrimaryButton onClick={() => openCreate()}>+ Nueva oportunidad</PrimaryButton> : undefined
         }
       />
       {copyUrl && (
@@ -145,17 +339,62 @@ export function OpportunitiesPage() {
         <TextInput
           className="max-w-xs"
           placeholder="Buscar oportunidades..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
         />
-        <SelectInput className="w-44" value={stageFilter} onChange={(e) => setStageFilter(e.target.value)}>
+        <select
+          aria-label="Etapa"
+          value={stageFilter}
+          onChange={(e) => setStageFilter(e.target.value)}
+          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
+        >
           <option value="">Todas las etapas</option>
-          {STAGES.map((stage) => (
+          {ALL_STAGES.map((stage) => (
             <option key={stage} value={stage}>
               {OPPORTUNITY_STAGE_LABELS[stage]}
             </option>
           ))}
-        </SelectInput>
+        </select>
+        <select
+          aria-label="Estado"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="w-40 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
+        >
+          <option value="">Todos los estados</option>
+          {(Object.keys(OPPORTUNITY_STATUS_LABELS) as Array<keyof typeof OPPORTUNITY_STATUS_LABELS>).map((status) => (
+            <option key={status} value={status}>
+              {OPPORTUNITY_STATUS_LABELS[status]}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Cliente"
+          value={clientFilter}
+          onChange={(e) => setClientFilter(e.target.value)}
+          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
+        >
+          <option value="">Todos los clientes</option>
+          {clients.map((client) => (
+            <option key={client.id} value={client.id}>
+              {client.name}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Responsable"
+          value={ownerFilter}
+          onChange={(e) => setOwnerFilter(e.target.value)}
+          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
+        >
+          <option value="">Todos los responsables</option>
+          {owners.map((owner) => (
+            <option key={owner.id} value={owner.id}>
+              {owner.name}
+            </option>
+          ))}
+        </select>
+        {hasFilters && <SecondaryButton onClick={clearFilters}>Limpiar filtros</SecondaryButton>}
         <div className="ml-auto flex rounded border border-slate-300 bg-white p-0.5">
           <button
             type="button"
@@ -173,20 +412,29 @@ export function OpportunitiesPage() {
           </button>
         </div>
       </div>
+      <p className="text-sm text-slate-500">
+        {totals.count} oportunidades · {formatMoney(totals.amount)} · ponderado {formatMoney(totals.weighted)}
+      </p>
+      {error && <ErrorState message={error} onRetry={() => void load()} />}
 
       {view === 'list' ? (
         <DataTable
           columns={columns}
-          data={filtered}
+          data={items}
           rowKey={(row) => row.id}
+          onRowClick={canEdit ? openEdit : undefined}
           emptyMessage="No hay oportunidades"
-          emptyDescription="No hay oportunidades que coincidan con los filtros."
+          emptyDescription={
+            hasFilters
+              ? 'No hay oportunidades que coincidan con los filtros.'
+              : 'Aún no hay oportunidades registradas.'
+          }
         />
       ) : (
         <div className="-mx-1 overflow-x-auto pb-2">
           <div className="flex min-w-max gap-3 px-1">
-            {STAGES.map((stage) => {
-              const columnItems = filtered.filter((item) => item.stage === stage)
+            {ALL_STAGES.map((stage) => {
+              const columnItems = items.filter((item) => item.stage === stage)
               const total = columnItems.reduce((sum, item) => sum + item.amount, 0)
               const isTarget = overStage === stage
               return (
@@ -239,23 +487,34 @@ export function OpportunitiesPage() {
                           {item.probability}% · {item.ownerName || 'Sin responsable'}
                         </p>
                         <p className="text-xs text-slate-400">{formatDate(item.expectedCloseDate)}</p>
-                        {item.stage === 'WON' && (
-                          <button
-                            type="button"
-                            className="mt-2 text-xs font-medium text-brand-teal hover:underline"
-                            onClick={async () => {
-                              const surveys = await crm.getSurveys({ status: 'PUBLISHED' })
-                              const survey =
-                                surveys.data.find((entry) => entry.trigger === 'OPPORTUNITY_WON') ??
-                                surveys.data[0]
-                              if (!survey) return
-                              const link = await crm.copySurveyLink(item.id, survey.id)
-                              setCopyUrl(link.url)
-                            }}
-                          >
-                            Copiar enlace de encuesta
-                          </button>
-                        )}
+                        <div className="mt-2 flex flex-wrap gap-3">
+                          {canEdit && (
+                            <button
+                              type="button"
+                              className="text-xs font-medium text-brand-teal hover:underline"
+                              onClick={() => openEdit(item)}
+                            >
+                              Editar
+                            </button>
+                          )}
+                          {item.stage === 'WON' && (
+                            <button
+                              type="button"
+                              className="text-xs font-medium text-brand-teal hover:underline"
+                              onClick={async () => {
+                                const surveys = await crm.getSurveys({ status: 'PUBLISHED' })
+                                const survey =
+                                  surveys.data.find((entry) => entry.trigger === 'OPPORTUNITY_WON') ??
+                                  surveys.data[0]
+                                if (!survey) return
+                                const link = await crm.copySurveyLink(item.id, survey.id)
+                                setCopyUrl(link.url)
+                              }}
+                            >
+                              Copiar enlace de encuesta
+                            </button>
+                          )}
+                        </div>
                       </article>
                     ))}
                   </div>
@@ -266,30 +525,60 @@ export function OpportunitiesPage() {
         </div>
       )}
 
-      <Modal open={open} onClose={() => setOpen(false)} title="Nueva oportunidad">
+      <ConfirmToast open={Boolean(toast)} title={toast?.title ?? ''} message={toast?.message ?? ''} />
+      <Modal open={open} onClose={() => !saving && resetForm()} title={editing ? 'Editar oportunidad' : 'Nueva oportunidad'}>
         <form onSubmit={(e) => void submit(e)} className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Información general</p>
-          <FormField label="Nombre de oportunidad" required>
-            <TextInput required value={form.title} onChange={(e) => setForm((c) => ({ ...c, title: e.target.value }))} />
+          <FormField label="Nombre de oportunidad" required error={fieldErrors.title}>
+            <TextInput
+              maxLength={LIMITS.OPPORTUNITY_TITLE}
+              value={form.title}
+              onChange={(e) => setForm((c) => ({ ...c, title: e.target.value }))}
+            />
           </FormField>
-          <FormField label="Cliente" required>
-            <SelectInput required value={form.clientId} onChange={(e) => setForm((c) => ({ ...c, clientId: e.target.value }))}>
-              <option value="">Seleccionar cliente</option>
-              {clients.map((client) => (
-                <option key={client.id} value={client.id}>
-                  {client.name}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FormField label="Cliente" required error={fieldErrors.clientId}>
+              <SelectInput
+                value={form.clientId}
+                onChange={(e) => setForm((c) => ({ ...c, clientId: e.target.value, contactId: '' }))}
+              >
+                <option value="">Seleccionar cliente</option>
+                {clients.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.name}
+                  </option>
+                ))}
+              </SelectInput>
+            </FormField>
+            <FormField label="Contacto" error={fieldErrors.contactId}>
+              <SelectInput value={form.contactId} onChange={(e) => setForm((c) => ({ ...c, contactId: e.target.value }))}>
+                <option value="">Sin contacto</option>
+                {contacts.map((contact) => (
+                  <option key={contact.id} value={contact.id}>
+                    {contact.firstName} {contact.lastName}
+                  </option>
+                ))}
+              </SelectInput>
+            </FormField>
+          </div>
+          <FormField label="Responsable">
+            <SelectInput value={form.ownerId} onChange={(e) => setForm((c) => ({ ...c, ownerId: e.target.value }))}>
+              <option value="">Sin asignar</option>
+              {owners.map((owner) => (
+                <option key={owner.id} value={owner.id}>
+                  {owner.name}
                 </option>
               ))}
             </SelectInput>
           </FormField>
           <div className="grid gap-3 sm:grid-cols-2">
-            <FormField label="Importe" required>
+            <FormField label="Importe" htmlFor="opportunity-amount" required error={fieldErrors.amount}>
               <TextInput
-                required
-                type="number"
-                min={0}
+                id="opportunity-amount"
+                inputMode="numeric"
+                aria-label="Importe"
                 value={form.amount}
-                onChange={(e) => setForm((c) => ({ ...c, amount: e.target.value }))}
+                onChange={(e) => setForm((c) => ({ ...c, amount: formatAmountInput(e.target.value) }))}
               />
             </FormField>
             <FormField label="Etapa">
@@ -300,7 +589,7 @@ export function OpportunitiesPage() {
                   setForm((c) => ({ ...c, stage, probability: String(PROBABILITY_BY_STAGE[stage]) }))
                 }}
               >
-                {STAGES.filter((stage) => stage !== 'LOST').map((stage) => (
+                {(editing?.stage === 'LOST' ? ALL_STAGES : ALL_STAGES.filter((stage) => stage !== 'LOST')).map((stage) => (
                   <option key={stage} value={stage}>
                     {OPPORTUNITY_STAGE_LABELS[stage]}
                   </option>
@@ -309,7 +598,7 @@ export function OpportunitiesPage() {
             </FormField>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <FormField label="Probabilidad">
+            <FormField label="Probabilidad" error={fieldErrors.probability}>
               <TextInput
                 type="number"
                 min={0}
@@ -326,12 +615,20 @@ export function OpportunitiesPage() {
               />
             </FormField>
           </div>
-          <FormField label="Descripción">
-            <TextArea value={form.notes} onChange={(e) => setForm((c) => ({ ...c, notes: e.target.value }))} />
+          <FormField label="Descripción" error={fieldErrors.notes}>
+            <TextArea
+              maxLength={LIMITS.NOTES}
+              value={form.notes}
+              onChange={(e) => setForm((c) => ({ ...c, notes: e.target.value }))}
+            />
           </FormField>
           <div className="flex justify-end gap-2 pt-2">
-            <SecondaryButton onClick={() => setOpen(false)}>Cancelar</SecondaryButton>
-            <PrimaryButton type="submit">Guardar</PrimaryButton>
+            <SecondaryButton onClick={resetForm} disabled={saving}>
+              Cancelar
+            </SecondaryButton>
+            <PrimaryButton type="submit" disabled={saving || (editing ? !canEdit : !canCreate)}>
+              {saving ? 'Guardando...' : 'Guardar'}
+            </PrimaryButton>
           </div>
         </form>
       </Modal>
@@ -339,20 +636,67 @@ export function OpportunitiesPage() {
         <form
           onSubmit={(e) => {
             e.preventDefault()
-            if (lostFor)
-              void move(lostFor.id, 'LOST', { lostReason }).then(() => {
-                setLostFor(null)
-                setLostReason('')
-              })
+            const reasonError = validateLostReason(lostReason)
+            if (reasonError) {
+              setFieldErrors({ lostReason: reasonError })
+              return
+            }
+            if (!lostFor) return
+            void move(lostFor.item.id, 'LOST', { lostReason }).then(() => {
+              setLostFor(null)
+              setLostReason('')
+              setFieldErrors({})
+            })
           }}
           className="space-y-3"
         >
-          <FormField label="Descripción" required>
-            <TextArea required value={lostReason} onChange={(e) => setLostReason(e.target.value)} />
+          <FormField label="Descripción" required error={fieldErrors.lostReason}>
+            <TextArea
+              maxLength={LIMITS.LOST_REASON}
+              value={lostReason}
+              onChange={(e) => setLostReason(e.target.value)}
+            />
           </FormField>
           <div className="flex justify-end gap-2">
             <SecondaryButton onClick={() => setLostFor(null)}>Cancelar</SecondaryButton>
             <PrimaryButton type="submit">Marcar perdida</PrimaryButton>
+          </div>
+        </form>
+      </Modal>
+      <Modal open={Boolean(reopenFor)} onClose={() => setReopenFor(null)} title="Reabrir oportunidad">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            const reasonError = validateReopenReason(reopenReason)
+            if (reasonError) {
+              setFieldErrors({ reopenReason: reasonError })
+              return
+            }
+            if (!reopenFor) return
+            void move(reopenFor.item.id, reopenFor.stage, { reopen: true, reopenReason })
+              .then(() => {
+                setReopenFor(null)
+                setReopenReason('')
+                setFieldErrors({})
+              })
+              .catch((err: unknown) => setError(getErrorMessages(err, 'No se pudo reabrir.')[0]))
+          }}
+          className="space-y-3"
+        >
+          <p className="text-sm text-slate-600">
+            {reopenFor?.item.title} está {reopenFor ? getOpportunityStatusLabel(opportunityStatus(reopenFor.item.stage)).toLowerCase() : ''}.
+            Indica el motivo para moverla a {reopenFor ? getOpportunityStageLabel(reopenFor.stage) : ''}.
+          </p>
+          <FormField label="Motivo de reapertura" required error={fieldErrors.reopenReason}>
+            <TextArea
+              maxLength={LIMITS.LOST_REASON}
+              value={reopenReason}
+              onChange={(e) => setReopenReason(e.target.value)}
+            />
+          </FormField>
+          <div className="flex justify-end gap-2">
+            <SecondaryButton onClick={() => setReopenFor(null)}>Cancelar</SecondaryButton>
+            <PrimaryButton type="submit">Reabrir</PrimaryButton>
           </div>
         </form>
       </Modal>

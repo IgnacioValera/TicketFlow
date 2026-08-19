@@ -36,6 +36,12 @@ export const OPPORTUNITY_STAGE_LABELS: Record<OpportunityStage, string> = {
   LOST: 'Perdida',
 }
 
+export const OPPORTUNITY_STATUS_LABELS: Record<'OPEN' | 'WON' | 'LOST', string> = {
+  OPEN: 'Abierta',
+  WON: 'Ganada',
+  LOST: 'Perdida',
+}
+
 export const CLIENT_STATUS_LABELS: Record<ClientStatus, string> = {
   ACTIVE: 'Activo',
   INACTIVE: 'Inactivo',
@@ -91,6 +97,10 @@ export function getActivityStatusLabel(value: ActivityStatus | string) {
 
 export function getOpportunityStageLabel(value: OpportunityStage | string) {
   return pick(OPPORTUNITY_STAGE_LABELS, value)
+}
+
+export function getOpportunityStatusLabel(value: 'OPEN' | 'WON' | 'LOST' | string) {
+  return pick(OPPORTUNITY_STATUS_LABELS, value)
 }
 
 export function getClientStatusLabel(value: ClientStatus | string) {

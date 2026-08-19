@@ -7,6 +7,7 @@ import {
   IsDateString,
   IsEmail,
   IsEnum,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -21,6 +22,7 @@ import {
 } from 'class-validator'
 import { LIMITS } from '../common/limits'
 import { maxLengthMessage, requiredMessage, Trim } from '../common/validation'
+import { OPPORTUNITY_STATUS_FILTERS } from './opportunity-rules'
 import {
   ActivityStatus,
   ActivityType,
@@ -84,6 +86,7 @@ export class OpportunitiesQueryDto extends CrmPaginationDto {
   @ApiPropertyOptional() @IsOptional() @IsUUID('4') clientId?: string
   @ApiPropertyOptional({ enum: OpportunityStage }) @IsOptional() @IsEnum(OpportunityStage) stage?: OpportunityStage
   @ApiPropertyOptional() @IsOptional() @IsUUID('4') ownerId?: string
+  @ApiPropertyOptional({ enum: OPPORTUNITY_STATUS_FILTERS }) @IsOptional() @IsIn(OPPORTUNITY_STATUS_FILTERS) status?: (typeof OPPORTUNITY_STATUS_FILTERS)[number]
 }
 
 export class CreateOpportunityDto {

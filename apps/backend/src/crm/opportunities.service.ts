@@ -18,7 +18,7 @@ import { applyClientScope } from './access'
 import { ClientsService } from './clients.service'
 import { ContactsService } from './contacts.service'
 import { ChangeStageDto, CreateOpportunityDto, OpportunitiesQueryDto, UpdateOpportunityDto } from './dto'
-import { assertStageChange, isTerminalStage, probabilityForStage } from './opportunity-rules'
+import { assertStageChange, isTerminalStage, probabilityForStage, stagesForStatus } from './opportunity-rules'
 import { createSurveyToken, invitationExpiry } from './survey-token'
 
 @Injectable()
@@ -42,8 +42,20 @@ export class OpportunitiesService {
     applyClientScope(qb, user)
     if (query.clientId) qb.andWhere('client.id = :clientId', { clientId: query.clientId })
     if (query.stage) qb.andWhere('opportunity.stage = :stage', { stage: query.stage })
+    const statusStages = stagesForStatus(query.status)
+    if (statusStages) qb.andWhere('opportunity.stage IN (:...statusStages)', { statusStages })
     if (query.ownerId) qb.andWhere('owner.id = :ownerId', { ownerId: query.ownerId })
-    if (query.search) qb.andWhere(new Brackets((where) => where.where('LOWER(opportunity.title) LIKE :q').orWhere('LOWER(client.name) LIKE :q')), { q: `%${query.search.toLowerCase()}%` })
+    if (query.search) qb.andWhere(
+      new Brackets((where) =>
+        where
+          .where('LOWER(opportunity.title) LIKE :q')
+          .orWhere('LOWER(client.name) LIKE :q')
+          .orWhere('LOWER(owner.fullName) LIKE :q')
+          .orWhere('LOWER(contact.firstName) LIKE :q')
+          .orWhere('LOWER(contact.lastName) LIKE :q'),
+      ),
+      { q: `%${query.search.toLowerCase()}%` },
+    )
     const [items, total] = await qb.orderBy('opportunity.updatedAt', 'DESC').skip(skip).take(perPage).getManyAndCount()
     return { items: items.map((item) => this.serialize(item)), meta: pagination(page, perPage, total) }
   }
@@ -53,8 +65,8 @@ export class OpportunitiesService {
     const contact = dto.contactId ? await this.contacts.findForClient(dto.contactId, client.id) : null
     const owner = dto.ownerId ? await this.users.findOneByOrFail({ id: dto.ownerId }) : user
     const stage = dto.stage ?? OpportunityStage.NEW
-    if (isTerminalStage(stage) && stage === OpportunityStage.LOST && !dto.notes) {
-      throw new UnprocessableEntityException('Una oportunidad no debe nacer perdida sin contexto')
+    if (stage === OpportunityStage.LOST) {
+      throw new UnprocessableEntityException('Una oportunidad no debe nacer perdida')
     }
     const opportunity = await this.opportunities.save(this.opportunities.create({
       client, contact, owner, title: dto.title.trim(), amount: dto.amount, currency: (dto.currency ?? 'MXN').toUpperCase(),
@@ -71,14 +83,17 @@ export class OpportunitiesService {
     if (isTerminalStage(opportunity.stage) && (dto.stage === undefined || dto.stage === opportunity.stage)) {
       if (dto.title || dto.amount !== undefined || dto.contactId) throw new UnprocessableEntityException('Reabre la oportunidad antes de editarla')
     }
-    if (dto.clientId && dto.clientId !== opportunity.client.id) opportunity.client = await this.clients.getAccessible(dto.clientId, user)
+    if (dto.clientId && dto.clientId !== opportunity.client.id) {
+      opportunity.client = await this.clients.getAccessible(dto.clientId, user)
+      if (dto.contactId === undefined) opportunity.contact = null
+    }
     if (dto.contactId !== undefined) opportunity.contact = dto.contactId ? await this.contacts.findForClient(dto.contactId, opportunity.client.id) : null
     if (dto.ownerId) opportunity.owner = await this.users.findOneByOrFail({ id: dto.ownerId })
-    if (dto.title) opportunity.title = dto.title.trim()
+    if (dto.title !== undefined) opportunity.title = dto.title.trim()
     if (dto.amount !== undefined) opportunity.amount = dto.amount
     if (dto.currency) opportunity.currency = dto.currency.toUpperCase()
     if (dto.probability !== undefined && !isTerminalStage(opportunity.stage)) opportunity.probability = probabilityForStage(opportunity.stage, dto.probability)
-    if (dto.expectedCloseDate !== undefined) opportunity.expectedCloseDate = dto.expectedCloseDate
+    if (dto.expectedCloseDate !== undefined) opportunity.expectedCloseDate = dto.expectedCloseDate?.trim() ? dto.expectedCloseDate : null
     if (dto.notes !== undefined) opportunity.notes = dto.notes.trim()
     await this.opportunities.save(opportunity)
     return this.serialize(await this.find(id))
@@ -90,7 +105,7 @@ export class OpportunitiesService {
     assertStageChange(opportunity.stage, dto.stage, { lostReason: dto.lostReason, reopen: dto.reopen, reopenReason: dto.reopenReason })
     const old = opportunity.stage
     opportunity.stage = dto.stage
-    opportunity.probability = probabilityForStage(dto.stage, opportunity.probability)
+    opportunity.probability = probabilityForStage(dto.stage)
     opportunity.lostReason = dto.stage === OpportunityStage.LOST ? dto.lostReason!.trim() : dto.stage === OpportunityStage.WON ? null : opportunity.lostReason
     await this.opportunities.save(opportunity)
     await this.history.save(this.history.create({
