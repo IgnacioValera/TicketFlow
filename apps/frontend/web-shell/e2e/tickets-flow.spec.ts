@@ -8,11 +8,13 @@ async function login(page: import('@playwright/test').Page, email: string) {
 }
 
 async function switchUser(page: import('@playwright/test').Page, email: string) {
+  await page.locator('header button[aria-expanded]:not([aria-label="Creación rápida"])').click()
   await page.getByRole('button', { name: 'Cerrar sesión' }).click()
   await expect(page).toHaveURL(/login/)
   await page.getByLabel('Correo electrónico').fill(email)
   await page.getByLabel('Contraseña').fill('password')
   await page.getByRole('button', { name: 'Ingresar' }).click()
+  await expect(page).not.toHaveURL(/login/)
 }
 
 async function openTicketFromList(page: import('@playwright/test').Page, folio: string, search?: string) {
@@ -49,7 +51,7 @@ test.describe('Flujo completo de ticket', () => {
     await page.getByRole('button', { name: 'Asignar agente' }).click()
     await page.locator('#assignee').selectOption({ index: 1 })
     await page.getByRole('dialog', { name: 'Asignar agente' }).getByRole('button', { name: 'Asignar', exact: true }).click()
-    await expect(page.getByText('Agente Soporte')).toBeVisible()
+    await expect(page.getByRole('definition').filter({ hasText: 'Agente Soporte' })).toBeVisible()
 
     await switchUser(page, 'agent@helpdesk.com')
     await openTicketFromList(page, folio)

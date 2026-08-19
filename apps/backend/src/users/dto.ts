@@ -1,20 +1,26 @@
 import { Type } from 'class-transformer'
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { IsEmail, IsEnum, IsInt, IsOptional, IsString, MaxLength, MinLength } from 'class-validator'
+import { IsEmail, IsEnum, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from 'class-validator'
 import { LIMITS } from '../common/limits'
-import { IsPasswordPolicy, maxLengthMessage, minLengthMessage, Trim } from '../common/validation'
+import { IsPasswordPolicy, maxLengthMessage, minLengthMessage, NormalizeEmail, requiredMessage, Trim } from '../common/validation'
 import { RoleCode, UserStatus } from '../database/entities'
+
+export const MANAGED_USER_ROLES = [RoleCode.ADMIN, RoleCode.SUPERVISOR, RoleCode.AGENT, RoleCode.REQUESTER] as const
+export type ManagedUserRole = (typeof MANAGED_USER_ROLES)[number]
+
+export const DUPLICATE_EMAIL_MESSAGE = 'Ya existe un usuario registrado con ese correo electrónico.'
 
 export class CreateUserDto {
   @ApiProperty()
   @Trim()
   @IsString()
+  @IsNotEmpty({ message: requiredMessage('El nombre') })
   @MinLength(LIMITS.USER_FULL_NAME_MIN, { message: minLengthMessage('El nombre', LIMITS.USER_FULL_NAME_MIN) })
   @MaxLength(LIMITS.USER_FULL_NAME, { message: maxLengthMessage('El nombre', LIMITS.USER_FULL_NAME) })
   fullName: string
 
   @ApiProperty()
-  @Trim()
+  @NormalizeEmail()
   @IsEmail({}, { message: 'El correo no es válido' })
   @MaxLength(LIMITS.EMAIL, { message: maxLengthMessage('El correo', LIMITS.EMAIL) })
   email: string
@@ -24,7 +30,9 @@ export class CreateUserDto {
   @IsPasswordPolicy()
   password: string
 
-  @ApiProperty({ enum: RoleCode }) @IsEnum(RoleCode) role: RoleCode
+  @ApiProperty({ enum: MANAGED_USER_ROLES })
+  @IsIn(MANAGED_USER_ROLES, { message: 'El rol no es válido' })
+  role: ManagedUserRole
 }
 
 export class UpdateUserDto {
@@ -38,15 +46,15 @@ export class UpdateUserDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @Trim()
+  @NormalizeEmail()
   @IsEmail({}, { message: 'El correo no es válido' })
   @MaxLength(LIMITS.EMAIL, { message: maxLengthMessage('El correo', LIMITS.EMAIL) })
   email?: string
 
-  @ApiPropertyOptional({ enum: RoleCode })
+  @ApiPropertyOptional({ enum: MANAGED_USER_ROLES })
   @IsOptional()
-  @IsEnum(RoleCode)
-  role?: RoleCode
+  @IsIn(MANAGED_USER_ROLES, { message: 'El rol no es válido' })
+  role?: ManagedUserRole
 }
 
 export class UpdateUserStatusDto {

@@ -427,7 +427,7 @@ export function TicketFlowPage() {
 
   const setSafeZoom = (next: number) => setZoom(Math.min(1.1, Math.max(0.65, next)))
 
-  if (loading && !ticket) return <LoadingSkeleton rows={8} />
+  if (loading && !ticket) return <LoadingSkeleton variant="flow" label="Cargando flujo…" delayed={false} />
   if (error && !ticket) return <ErrorState message={error} onRetry={() => void initialize()} />
   if (!ticket || !selectedStage) return <ErrorState message="Ticket no encontrado" />
 

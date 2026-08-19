@@ -181,3 +181,97 @@ main textarea:focus {
 #root {
   min-height: 100vh;
 }
+
+.tf-spinner {
+  animation: tf-spin 0.7s linear infinite;
+}
+
+.tf-brand-pulse {
+  color: var(--color-primary);
+  animation: tf-pulse 1.8s ease-in-out infinite;
+}
+
+.tf-flow-node {
+  fill: var(--color-primary);
+}
+
+.tf-flow-node-mid {
+  fill: var(--color-sidebar);
+}
+
+.tf-flow-line {
+  color: var(--color-primary);
+  opacity: 0.45;
+}
+
+.tf-progress {
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 16%, transparent);
+}
+
+.tf-progress span {
+  display: block;
+  height: 100%;
+  width: 40%;
+  background: var(--color-primary);
+  animation: tf-indeterminate 1.2s ease-in-out infinite;
+}
+
+.tf-skeleton [class*='bg-brand-slate'] {
+  animation: tf-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes tf-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes tf-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(0.98);
+  }
+}
+
+@keyframes tf-indeterminate {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(280%);
+  }
+}
+
+@keyframes tf-shimmer {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tf-spinner,
+  .tf-brand-pulse,
+  .tf-progress span,
+  .tf-skeleton [class*='bg-brand-slate'],
+  .ticket-flow-line-active,
+  .ticket-flow-node-active {
+    animation: none;
+  }
+
+  .tf-progress span {
+    width: 100%;
+    transform: none;
+  }
+}

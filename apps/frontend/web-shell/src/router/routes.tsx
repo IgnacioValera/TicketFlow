@@ -1,5 +1,4 @@
 import type { RouteObject } from 'react-router-dom'
-import { Navigate } from 'react-router-dom'
 import { PERMISSIONS } from '@/constants/permissions'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { DashboardLayout } from '@/layouts/DashboardLayout'
@@ -31,6 +30,8 @@ import { KnowledgePage } from '@/pages/knowledge/KnowledgePage'
 import { SurveyRespondPage } from '@/pages/public/SurveyRespondPage'
 import { ForgotPasswordPage } from '@/pages/login/ForgotPasswordPage'
 import { ChangePasswordPage } from '@/pages/login/ChangePasswordPage'
+import { NotFoundPage } from '@/pages/errors/NotFoundPage'
+import { RenderErrorPage } from '@/pages/errors/RenderErrorPage'
 import { ProtectedRoute } from '@/router/ProtectedRoute'
 import { RoleRoute } from '@/router/RoleRoute'
 import { HomeRedirect } from '@/router/HomeRedirect'
@@ -115,5 +116,8 @@ export const routes: RouteObject[] = [
       },
     ],
   },
-  { path: '*', element: <Navigate to="/" replace /> },
+  ...(import.meta.env.VITE_USE_MOCKS === 'true'
+    ? [{ path: '/__render-error', element: <RenderErrorPage /> }]
+    : []),
+  { path: '*', element: <NotFoundPage /> },
 ]

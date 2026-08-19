@@ -246,6 +246,13 @@ const mockCompanies: Company[] = [
   },
 ]
 
+async function applyE2eDelay(request: Request) {
+  const delayMs = Number(request.headers.get('X-TicketFlow-Delay-Ms') || 0)
+  if (delayMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, delayMs))
+  }
+}
+
 function findUserByToken(authHeader: string | null): User | undefined {
   if (!authHeader?.startsWith('Bearer ')) return undefined
   const token = authHeader.replace('Bearer ', '')
@@ -301,17 +308,16 @@ function paginate<T>(items: T[], page = 1, perPage = 10) {
 export const handlers = [
   http.post('*/auth/login', async ({ request }) => {
     const body = (await request.json()) as { email: string; password: string }
-    const user = mockUsers.find((u) => u.email === body.email)
-    if (!user || body.password !== (mockPasswords[user.id] ?? 'password')) {
+    const user = mockUsers.find((u) => u.email.toLowerCase() === body.email.trim().toLowerCase())
+    if (!user || body.password !== (mockPasswords[user.id] ?? 'password') || user.status !== 'ACTIVE') {
       return HttpResponse.json(
-        { success: false, message: 'Credenciales inválidas', data: null, meta: null },
+        {
+          success: false,
+          message: 'Credenciales inválidas o cuenta no disponible.',
+          data: null,
+          meta: null,
+        },
         { status: 401 },
-      )
-    }
-    if (user.status !== 'ACTIVE') {
-      return HttpResponse.json(
-        { success: false, message: 'La cuenta se encuentra inactiva', data: null, meta: null },
-        { status: 403 },
       )
     }
     user.lastLoginAt = new Date().toISOString()
@@ -350,7 +356,7 @@ export const handlers = [
     }
     const body = (await request.json()) as { currentPassword: string; newPassword: string }
     const expected = mockPasswords[actor.id] ?? 'password'
-    if (body.currentPassword !== expected && body.currentPassword !== 'Tf-A7k9!mQ2') {
+    if (body.currentPassword !== expected && body.currentPassword !== 'Tf-A7k9!mQ2x') {
       return HttpResponse.json(
         { success: false, message: 'La contraseña actual no es correcta.', data: null, meta: null },
         { status: 401 },
@@ -385,6 +391,7 @@ export const handlers = [
   }),
 
   http.get('*/auth/me', async ({ request }) => {
+    await applyE2eDelay(request)
     const user = findUserByToken(request.headers.get('Authorization'))
     if (!user) {
       return HttpResponse.json(
@@ -399,6 +406,12 @@ export const handlers = [
   http.patch('*/auth/me', updateOwnProfileMock),
 
   http.get('*/users', async ({ request }) => {
+    if (request.headers.get('X-TicketFlow-Fail-Users') === '1') {
+      return HttpResponse.json(
+        { success: false, message: 'Fallo de prueba', data: null, meta: null },
+        { status: 500 },
+      )
+    }
     const url = new URL(request.url)
     let filtered = [...mockUsers]
     const role = url.searchParams.get('role')
@@ -423,6 +436,16 @@ export const handlers = [
     })
   }),
 
+  http.get('*/users/assignable', async () => {
+    const agents = mockUsers.filter((user) => user.role === 'AGENT' && user.status === 'ACTIVE')
+    return HttpResponse.json({
+      success: true,
+      message: 'OK',
+      data: agents,
+      meta: null,
+    })
+  }),
+
   http.get('*/users/:id', async ({ params, request }) => {
     const user = mockUsers.find((u) => u.id === params.id)
     if (!user) {
@@ -442,21 +465,28 @@ export const handlers = [
       password: string
       role: UserRole
     }
-    if (mockUsers.some((u) => u.email === body.email)) {
+    if (mockUsers.some((u) => u.email.toLowerCase() === body.email.trim().toLowerCase())) {
       return HttpResponse.json(
-        { success: false, message: 'El correo ya está registrado', data: null, meta: null },
-        { status: 422 },
+        {
+          success: false,
+          message: 'Ya existe un usuario registrado con ese correo electrónico.',
+          data: null,
+          meta: null,
+        },
+        { status: 409 },
       )
     }
     const newUser: User = {
-      id: String(mockUsers.length + 1),
+      id: `u-${Date.now()}-${mockUsers.length}`,
       fullName: body.fullName,
-      email: body.email,
+      email: body.email.trim().toLowerCase(),
       role: body.role,
       status: 'ACTIVE',
       permissions: ROLE_PERMISSIONS[body.role],
+      mustChangePassword: false,
     }
     mockUsers.push(newUser)
+    mockPasswords[newUser.id] = body.password
     return HttpResponse.json(
       { success: true, message: 'Usuario creado', data: newUser, meta: null },
       { status: 201 },
@@ -536,10 +566,11 @@ export const handlers = [
       )
     }
     user.mustChangePassword = true
+    mockPasswords[user.id] = 'Tf-A7k9!mQ2x'
     return HttpResponse.json({
       success: true,
       message: 'La contraseña se restableció correctamente.',
-      data: { temporaryPassword: 'Tf-A7k9!mQ2' },
+      data: { temporaryPassword: 'Tf-A7k9!mQ2x' },
       meta: null,
     })
   }),

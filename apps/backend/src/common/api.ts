@@ -58,13 +58,16 @@ export class ApiExceptionFilter {
     const response = host.switchToHttp().getResponse<Response>()
     const status = exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR
     let message = 'Error interno del servidor'
+    let code: string | null = null
 
     if (exception instanceof HttpException) {
       const body = exception.getResponse()
       if (typeof body === 'string') message = body
       else if (body && typeof body === 'object' && 'message' in body) {
-        const raw = (body as { message: string | string[] }).message
+        const payload = body as { message: string | string[]; code?: string }
+        const raw = payload.message
         message = Array.isArray(raw) ? raw.join(', ') : raw
+        code = payload.code ?? null
       }
       if (status === HttpStatus.PAYLOAD_TOO_LARGE) {
         message = 'El archivo no debe superar 5 MB'
@@ -75,11 +78,12 @@ export class ApiExceptionFilter {
         message: 'El archivo no debe superar 5 MB',
         data: null,
         meta: null,
+        code: null,
       })
       return
     }
 
-    response.status(status).json({ success: false, message, data: null, meta: null })
+    response.status(status).json({ success: false, message, data: null, meta: null, code })
   }
 }
 

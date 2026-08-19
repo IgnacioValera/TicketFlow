@@ -2,21 +2,26 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ErrorState } from '@/components/common/ErrorState'
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
-import { ASSIGNABLE_ROLES, ROLES } from '@/constants/roles'
+import { PrimaryButton } from '@/components/common/UiControls'
+import { ROLES } from '@/constants/roles'
 import { LIMITS } from '@/constants/validation'
 import * as usersService from '@/services/users.service'
 import type { UserRole } from '@/types/user.types'
-import { errorMessage, maxLengthAfterTrim, minLengthAfterTrim } from '@/utils/validation'
+import { createSubmitLock } from '@/utils/submit-lock'
+import { roleOptionsForUser } from '@/utils/user-admin'
+import { userEditFormError } from '@/utils/user-form'
+import { errorMessage } from '@/utils/validation'
 
 export function UserEditPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
-  const [role, setRole] = useState<UserRole>('CLIENT')
+  const [role, setRole] = useState<UserRole>('AGENT')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [submitLock] = useState(() => createSubmitLock())
 
   useEffect(() => {
     if (!id) return
@@ -38,37 +43,32 @@ export function UserEditPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!id) return
+    if (!id || submitting || submitLock.pending) return
     setError('')
-
-    if (!fullName.trim() || !email.trim()) {
-      setError('Nombre y correo son obligatorios')
-      return
-    }
-    const nameError =
-      minLengthAfterTrim(fullName, 'El nombre', LIMITS.USER_FULL_NAME_MIN) ||
-      maxLengthAfterTrim(fullName, 'El nombre', LIMITS.USER_FULL_NAME)
-    if (nameError) {
-      setError(nameError)
+    const formError = userEditFormError({ fullName, email, role })
+    if (formError) {
+      setError(formError)
       return
     }
 
-    setSubmitting(true)
-    try {
-      await usersService.updateUser(id, {
-        fullName: fullName.trim(),
-        email: email.trim(),
-        role,
-      })
-      navigate('/users')
-    } catch (err: unknown) {
-      setError(errorMessage(err, 'Error al actualizar usuario'))
-    } finally {
-      setSubmitting(false)
-    }
+    await submitLock.run(async () => {
+      setSubmitting(true)
+      try {
+        await usersService.updateUser(id, {
+          fullName: fullName.trim(),
+          email: email.trim(),
+          role,
+        })
+        navigate('/users')
+      } catch (err: unknown) {
+        setError(errorMessage(err, 'Error al actualizar usuario'))
+      } finally {
+        setSubmitting(false)
+      }
+    })
   }
 
-  if (loading) return <LoadingSkeleton variant="profile" />
+  if (loading) return <LoadingSkeleton variant="form" label="Cargando usuario…" />
   if (error && !fullName) return <ErrorState message={error} />
 
   return (
@@ -108,6 +108,7 @@ export function UserEditPage() {
             onChange={(e) => setFullName(e.target.value)}
             className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
             maxLength={LIMITS.USER_FULL_NAME}
+            disabled={submitting}
           />
         </div>
         <div>
@@ -121,6 +122,7 @@ export function UserEditPage() {
             onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
             maxLength={LIMITS.EMAIL}
+            disabled={submitting}
           />
         </div>
         <div>
@@ -132,8 +134,9 @@ export function UserEditPage() {
             value={role}
             onChange={(e) => setRole(e.target.value as UserRole)}
             className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
+            disabled={submitting}
           >
-            {ASSIGNABLE_ROLES.map((r) => (
+            {roleOptionsForUser(role).map((r) => (
               <option key={r} value={r}>
                 {ROLES[r]}
               </option>
@@ -141,13 +144,9 @@ export function UserEditPage() {
           </select>
         </div>
         <div className="flex gap-3 pt-2">
-          <button
-            type="submit"
-            disabled={submitting}
-            className="rounded-lg bg-brand-teal px-4 py-2 text-sm font-medium text-white hover:bg-brand-teal/90 disabled:opacity-50"
-          >
-            {submitting ? 'Guardando...' : 'Guardar cambios'}
-          </button>
+          <PrimaryButton type="submit" disabled={submitting} loading={submitting} loadingText="Guardando…">
+            Guardar cambios
+          </PrimaryButton>
           <Link
             to="/users"
             className="rounded-lg border border-brand-slate px-4 py-2 text-sm text-brand-navy hover:bg-brand-cream/50"

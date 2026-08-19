@@ -10,7 +10,7 @@ export const ROLES: Record<UserRole, string> = {
   REQUESTER: 'Solicitante',
 }
 
-export const ASSIGNABLE_ROLES: UserRole[] = ['ADMIN', 'SALES', 'SUPERVISOR', 'AGENT', 'CLIENT']
+export const ASSIGNABLE_ROLES: UserRole[] = ['ADMIN', 'SUPERVISOR', 'AGENT', 'REQUESTER']
 
 const CRM_SALES = [
   PERMISSIONS.CRM_CLIENT_VIEW, PERMISSIONS.CRM_CLIENT_CREATE, PERMISSIONS.CRM_CLIENT_EDIT,
