@@ -1,11 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { IsEmail, IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator'
 import { LIMITS } from '../common/limits'
-import { IsPasswordPolicy, maxLengthMessage, minLengthMessage, Trim } from '../common/validation'
+import { IsPasswordPolicy, maxLengthMessage, minLengthMessage, NormalizeEmail, Trim } from '../common/validation'
 
 export class LoginDto {
   @ApiProperty({ example: 'admin@helpdesk.com' })
-  @Trim()
+  @NormalizeEmail()
   @IsEmail({}, { message: 'El correo no es válido' })
   @MaxLength(LIMITS.EMAIL, { message: maxLengthMessage('El correo', LIMITS.EMAIL) })
   email: string

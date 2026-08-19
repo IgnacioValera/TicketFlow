@@ -13,6 +13,12 @@ export function Trim() {
   return Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
 }
 
+export function NormalizeEmail() {
+  return Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
+}
+
 export function maxLengthMessage(field: string, max: number) {
   return `${field} no puede superar ${max} caracteres`
 }

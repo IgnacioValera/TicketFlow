@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 async function login(page: import('@playwright/test').Page, email: string) {
-  await page.goto('/login')
+  await page.goto('/login', { waitUntil: 'domcontentloaded' })
   await page.getByLabel('Correo electrónico').fill(email)
   await page.getByLabel('Contraseña').fill('password')
   await page.getByRole('button', { name: 'Ingresar' }).click()
@@ -10,7 +10,7 @@ async function login(page: import('@playwright/test').Page, email: string) {
 test.describe('Perfil del usuario autenticado', () => {
   test('muestra nombre, correo, rol, estado, último acceso y fecha de alta', async ({ page }) => {
     await login(page, 'admin@helpdesk.com')
-    await page.goto('/profile')
+    await page.goto('/profile', { waitUntil: 'domcontentloaded' })
 
     await expect(page.getByRole('heading', { name: 'Mi perfil' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Admin Sistema' })).toBeVisible()
@@ -24,7 +24,7 @@ test.describe('Perfil del usuario autenticado', () => {
 
   test('no permite cambiar el rol desde el perfil', async ({ page }) => {
     await login(page, 'admin@helpdesk.com')
-    await page.goto('/profile')
+    await page.goto('/profile', { waitUntil: 'domcontentloaded' })
 
     await expect(page.getByLabel('Rol operativo')).toHaveCount(0)
     await expect(page.locator('select')).toHaveCount(0)
@@ -33,7 +33,7 @@ test.describe('Perfil del usuario autenticado', () => {
 
   test('actualiza sólo el nombre de la cuenta autenticada', async ({ page }) => {
     await login(page, 'admin@helpdesk.com')
-    await page.goto('/profile')
+    await page.goto('/profile', { waitUntil: 'domcontentloaded' })
 
     await page.getByLabel('Nombre completo').fill('Admin Actualizado')
     await page.getByRole('button', { name: 'Guardar nombre' }).click()
@@ -44,7 +44,7 @@ test.describe('Perfil del usuario autenticado', () => {
 
   test('exige que las contraseñas coincidan y redirige al login al cambiarla', async ({ page }) => {
     await login(page, 'agent@helpdesk.com')
-    await page.goto('/profile')
+    await page.goto('/profile', { waitUntil: 'domcontentloaded' })
 
     await page.getByRole('button', { name: 'Cambiar contraseña' }).click()
     await page.getByLabel('Contraseña actual').fill('password')
@@ -54,8 +54,8 @@ test.describe('Perfil del usuario autenticado', () => {
 
     await page.getByLabel('Confirmar nueva contraseña').fill('NuevaClave1!')
     await page.getByRole('button', { name: 'Actualizar contraseña' }).click()
-    await expect(page.getByText('Su contraseña fue actualizada')).toBeVisible()
+    await expect(page.getByText('Tu contraseña se actualizó correctamente.')).toBeVisible()
     await expect(page).toHaveURL(/login/, { timeout: 10000 })
-    await expect(page.getByText('Inicie sesión con la nueva contraseña.')).toBeVisible()
+    await expect(page.getByText('Tu contraseña se actualizó correctamente.')).toBeVisible()
   })
 })

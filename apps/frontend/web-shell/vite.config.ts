@@ -10,4 +10,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    hmr: {
+      overlay: process.env.VITE_USE_MOCKS !== 'true',
+    },
+  },
 })

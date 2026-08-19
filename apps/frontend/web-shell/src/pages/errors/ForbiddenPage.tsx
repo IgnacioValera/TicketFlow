@@ -1,16 +1,34 @@
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { ErrorScreen, RestrictedIllustration } from '@/components/common/ErrorScreen'
+import { PrimaryButton, SecondaryButton } from '@/components/common/UiControls'
+import { useAuth } from '@/hooks/useAuth'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
+import { useSafeBack } from '@/hooks/useSafeBack'
+import { getHomePath } from '@/utils/session-gate'
 
 export function ForbiddenPage() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const homePath = getHomePath(user)
+  const goBack = useSafeBack(homePath)
+  useDocumentTitle('Acceso restringido — TicketFlow')
+
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-brand-scarlet/30 bg-red-50 p-10 text-center">
-      <h1 className="text-2xl font-bold text-brand-scarlet">Acceso denegado</h1>
-      <p className="mt-2 text-slate-700">No tienes permisos para ver esta sección.</p>
-      <Link
-        to="/dashboard"
-        className="mt-4 rounded-lg bg-brand-teal px-4 py-2 text-sm font-medium text-white hover:bg-brand-teal/90"
-      >
-        Volver al inicio
-      </Link>
-    </div>
+    <ErrorScreen
+      kicker="Acceso"
+      title="Acceso restringido"
+      description="No tienes permisos para consultar esta sección."
+      illustration={<RestrictedIllustration />}
+      actions={
+        <>
+          <PrimaryButton type="button" onClick={() => navigate(homePath)}>
+            Ir a mi panel
+          </PrimaryButton>
+          <SecondaryButton type="button" onClick={goBack}>
+            Volver
+          </SecondaryButton>
+        </>
+      }
+    />
   )
 }

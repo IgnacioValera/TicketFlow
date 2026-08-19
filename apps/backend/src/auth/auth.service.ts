@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common'
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { JwtService, JwtSignOptions } from '@nestjs/jwt'
 import { InjectRepository } from '@nestjs/typeorm'
@@ -9,7 +9,13 @@ import { RefreshToken, User, UserStatus } from '../database/entities'
 import { validatePasswordPolicy } from '../common/validation'
 import { ChangePasswordDto, LoginDto, UpdateOwnProfileDto } from './dto'
 
-interface TokenPayload { sub: string; role: string; type: 'access' | 'refresh'; jti?: string }
+interface TokenPayload {
+  sub: string
+  role: string
+  type: 'access' | 'refresh'
+  jti?: string
+  mustChangePassword?: boolean
+}
 
 @Injectable()
 export class AuthService {
@@ -29,10 +35,9 @@ export class AuthService {
       .where('LOWER(user.email) = LOWER(:email)', { email: dto.email.trim() })
       .getOne()
 
-    if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
-      throw new UnauthorizedException('Credenciales inválidas')
+    if (!user || !(await bcrypt.compare(dto.password, user.passwordHash)) || user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException('Credenciales inválidas o cuenta no disponible.')
     }
-    if (user.status !== UserStatus.ACTIVE) throw new ForbiddenException('La cuenta se encuentra inactiva')
     user.lastLoginAt = new Date()
     await this.users.save(user)
     return { ...(await this.issueTokens(user)), user: this.serializeUser(user) }
@@ -124,7 +129,12 @@ export class AuthService {
   }
 
   private async issueTokens(user: User) {
-    const accessPayload: TokenPayload = { sub: user.id, role: user.role.code, type: 'access' }
+    const accessPayload: TokenPayload = {
+      sub: user.id,
+      role: user.role.code,
+      type: 'access',
+      mustChangePassword: Boolean(user.mustChangePassword),
+    }
     const refreshPayload: TokenPayload = { sub: user.id, role: user.role.code, type: 'refresh', jti: randomUUID() }
     const accessToken = await this.jwt.signAsync(accessPayload, {
       secret: this.accessSecret(), expiresIn: (this.config.get<string>('JWT_ACCESS_EXPIRES_IN') ?? '15m') as JwtSignOptions['expiresIn'],

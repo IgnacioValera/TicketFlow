@@ -89,11 +89,21 @@ apiClient.interceptors.response.use(
       }
     }
 
-    const raw = error.response?.data?.message || error.message || 'No se pudo completar la solicitud.'
-    const message =
-      raw === 'Network Error' || raw === 'Failed to fetch'
+    const payload = error.response?.data
+    const raw = payload?.message || error.message || 'No se pudo completar la solicitud.'
+    const message = Array.isArray(raw)
+      ? raw.join(', ')
+      : raw === 'Network Error' || raw === 'Failed to fetch'
         ? 'No se pudo completar la solicitud.'
         : raw
+    const code = (payload as { code?: string } | undefined)?.code ?? null
+
+    if (code === 'PASSWORD_CHANGE_REQUIRED' && typeof window !== 'undefined') {
+      const path = window.location.pathname
+      if (path !== '/change-password' && !path.endsWith('/change-password')) {
+        window.location.assign('/change-password')
+      }
+    }
 
     return Promise.reject({
       success: false,
@@ -101,6 +111,7 @@ apiClient.interceptors.response.use(
       data: null,
       meta: null,
       status,
+      code,
     })
   },
 )
