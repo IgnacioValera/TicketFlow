@@ -69,7 +69,7 @@ export const SURVEY_STATUS_LABELS: Record<SurveyStatus, string> = {
 
 export const SURVEY_TRIGGER_LABELS: Record<SurveyTrigger, string> = {
   MANUAL: 'Manual',
-  OPPORTUNITY_WON: 'Al ganar oportunidad',
+  OPPORTUNITY_WON: 'Oportunidad ganada',
 }
 
 export const SURVEY_QUESTION_TYPE_LABELS: Record<SurveyQuestionType, string> = {

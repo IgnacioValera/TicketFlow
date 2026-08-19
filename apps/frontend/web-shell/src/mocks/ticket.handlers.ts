@@ -10,6 +10,7 @@ import {
   canRequestDateRange,
   filterTicketsByCreatedRange,
 } from '@/utils/reports'
+import { normalizeTicketForm, validateTicketForm, type TicketFormValues } from '@/utils/ticket-form'
 import type { User } from '@/types/user.types'
 import type {
   Ticket,
@@ -29,6 +30,8 @@ interface TicketStore {
 }
 
 let folioCounter = 20
+
+const INACTIVE_CATEGORY_IDS = new Set(['3'])
 
 const mockCategories = [
   { id: '1', name: 'Hardware' },
@@ -430,17 +433,18 @@ const ticketStores: TicketStore[] = [
     ticket: buildTicket({
       id: 't8',
       folio: 'HD-2026-0008',
-      title: 'Reapertura por falla recurrente',
-      description: 'El incidente se reabrió después de una resolución incompleta.',
-      status: 'IN_PROGRESS',
+      title: 'Ticket cerrado pendiente de encuesta',
+      description: 'Incidente resuelto y cerrado, listo para calificar.',
+      status: 'CLOSED',
       requesterId: '4',
       requesterName: 'Usuario Solicitante',
-      categoryId: '1',
-      priorityId: '4',
+      categoryId: '2',
+      priorityId: '2',
       assigneeId: '2',
       assigneeName: 'Agente Soporte',
-      createdAt: hoursAgo(72),
-      slaDueAt: hoursFromNow(6),
+      createdAt: hoursAgo(30),
+      slaDueAt: hoursAgo(6),
+      closedAt: hoursAgo(2),
     }),
     comments: [],
     attachments: [],
@@ -452,73 +456,16 @@ const ticketStores: TicketStore[] = [
         newStatus: 'OPEN',
         changedBy: '4',
         changedByName: 'Usuario Solicitante',
-        createdAt: hoursAgo(72),
+        createdAt: hoursAgo(30),
       },
       {
         id: 'h17',
         ticketId: 't8',
-        oldStatus: 'OPEN',
-        newStatus: 'ASSIGNED',
-        changedBy: '3',
-        changedByName: 'Supervisor Mesa',
-        createdAt: hoursAgo(70),
-      },
-      {
-        id: 'h18',
-        ticketId: 't8',
-        oldStatus: 'ASSIGNED',
-        newStatus: 'IN_PROGRESS',
-        changedBy: '2',
-        changedByName: 'Agente Soporte',
-        createdAt: hoursAgo(68),
-      },
-      {
-        id: 'h19',
-        ticketId: 't8',
-        oldStatus: 'IN_PROGRESS',
-        newStatus: 'WAITING_USER',
-        changedBy: '2',
-        changedByName: 'Agente Soporte',
-        reason: 'Se solicitó evidencia adicional',
-        createdAt: hoursAgo(60),
-      },
-      {
-        id: 'h20',
-        ticketId: 't8',
-        oldStatus: 'WAITING_USER',
-        newStatus: 'IN_PROGRESS',
-        changedBy: '2',
-        changedByName: 'Agente Soporte',
-        createdAt: hoursAgo(50),
-      },
-      {
-        id: 'h21',
-        ticketId: 't8',
-        oldStatus: 'IN_PROGRESS',
-        newStatus: 'ESCALATED',
-        changedBy: '2',
-        changedByName: 'Agente Soporte',
-        reason: 'Requiere infraestructura',
-        createdAt: hoursAgo(40),
-      },
-      {
-        id: 'h22',
-        ticketId: 't8',
-        oldStatus: 'ESCALATED',
-        newStatus: 'RESOLVED',
-        changedBy: '3',
-        changedByName: 'Supervisor Mesa',
-        createdAt: hoursAgo(20),
-      },
-      {
-        id: 'h23',
-        ticketId: 't8',
         oldStatus: 'RESOLVED',
-        newStatus: 'IN_PROGRESS',
+        newStatus: 'CLOSED',
         changedBy: '4',
         changedByName: 'Usuario Solicitante',
-        reason: 'La falla volvió a presentarse',
-        createdAt: hoursAgo(8),
+        createdAt: hoursAgo(2),
       },
     ],
     survey: null,
@@ -585,7 +532,9 @@ function filterByRole(stores: TicketStore[], user: User): TicketStore[] {
     return stores.filter((s) => s.ticket.requesterId === user.id)
   }
   if (user.role === 'AGENT') {
-    return stores.filter((s) => s.ticket.assigneeId === user.id)
+    return stores.filter(
+      (s) => s.ticket.assigneeId === user.id || s.ticket.requesterId === user.id,
+    )
   }
   return stores
 }
@@ -722,43 +671,62 @@ export function createTicketHandlers(mockUsers: User[]) {
 
     http.post('*/api/v1/tickets', async ({ request }) => {
       const user = findUserFromRequest(request, mockUsers)
-      if (!user)
+      if (!user) {
         return HttpResponse.json(
           { success: false, message: 'No autenticado', data: null, meta: null },
           { status: 401 },
         )
-
-      const body = (await request.json()) as {
-        title: string
-        description: string
-        categoryId: string
-        priorityId: string
-        companyId?: string
       }
-      if (!body.title || !body.description || !body.categoryId || !body.priorityId) {
+
+      if (request.headers.get('X-TicketFlow-Fail-Create') === '1') {
         return HttpResponse.json(
-          { success: false, message: 'Campos obligatorios faltantes', data: null, meta: null },
+          { success: false, message: 'Error simulado al crear el ticket', data: null, meta: null },
+          { status: 500 },
+        )
+      }
+
+      const body = (await request.json()) as TicketFormValues & { companyId?: string; clientId?: string }
+      const normalized = normalizeTicketForm(body)
+      const validationError = validateTicketForm(normalized)
+      if (validationError) {
+        return HttpResponse.json(
+          { success: false, message: validationError, data: null, meta: null },
+          { status: 422 },
+        )
+      }
+      if (INACTIVE_CATEGORY_IDS.has(normalized.categoryId)) {
+        return HttpResponse.json(
+          { success: false, message: 'Categoría no encontrada o inactiva', data: null, meta: null },
+          { status: 422 },
+        )
+      }
+
+      const cat = mockCategories.find((c) => c.id === normalized.categoryId)
+      const pri = mockPriorities.find((p) => p.id === normalized.priorityId)
+      if (!cat || !pri) {
+        return HttpResponse.json(
+          { success: false, message: 'Categoría o prioridad no encontrada o inactiva', data: null, meta: null },
           { status: 422 },
         )
       }
 
       folioCounter += 1
       const id = `t${Date.now()}`
-      const pri = mockPriorities.find((p) => p.id === body.priorityId)!
-      const company = body.companyId ? mockCompanies.find((c) => c.id === body.companyId) : null
+      const companyId = body.clientId ?? body.companyId
+      const company = companyId ? mockCompanies.find((c) => c.id === companyId) : null
       const createdAt = new Date().toISOString()
       const slaDueAt = new Date(Date.now() + pri.resolutionHours * 3600000).toISOString()
 
       const ticket = buildTicket({
         id,
         folio: `HD-2026-${String(folioCounter).padStart(4, '0')}`,
-        title: body.title,
-        description: body.description,
+        title: normalized.title,
+        description: normalized.description,
         status: 'OPEN',
         requesterId: user.id,
         requesterName: user.fullName,
-        categoryId: body.categoryId,
-        priorityId: body.priorityId,
+        categoryId: normalized.categoryId,
+        priorityId: normalized.priorityId,
         companyId: company?.id ?? null,
         companyName: company?.name ?? null,
         createdAt,
@@ -1092,13 +1060,37 @@ export function createTicketHandlers(mockUsers: User[]) {
     }),
 
     http.post('*/api/v1/tickets/:id/survey', async ({ params, request }) => {
-      findUserFromRequest(request, mockUsers)
+      const user = findUserFromRequest(request, mockUsers)
       const store = ticketStores.find((s) => s.ticket.id === params.id)
       if (!store)
         return HttpResponse.json(
           { success: false, message: 'No encontrado', data: null, meta: null },
           { status: 404 },
         )
+      if (!user?.permissions.includes('SURVEY_RESPOND')) {
+        return HttpResponse.json(
+          { success: false, message: 'No tienes permiso para responder la encuesta', data: null, meta: null },
+          { status: 403 },
+        )
+      }
+      if (store.ticket.requesterId !== user.id) {
+        return HttpResponse.json(
+          { success: false, message: 'Sólo el solicitante puede responder la encuesta', data: null, meta: null },
+          { status: 403 },
+        )
+      }
+      if (store.ticket.status !== 'CLOSED') {
+        return HttpResponse.json(
+          { success: false, message: 'La encuesta está disponible cuando el ticket está cerrado', data: null, meta: null },
+          { status: 422 },
+        )
+      }
+      if (store.survey) {
+        return HttpResponse.json(
+          { success: false, message: 'La encuesta ya fue respondida', data: null, meta: null },
+          { status: 409 },
+        )
+      }
       const body = (await request.json()) as { rating: number; comment?: string }
       const survey: TicketSurvey = {
         id: `s-${Date.now()}`,
