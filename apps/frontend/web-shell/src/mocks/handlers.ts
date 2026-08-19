@@ -879,6 +879,12 @@ export const handlers = [
         { status: 422 },
       )
     }
+    if (mockSlaPolicies.some((policy) => policy.priorityId === priority.id)) {
+      return HttpResponse.json(
+        { success: false, message: 'Ya existe una política SLA para esa prioridad', data: null, meta: null },
+        { status: 409 },
+      )
+    }
 
     const newPolicy: SlaPolicy = {
       id: String(mockSlaPolicies.length + 1),
@@ -915,6 +921,12 @@ export const handlers = [
     }
 
     const priority = mockPriorities.find((item) => item.id === body.priorityId)
+    if (priority && mockSlaPolicies.some((policy) => policy.priorityId === priority.id && policy.id !== params.id)) {
+      return HttpResponse.json(
+        { success: false, message: 'Ya existe una política SLA para esa prioridad', data: null, meta: null },
+        { status: 409 },
+      )
+    }
 
     const updatedPolicy: SlaPolicy = {
       ...mockSlaPolicies[index],
