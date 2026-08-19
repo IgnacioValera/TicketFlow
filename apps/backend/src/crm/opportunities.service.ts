@@ -1,7 +1,7 @@
-import { ConflictException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common'
+import { ConflictException, Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Brackets, Repository } from 'typeorm'
+import { Brackets, EntityManager, Repository } from 'typeorm'
 import { pagination, parsePagination } from '../common/api'
 import { toCsv } from '../common/csv'
 import {
@@ -17,12 +17,27 @@ import {
 import { applyClientScope } from './access'
 import { ClientsService } from './clients.service'
 import { ContactsService } from './contacts.service'
-import { ChangeStageDto, CreateOpportunityDto, OpportunitiesQueryDto, UpdateOpportunityDto } from './dto'
+import { isUniqueViolation } from './db-errors'
+import { ChangeStageDto, CreateOpportunityDto, CreateSurveyInvitationDto, OpportunitiesQueryDto, UpdateOpportunityDto } from './dto'
 import { assertStageChange, isTerminalStage, probabilityForStage, stagesForStatus } from './opportunity-rules'
+import {
+  ACTIVE_INVITATION_EXISTS,
+  buildPublicSurveyUrl,
+  canRegenerateInvitation,
+  invitationCardStatus,
+  isAutomaticSurveyTrigger,
+  REGENERATE_CONFIRMATION_REQUIRED,
+  RESPONDED_INVITATION,
+  serializeInvitationCard,
+  shouldInviteOnWon,
+  WON_WITHOUT_ACTIVE_SURVEY,
+} from './survey-invitation'
 import { createSurveyToken, invitationExpiry } from './survey-token'
 
 @Injectable()
 export class OpportunitiesService {
+  private readonly logger = new Logger(OpportunitiesService.name)
+
   constructor(
     @InjectRepository(CrmOpportunity) private readonly opportunities: Repository<CrmOpportunity>,
     @InjectRepository(CrmOpportunityStageHistory) private readonly history: Repository<CrmOpportunityStageHistory>,
@@ -99,34 +114,97 @@ export class OpportunitiesService {
     return this.serialize(await this.find(id))
   }
 
-  async changeStage(id: string, dto: ChangeStageDto, user: User) {
+  async getById(id: string, user: User) {
     const opportunity = await this.find(id)
     await this.clients.getAccessible(opportunity.client.id, user)
-    assertStageChange(opportunity.stage, dto.stage, { lostReason: dto.lostReason, reopen: dto.reopen, reopenReason: dto.reopenReason })
-    const old = opportunity.stage
-    opportunity.stage = dto.stage
-    opportunity.probability = probabilityForStage(dto.stage)
-    opportunity.lostReason = dto.stage === OpportunityStage.LOST ? dto.lostReason!.trim() : dto.stage === OpportunityStage.WON ? null : opportunity.lostReason
-    await this.opportunities.save(opportunity)
-    await this.history.save(this.history.create({
-      opportunity, changedBy: user, oldStage: old, newStage: dto.stage,
-      reason: dto.reopen ? dto.reopenReason!.trim() : dto.lostReason?.trim() ?? null,
-    }))
-    const invitations = dto.stage === OpportunityStage.WON ? await this.inviteOnWon(opportunity) : []
-    return { ...this.serialize(await this.find(id)), invitations }
+    return this.serializeWithSurvey(opportunity)
+  }
+
+  async changeStage(id: string, dto: ChangeStageDto, user: User) {
+    return this.opportunities.manager.transaction(async (manager) => {
+      const opportunity = await this.lockOpportunity(manager, id)
+      await this.clients.getAccessible(opportunity.client.id, user)
+      assertStageChange(opportunity.stage, dto.stage, {
+        lostReason: dto.lostReason,
+        reopen: dto.reopen,
+        reopenReason: dto.reopenReason,
+      })
+      const old = opportunity.stage
+      opportunity.stage = dto.stage
+      opportunity.probability = probabilityForStage(dto.stage)
+      opportunity.lostReason =
+        dto.stage === OpportunityStage.LOST
+          ? dto.lostReason!.trim()
+          : dto.stage === OpportunityStage.WON
+            ? null
+            : opportunity.lostReason
+      await manager.save(opportunity)
+      await manager.save(
+        manager.create(CrmOpportunityStageHistory, {
+          opportunity,
+          changedBy: this.actorRef(user),
+          oldStage: old,
+          newStage: dto.stage,
+          reason: dto.reopen ? dto.reopenReason!.trim() : dto.lostReason?.trim() ?? null,
+        }),
+      )
+      const surveyInvitation = shouldInviteOnWon(old, dto.stage)
+        ? await this.inviteOnWon(manager, opportunity, user)
+        : null
+      const fresh = await manager.findOneOrFail(CrmOpportunity, {
+        where: { id },
+        relations: { client: true, contact: true, owner: true },
+      })
+      return { ...this.serialize(fresh), surveyInvitation }
+    })
+  }
+
+  async createSurveyInvitation(opportunityId: string, dto: CreateSurveyInvitationDto, user: User) {
+    return this.opportunities.manager.transaction(async (manager) => {
+      const opportunity = await this.lockOpportunity(manager, opportunityId)
+      await this.clients.getAccessible(opportunity.client.id, user)
+      const survey = await this.resolveSurveyForInvitation(manager, opportunity, dto.surveyId)
+      const existing = await this.lockInvitation(manager, opportunity.id, survey.id)
+      if (existing?.usedAt) throw new ConflictException(RESPONDED_INVITATION)
+      const status = invitationCardStatus({
+        hasPublishedAutomaticSurvey: true,
+        invitation: existing,
+      })
+      if (existing && status === 'PENDING') throw new ConflictException(ACTIVE_INVITATION_EXISTS)
+      if (existing && canRegenerateInvitation(status) && !dto.confirmRegenerate) {
+        throw new ConflictException(REGENERATE_CONFIRMATION_REQUIRED)
+      }
+      const token = createSurveyToken()
+      const invitation = existing ?? manager.create(CrmSurveyInvitation, { survey, opportunity })
+      invitation.survey = survey
+      invitation.opportunity = opportunity
+      invitation.contact = opportunity.contact ?? null
+      invitation.client = opportunity.client
+      invitation.createdBy = this.actorRef(user)
+      invitation.trigger = survey.trigger
+      invitation.tokenHash = token.hash
+      invitation.expiresAt = invitationExpiry()
+      invitation.usedAt = null
+      invitation.revokedAt = null
+      try {
+        await manager.save(invitation)
+      } catch (error) {
+        if (!isUniqueViolation(error)) throw error
+        throw new ConflictException(ACTIVE_INVITATION_EXISTS)
+      }
+      this.logger.log(`Usuario ${user.id} generó una invitación de encuesta para la oportunidad ${opportunity.id}`)
+      return {
+        created: true,
+        surveyId: survey.id,
+        surveyTitle: survey.title,
+        responseUrl: this.publicUrl(token.raw),
+        expiresAt: this.iso(invitation.expiresAt),
+      }
+    })
   }
 
   async copyInvitationLink(opportunityId: string, surveyId: string, user: User) {
-    const opportunity = await this.find(opportunityId)
-    await this.clients.getAccessible(opportunity.client.id, user)
-    const invitation = await this.invitations.findOne({ where: { opportunity: { id: opportunityId }, survey: { id: surveyId } }, relations: { survey: true } })
-    if (!invitation) throw new NotFoundException('No hay invitación para esa encuesta')
-    if (invitation.usedAt) throw new ConflictException('La encuesta ya fue respondida')
-    const token = createSurveyToken()
-    invitation.tokenHash = token.hash
-    invitation.expiresAt = invitationExpiry()
-    await this.invitations.save(invitation)
-    return { surveyId: invitation.survey.id, surveyTitle: invitation.survey.title, url: this.publicUrl(token.raw), token: token.raw }
+    return this.createSurveyInvitation(opportunityId, { surveyId, confirmRegenerate: false }, user)
   }
 
   async exportCsv(query: OpportunitiesQueryDto, user: User) {
@@ -147,25 +225,174 @@ export class OpportunitiesService {
     }
   }
 
-  private async inviteOnWon(opportunity: CrmOpportunity) {
-    const surveys = await this.surveys.find({ where: { status: SurveyStatus.PUBLISHED, trigger: SurveyTrigger.OPPORTUNITY_WON } })
-    const created: Array<{ surveyId: string; surveyTitle: string; url: string; token: string }> = []
-    for (const survey of surveys) {
-      const exists = await this.invitations.findOne({ where: { opportunity: { id: opportunity.id }, survey: { id: survey.id } } })
-      if (exists) continue
-      const token = createSurveyToken()
-      await this.invitations.save(this.invitations.create({
-        survey, opportunity, contact: opportunity.contact, client: opportunity.client,
-        tokenHash: token.hash, expiresAt: invitationExpiry(), usedAt: null,
-      }))
-      created.push({ surveyId: survey.id, surveyTitle: survey.title, url: this.publicUrl(token.raw), token: token.raw })
+  async serializeWithSurvey(item: CrmOpportunity) {
+    const published = await this.surveys.findOne({
+      where: { status: SurveyStatus.PUBLISHED, trigger: SurveyTrigger.OPPORTUNITY_WON },
+    })
+    const preferred = published
+      ? await this.invitations.findOne({
+          where: { opportunity: { id: item.id }, survey: { id: published.id } },
+          relations: { survey: true },
+        })
+      : await this.invitations.findOne({
+          where: { opportunity: { id: item.id } },
+          relations: { survey: true },
+          order: { createdAt: 'DESC' },
+        })
+    const status = invitationCardStatus({
+      hasPublishedAutomaticSurvey: Boolean(published),
+      invitation: preferred,
+    })
+    const card = serializeInvitationCard(
+      status,
+      preferred
+        ? {
+            surveyId: preferred.survey.id,
+            surveyTitle: preferred.survey.title,
+            trigger: preferred.trigger,
+            createdAt: preferred.createdAt,
+            expiresAt: preferred.expiresAt,
+            usedAt: preferred.usedAt,
+          }
+        : null,
+    )
+    return {
+      ...this.serialize(item),
+      surveyInvitation: {
+        ...card,
+        surveyId: preferred?.survey.id ?? published?.id ?? null,
+        surveyTitle: preferred?.survey.title ?? published?.title ?? null,
+        trigger: preferred?.trigger ?? published?.trigger ?? null,
+      },
     }
-    return created
+  }
+
+  private async inviteOnWon(manager: EntityManager, opportunity: CrmOpportunity, user: User) {
+    const survey = await manager.findOne(CrmSurvey, {
+      where: { status: SurveyStatus.PUBLISHED, trigger: SurveyTrigger.OPPORTUNITY_WON },
+    })
+    if (!survey) {
+      return { created: false as const, message: WON_WITHOUT_ACTIVE_SURVEY }
+    }
+    const existing = await this.lockInvitation(manager, opportunity.id, survey.id)
+    if (existing) {
+      return {
+        created: false as const,
+        surveyId: survey.id,
+        surveyTitle: survey.title,
+        message: existing.usedAt ? RESPONDED_INVITATION : ACTIVE_INVITATION_EXISTS,
+      }
+    }
+    const token = createSurveyToken()
+    const frontend = this.config.get<string>('FRONTEND_URL')?.trim()
+    if (!frontend) {
+      this.logger.error('FRONTEND_URL no está configurada; la oportunidad se marcó como ganada sin enlace de encuesta')
+      return {
+        created: false as const,
+        surveyId: survey.id,
+        surveyTitle: survey.title,
+        message: 'La oportunidad se marcó como ganada. Configura FRONTEND_URL para generar el enlace de encuesta.',
+      }
+    }
+    try {
+      const invitation = await manager.save(
+        manager.create(CrmSurveyInvitation, {
+          survey,
+          opportunity,
+          contact: opportunity.contact ?? null,
+          client: opportunity.client,
+          createdBy: this.actorRef(user),
+          trigger: survey.trigger,
+          tokenHash: token.hash,
+          expiresAt: invitationExpiry(),
+          usedAt: null,
+          revokedAt: null,
+        }),
+      )
+      this.logger.log(`Usuario ${user.id} generó una invitación de encuesta para la oportunidad ${opportunity.id}`)
+      return {
+        created: true as const,
+        surveyId: survey.id,
+        surveyTitle: survey.title,
+        responseUrl: buildPublicSurveyUrl(frontend, token.raw),
+        expiresAt: this.iso(invitation.expiresAt),
+      }
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        return {
+          created: false as const,
+          surveyId: survey.id,
+          surveyTitle: survey.title,
+          message: ACTIVE_INVITATION_EXISTS,
+        }
+      }
+      this.logger.error(
+        `No se pudo generar la invitación automática para la oportunidad ${opportunity.id}`,
+        error instanceof Error ? error.stack : undefined,
+      )
+      throw error
+    }
+  }
+
+  private async lockOpportunity(manager: EntityManager, id: string) {
+    const locked = await manager
+      .createQueryBuilder(CrmOpportunity, 'opportunity')
+      .setLock('pessimistic_write')
+      .where('opportunity.id = :id', { id })
+      .getOne()
+    if (!locked) throw new NotFoundException('Oportunidad no encontrada')
+    const opportunity = await manager.findOne(CrmOpportunity, {
+      where: { id },
+      relations: { client: true, contact: true, owner: true },
+    })
+    if (!opportunity) throw new NotFoundException('Oportunidad no encontrada')
+    return opportunity
+  }
+
+  private async lockInvitation(manager: EntityManager, opportunityId: string, surveyId: string) {
+    return manager
+      .createQueryBuilder(CrmSurveyInvitation, 'invitation')
+      .setLock('pessimistic_write')
+      .where('invitation.opportunity_id = :opportunityId', { opportunityId })
+      .andWhere('invitation.survey_id = :surveyId', { surveyId })
+      .getOne()
+  }
+
+  private actorRef(user: User): User {
+    return { id: user.id } as User
+  }
+
+  private iso(value: Date | string) {
+    return new Date(value).toISOString()
+  }
+
+  private async resolveSurveyForInvitation(manager: EntityManager, opportunity: CrmOpportunity, surveyId?: string) {
+    if (surveyId) {
+      const survey = await manager.findOne(CrmSurvey, { where: { id: surveyId } })
+      if (!survey) throw new NotFoundException('Encuesta no encontrada')
+      if (survey.status !== SurveyStatus.PUBLISHED) {
+        throw new UnprocessableEntityException('La encuesta no está activa')
+      }
+      if (survey.trigger === SurveyTrigger.OPPORTUNITY_WON && opportunity.stage !== OpportunityStage.WON) {
+        throw new UnprocessableEntityException('La encuesta de oportunidad ganada sólo se genera cuando la oportunidad está ganada')
+      }
+      if (survey.trigger === SurveyTrigger.MANUAL || isAutomaticSurveyTrigger(survey.trigger)) return survey
+      throw new UnprocessableEntityException('El disparador de la encuesta no admite invitaciones')
+    }
+    if (opportunity.stage !== OpportunityStage.WON) {
+      throw new UnprocessableEntityException('Selecciona una encuesta manual activa')
+    }
+    const survey = await manager.findOne(CrmSurvey, {
+      where: { status: SurveyStatus.PUBLISHED, trigger: SurveyTrigger.OPPORTUNITY_WON },
+    })
+    if (!survey) throw new UnprocessableEntityException(WON_WITHOUT_ACTIVE_SURVEY)
+    return survey
   }
 
   private publicUrl(raw: string) {
-    const frontend = this.config.get('FRONTEND_URL', 'http://localhost:5173')
-    return `${frontend.replace(/\/$/, '')}/public/surveys/${raw}`
+    const frontend = this.config.get<string>('FRONTEND_URL')
+    if (!frontend) throw new UnprocessableEntityException('FRONTEND_URL no está configurada')
+    return buildPublicSurveyUrl(frontend, raw)
   }
 
   private async find(id: string) {

@@ -6,6 +6,7 @@ import { SlaResolutionGteResponse1761000000000 } from './migrations/176100000000
 import { CrmSchema1762000000000 } from './migrations/1762000000000-CrmSchema'
 import { MustChangePasswordAndKnowledge1763000000000 } from './migrations/1763000000000-MustChangePasswordAndKnowledge'
 import { RepairMojibakeTexts1764000000000 } from './migrations/1764000000000-RepairMojibakeTexts'
+import { CrmSurveyInvitationAutomation1765000000000 } from './migrations/1765000000000-CrmSurveyInvitationAutomation'
 
 const AppDataSource = new DataSource({
   type: 'postgres',
@@ -22,6 +23,7 @@ const AppDataSource = new DataSource({
     CrmSchema1762000000000,
     MustChangePasswordAndKnowledge1763000000000,
     RepairMojibakeTexts1764000000000,
+    CrmSurveyInvitationAutomation1765000000000,
   ],
   migrationsTransactionMode: 'each',
   synchronize: false,

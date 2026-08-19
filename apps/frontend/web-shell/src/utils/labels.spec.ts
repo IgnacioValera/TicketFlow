@@ -7,6 +7,7 @@ import {
   getOpportunityStageLabel,
   getSurveyQuestionTypeLabel,
   getSurveyStatusLabel,
+  getSurveyTriggerLabel,
 } from '@/utils/labels'
 
 describe('Etiquetas CRM', () => {
@@ -29,5 +30,7 @@ describe('Etiquetas CRM', () => {
     expect(getSurveyStatusLabel('DRAFT')).toBe('Borrador')
     expect(getActivityStatusLabel('PENDING')).toBe('Pendiente')
     expect(getSurveyQuestionTypeLabel('RATING')).toBe('Escala')
+    expect(getSurveyTriggerLabel('OPPORTUNITY_WON')).toBe('Oportunidad ganada')
+    expect(getSurveyTriggerLabel('MANUAL')).toBe('Manual')
   })
 })
