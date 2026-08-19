@@ -1,6 +1,7 @@
 import { BadRequestException, UnprocessableEntityException } from '@nestjs/common'
 import { RoleCode } from '../database/entities'
 import { clientAccessMode, canAccessClient } from './access'
+import { isValidClientPhone, normalizeClientPhone } from './client-rules'
 import { calculateNps, classifyNps } from './nps'
 import { assertStageChange, probabilityForStage } from './opportunity-rules'
 import { OpportunityStage } from '../database/entities'
@@ -76,5 +77,14 @@ describe('Alcance de cartera', () => {
   it('niega 403 lógico a un agente sin tickets del cliente', () => {
     expect(canAccessClient({ role: { code: RoleCode.AGENT } } as never, { id: 'c1', owner: null }, [])).toBe(false)
     expect(canAccessClient({ role: { code: RoleCode.SALES } } as never, { id: 'c1', owner: { id: 'other' } }, [])).toBe(false)
+  })
+})
+
+describe('Teléfono de cliente', () => {
+  it('normaliza espacios y valida dígitos', () => {
+    expect(normalizeClientPhone('777 111 2233')).toBe('7771112233')
+    expect(isValidClientPhone('777 111 2233')).toBe(true)
+    expect(isValidClientPhone('abc')).toBe(false)
+    expect(isValidClientPhone('123')).toBe(false)
   })
 })
