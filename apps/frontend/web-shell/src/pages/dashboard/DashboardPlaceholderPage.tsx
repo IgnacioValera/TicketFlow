@@ -7,11 +7,17 @@ import { useAuth } from '@/hooks/useAuth'
 import * as dashboardService from '@/services/dashboard.service'
 import type { DashboardSummary, KpiMetric } from '@/types/dashboard.types'
 
-const KPI_TONE: Record<KpiMetric['key'], 'accent' | 'danger' | 'success' | 'neutral'> = {
+const KPI_TONE: Record<Exclude<KpiMetric['key'], 'sla'>, 'accent' | 'danger' | 'success' | 'neutral'> = {
   open: 'accent',
   overdue: 'danger',
   resolved: 'success',
   inProgress: 'neutral',
+}
+
+function slaTone(value: number): 'success' | 'warning' | 'danger' {
+  if (value >= 80) return 'success'
+  if (value >= 60) return 'warning'
+  return 'danger'
 }
 
 export function DashboardPlaceholderPage() {
@@ -66,9 +72,15 @@ export function DashboardPlaceholderPage() {
         <CardSkeleton />
       ) : (
         <>
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             {(summary?.kpis ?? []).map((kpi) => (
-              <KpiCard key={kpi.key} title={kpi.label} value={kpi.value} tone={KPI_TONE[kpi.key]} />
+              <KpiCard
+                key={kpi.key}
+                title={kpi.label}
+                value={kpi.value}
+                suffix={kpi.key === 'sla' ? '%' : undefined}
+                tone={kpi.key === 'sla' ? slaTone(kpi.value) : KPI_TONE[kpi.key]}
+              />
             ))}
           </section>
 

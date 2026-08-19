@@ -36,6 +36,7 @@ export class AnalyticsService {
       .groupBy('DATE(ticket.created_at)')
       .orderBy('DATE(ticket.created_at)', 'ASC')
       .getRawMany<{ period: string; open: string; inProgress: string; resolved: string }>()
+    const sla = await this.slaCompliance(user)
     const kpis = [
       { key: 'open', label: 'Abiertos', value: count([TicketStatus.OPEN, TicketStatus.ASSIGNED]) },
       { key: 'overdue', label: 'Vencidos', value: overdue },
@@ -45,6 +46,7 @@ export class AnalyticsService {
         label: 'En proceso',
         value: count([TicketStatus.IN_PROGRESS, TicketStatus.WAITING_USER, TicketStatus.ESCALATED]),
       },
+      { key: 'sla', label: 'SLA a tiempo', value: sla.withinPercentage },
     ]
     return {
       scope: own ? 'OWN' : 'GLOBAL',
@@ -55,7 +57,9 @@ export class AnalyticsService {
         inProgress: Number(row.inProgress),
         resolved: Number(row.resolved),
       })),
-      distribution: kpis.map((kpi) => ({ name: kpi.label, value: kpi.value })),
+      distribution: kpis
+        .filter((kpi) => kpi.key !== 'sla')
+        .map((kpi) => ({ name: kpi.label, value: kpi.value })),
     }
   }
 

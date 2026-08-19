@@ -25,6 +25,7 @@ export function TicketsListPage() {
   const { tickets, loading, error, loadTickets } = useTickets()
 
   const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(10)
   const [meta, setMeta] = useState({ page: 1, perPage: 10, total: 0, totalPages: 1 })
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<TicketStatus | ''>('')
@@ -59,7 +60,7 @@ export function TicketsListPage() {
     try {
       const response = await loadTickets({
         page: viewMode === 'kanban' ? 1 : page,
-        perPage: viewMode === 'kanban' ? 100 : 10,
+        perPage: viewMode === 'kanban' ? 100 : perPage,
         search: search || undefined,
         status: viewMode === 'kanban' ? undefined : statusFilter || undefined,
         priorityId: priorityFilter || undefined,
@@ -75,6 +76,7 @@ export function TicketsListPage() {
   }, [
     loadTickets,
     page,
+    perPage,
     search,
     statusFilter,
     priorityFilter,
@@ -342,8 +344,12 @@ export function TicketsListPage() {
           columns={columns}
           data={tickets}
           loading={loading && tickets.length === 0}
-          pagination={meta}
+          pagination={{ ...meta, page, perPage }}
           onPageChange={setPage}
+          onPerPageChange={(value) => {
+            setPerPage(value)
+            setPage(1)
+          }}
           rowKey={(row) => row.id}
           emptyMessage={
             search || statusFilter || priorityFilter || categoryFilter || slaFilter

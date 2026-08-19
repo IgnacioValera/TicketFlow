@@ -1,5 +1,5 @@
 export interface KpiMetric {
-  key: 'open' | 'overdue' | 'resolved' | 'inProgress'
+  key: 'open' | 'overdue' | 'resolved' | 'inProgress' | 'sla'
   label: string
   value: number
 }
