@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { ErrorState } from '@/components/common/ErrorState'
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
 import { StatusBadge } from '@/components/common/StatusBadge'
@@ -21,6 +21,8 @@ import type { TicketStatus } from '@/types/ticket.types'
 
 export function TicketDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const location = useLocation()
+  const createdState = location.state as { created?: boolean; folio?: string } | null
   const { user } = useAuth()
   const { hasPermission } = usePermissions()
   const {
@@ -209,6 +211,16 @@ export function TicketDetailPage() {
           Ver flujo visual
         </Link>
       </div>
+
+      {createdState?.created && (
+        <div
+          className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+          role="status"
+        >
+          Ticket creado correctamente. Folio asignado:{' '}
+          <span className="font-mono font-semibold">{createdState.folio ?? ticket.folio}</span>
+        </div>
+      )}
 
       {actionError && (
         <div className="rounded-lg border border-brand-scarlet/30 bg-red-50 px-3 py-2 text-sm text-brand-scarlet">

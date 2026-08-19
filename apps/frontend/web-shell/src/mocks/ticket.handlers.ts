@@ -10,6 +10,7 @@ import {
   canRequestDateRange,
   filterTicketsByCreatedRange,
 } from '@/utils/reports'
+import { normalizeTicketForm, validateTicketForm, type TicketFormValues } from '@/utils/ticket-form'
 import type { User } from '@/types/user.types'
 import type {
   Ticket,
@@ -29,6 +30,8 @@ interface TicketStore {
 }
 
 let folioCounter = 20
+
+const INACTIVE_CATEGORY_IDS = new Set(['3'])
 
 const mockCategories = [
   { id: '1', name: 'Hardware' },
@@ -722,43 +725,55 @@ export function createTicketHandlers(mockUsers: User[]) {
 
     http.post('*/api/v1/tickets', async ({ request }) => {
       const user = findUserFromRequest(request, mockUsers)
-      if (!user)
+      if (!user) {
         return HttpResponse.json(
           { success: false, message: 'No autenticado', data: null, meta: null },
           { status: 401 },
         )
-
-      const body = (await request.json()) as {
-        title: string
-        description: string
-        categoryId: string
-        priorityId: string
-        companyId?: string
       }
-      if (!body.title || !body.description || !body.categoryId || !body.priorityId) {
+
+      const body = (await request.json()) as TicketFormValues & { companyId?: string; clientId?: string }
+      const normalized = normalizeTicketForm(body)
+      const validationError = validateTicketForm(normalized)
+      if (validationError) {
         return HttpResponse.json(
-          { success: false, message: 'Campos obligatorios faltantes', data: null, meta: null },
+          { success: false, message: validationError, data: null, meta: null },
+          { status: 422 },
+        )
+      }
+      if (INACTIVE_CATEGORY_IDS.has(normalized.categoryId)) {
+        return HttpResponse.json(
+          { success: false, message: 'Categoría no encontrada o inactiva', data: null, meta: null },
+          { status: 422 },
+        )
+      }
+
+      const cat = mockCategories.find((c) => c.id === normalized.categoryId)
+      const pri = mockPriorities.find((p) => p.id === normalized.priorityId)
+      if (!cat || !pri) {
+        return HttpResponse.json(
+          { success: false, message: 'Categoría o prioridad no encontrada o inactiva', data: null, meta: null },
           { status: 422 },
         )
       }
 
       folioCounter += 1
       const id = `t${Date.now()}`
-      const pri = mockPriorities.find((p) => p.id === body.priorityId)!
-      const company = body.companyId ? mockCompanies.find((c) => c.id === body.companyId) : null
+      const companyId = body.clientId ?? body.companyId
+      const company = companyId ? mockCompanies.find((c) => c.id === companyId) : null
       const createdAt = new Date().toISOString()
       const slaDueAt = new Date(Date.now() + pri.resolutionHours * 3600000).toISOString()
 
       const ticket = buildTicket({
         id,
         folio: `HD-2026-${String(folioCounter).padStart(4, '0')}`,
-        title: body.title,
-        description: body.description,
+        title: normalized.title,
+        description: normalized.description,
         status: 'OPEN',
         requesterId: user.id,
         requesterName: user.fullName,
-        categoryId: body.categoryId,
-        priorityId: body.priorityId,
+        categoryId: normalized.categoryId,
+        priorityId: normalized.priorityId,
         companyId: company?.id ?? null,
         companyName: company?.name ?? null,
         createdAt,
