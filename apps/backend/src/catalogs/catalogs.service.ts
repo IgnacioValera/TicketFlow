@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { Brackets, Not, Repository } from 'typeorm'
 import { pagination, parsePagination } from '../common/api'
 import { assertSlaHours } from '../common/validation'
-import { CatalogStatus, Category, Priority, SlaPolicy } from '../database/entities'
+import { CatalogStatus, Category, Priority, PriorityLevel, SlaPolicy } from '../database/entities'
 import { CatalogQueryDto, CreateCategoryDto, CreatePriorityDto, CreateSlaPolicyDto, UpdateCategoryDto, UpdatePriorityDto, UpdateSlaPolicyDto } from './dto'
 
 @Injectable()
@@ -21,8 +21,8 @@ export class CatalogsService {
   async setCategoryStatus(id: string, status: CatalogStatus) { const item = await this.find(this.categories, id, 'Categoría'); item.status = status; return this.categories.save(item) }
 
   async listPriorities(query: CatalogQueryDto) { return this.listCatalog(this.priorities, query, 'priority') }
-  async createPriority(dto: CreatePriorityDto) { await this.ensureUnique(this.priorities, dto.name); if (await this.priorities.exists({ where: { level: dto.level } })) throw new ConflictException('Ya existe una prioridad con ese nivel'); return this.priorities.save(this.priorities.create({ ...dto, name: dto.name.trim(), color: dto.color ?? '#247b7b', description: dto.description?.trim() ?? '' })) }
-  async updatePriority(id: string, dto: UpdatePriorityDto) { const item = await this.find(this.priorities, id, 'Prioridad'); if (dto.name) { await this.ensureUnique(this.priorities, dto.name, id); item.name = dto.name.trim() }; if (dto.level && dto.level !== item.level) { if (await this.priorities.exists({ where: { level: dto.level } })) throw new ConflictException('Ya existe una prioridad con ese nivel'); item.level = dto.level }; if (dto.color) item.color = dto.color; if (dto.description !== undefined) item.description = dto.description.trim(); return this.priorities.save(item) }
+  async createPriority(dto: CreatePriorityDto) { await this.ensureUnique(this.priorities, dto.name); await this.ensureUniqueActiveLevel(dto.level); return this.priorities.save(this.priorities.create({ ...dto, name: dto.name.trim(), color: dto.color ?? '#247b7b', description: dto.description?.trim() ?? '' })) }
+  async updatePriority(id: string, dto: UpdatePriorityDto) { const item = await this.find(this.priorities, id, 'Prioridad'); if (dto.name) { await this.ensureUnique(this.priorities, dto.name, id); item.name = dto.name.trim() }; if (dto.level && dto.level !== item.level) { await this.ensureUniqueActiveLevel(dto.level, id); item.level = dto.level }; if (dto.color) item.color = dto.color; if (dto.description !== undefined) item.description = dto.description.trim(); return this.priorities.save(item) }
   async deactivatePriority(id: string) { return this.setPriorityStatus(id, CatalogStatus.INACTIVE) }
   async setPriorityStatus(id: string, status: CatalogStatus) { const item = await this.find(this.priorities, id, 'Prioridad'); item.status = status; return this.priorities.save(item) }
 
@@ -73,6 +73,13 @@ export class CatalogsService {
     const item = await this.policies.findOne({ where: { id }, relations: { priority: true } })
     if (!item) throw new NotFoundException('Política SLA no encontrada')
     return item
+  }
+  private async ensureUniqueActiveLevel(level: PriorityLevel, excludeId?: string) {
+    const qb = this.priorities.createQueryBuilder('priority')
+      .where('priority.level = :level', { level })
+      .andWhere('priority.status = :status', { status: CatalogStatus.ACTIVE })
+    if (excludeId) qb.andWhere('priority.id <> :excludeId', { excludeId })
+    if (await qb.getExists()) throw new ConflictException('Ya existe una prioridad con ese nivel')
   }
   private async ensureUnique<T extends { id: string; name: string }>(repository: Repository<T>, name: string, excludeId?: string) { const qb = repository.createQueryBuilder('item').where('LOWER(item.name) = LOWER(:name)', { name: name.trim() }); if (excludeId) qb.andWhere('item.id <> :excludeId', { excludeId }); if (await qb.getExists()) throw new ConflictException('Ya existe un registro con ese nombre') }
   private async find<T extends { id: string }>(repository: Repository<T>, id: string, label: string): Promise<T> { const item = await repository.findOne({ where: { id } as never }); if (!item) throw new NotFoundException(`${label} no encontrada`); return item }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildPriorityPayload, validatePriorityForm } from '@/utils/priority-form'
+import { availablePriorityLevels, buildPriorityPayload, validatePriorityForm } from '@/utils/priority-form'
 
 describe('validatePriorityForm', () => {
   const valid = {
@@ -25,6 +25,14 @@ describe('validatePriorityForm', () => {
 
   it('permite descripción vacía', () => {
     expect(validatePriorityForm({ ...valid, description: '' })).toBeNull()
+  })
+})
+
+describe('availablePriorityLevels', () => {
+  it('excluye niveles activos excepto el que se edita', () => {
+    expect(availablePriorityLevels(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'])).toEqual([])
+    expect(availablePriorityLevels(['LOW', 'MEDIUM'], 'LOW')).toEqual(['LOW', 'HIGH', 'CRITICAL'])
+    expect(availablePriorityLevels(['CRITICAL'])).toEqual(['LOW', 'MEDIUM', 'HIGH'])
   })
 })
 

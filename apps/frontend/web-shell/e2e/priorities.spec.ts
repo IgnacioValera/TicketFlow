@@ -23,6 +23,8 @@ test.describe('Prioridades', () => {
     await openPriorities(page)
     await expect(page.getByText('#94A3B8')).toBeVisible()
 
+    await page.getByRole('button', { name: 'Desactivar prioridad Media' }).click()
+    await confirmStatusChange(page, 'Desactivar')
     await page.getByRole('button', { name: 'Nueva prioridad' }).click()
     await page.locator('#color').fill('#FF5500')
     await expect(page.locator('#color')).toHaveValue('#FF5500')
@@ -33,6 +35,8 @@ test.describe('Prioridades', () => {
   test('bloquea color inválido antes de enviar', async ({ page }) => {
     await login(page)
     await openPriorities(page)
+    await page.getByRole('button', { name: 'Desactivar prioridad Baja' }).click()
+    await confirmStatusChange(page, 'Desactivar')
     await page.getByRole('button', { name: 'Nueva prioridad' }).click()
     await page.locator('#priority-name').fill('Prioridad inválida')
     await page.locator('#color').fill('rojo')

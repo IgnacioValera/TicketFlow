@@ -83,7 +83,7 @@ export class Category {
 export class Priority {
   @PrimaryGeneratedColumn('uuid') id: string
   @Index({ unique: true }) @Column({ length: 80 }) name: string
-  @Index({ unique: true }) @Column({ type: 'enum', enum: PriorityLevel }) level: PriorityLevel
+  @Column({ type: 'enum', enum: PriorityLevel }) level: PriorityLevel
   @Column({ length: 20, default: '#247b7b' }) color: string
   @Column({ type: 'text', default: '' }) description: string
   @Column({ type: 'enum', enum: CatalogStatus, default: CatalogStatus.ACTIVE }) status: CatalogStatus

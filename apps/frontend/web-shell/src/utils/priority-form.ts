@@ -3,6 +3,16 @@ import type { CreatePriorityPayload, PriorityLevel } from '@/types/catalog.types
 import { isHexColor, normalizeHexColor } from '@/utils/color'
 import { maxLengthAfterTrim, minLengthAfterTrim, requiredTrimmed } from '@/utils/validation'
 
+const PRIORITY_LEVELS: PriorityLevel[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
+
+export function availablePriorityLevels(
+  usedActiveLevels: Iterable<PriorityLevel>,
+  editingLevel?: PriorityLevel,
+) {
+  const used = new Set(usedActiveLevels)
+  return PRIORITY_LEVELS.filter((level) => !used.has(level) || editingLevel === level)
+}
+
 export interface PriorityFormValues {
   name: string
   level: PriorityLevel

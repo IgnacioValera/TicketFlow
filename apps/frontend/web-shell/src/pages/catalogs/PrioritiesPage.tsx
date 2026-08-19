@@ -15,6 +15,7 @@ import type { CatalogStatus, Priority, PriorityLevel } from '@/types/catalog.typ
 import { PRIORITY_DEFAULT_COLORS, isHexColor, normalizeHexColor } from '@/utils/color'
 import { getErrorMessages, isValidationError } from '@/utils/errors'
 import {
+  availablePriorityLevels,
   buildPriorityPayload,
   validatePriorityForm,
   type PriorityFormValues,
@@ -67,6 +68,17 @@ export function PrioritiesPage() {
     status: CatalogStatus
   } | null>(null)
   const [statusSaving, setStatusSaving] = useState(false)
+  const [activeLevels, setActiveLevels] = useState<PriorityLevel[]>([])
+
+  const refreshActiveLevels = useCallback(async () => {
+    const response = await prioritiesService.getPriorities({ status: 'ACTIVE', perPage: 100 })
+    setActiveLevels(response.data.map((priority) => priority.level))
+  }, [])
+
+  const availableLevels = useMemo(
+    () => availablePriorityLevels(activeLevels, editingPriority?.level),
+    [activeLevels, editingPriority?.level],
+  )
 
   const resetForm = () => {
     setFormState(INITIAL_FORM)
@@ -98,9 +110,34 @@ export function PrioritiesPage() {
     void loadPriorities()
   }, [loadPriorities])
 
+  const showFormError = (title: string, messages: string[], fieldId?: string) => {
+    setFormAlertTitle(title)
+    setFormMessages(messages)
+    if (fieldId) focusField(fieldId)
+  }
+
   const openCreateModal = () => {
     resetForm()
-    setFormOpen(true)
+    void (async () => {
+      const response = await prioritiesService.getPriorities({ status: 'ACTIVE', perPage: 100 })
+      const levels = response.data.map((priority) => priority.level)
+      setActiveLevels(levels)
+      const available = availablePriorityLevels(levels)
+      const defaultLevel = available[0] ?? INITIAL_FORM.level
+      setFormState({
+        ...INITIAL_FORM,
+        level: defaultLevel,
+        color: PRIORITY_DEFAULT_COLORS[defaultLevel],
+      })
+      if (available.length === 0) {
+        showFormError(
+          'No hay niveles disponibles',
+          ['Desactiva una prioridad existente para reutilizar su nivel.'],
+          'priority-level',
+        )
+      }
+      setFormOpen(true)
+    })()
   }
 
   const openEditModal = (priority: Priority) => {
@@ -115,18 +152,28 @@ export function PrioritiesPage() {
     })
     setFormAlertTitle('')
     setFormMessages([])
+    void refreshActiveLevels()
     setFormOpen(true)
   }
+
+  useEffect(() => {
+    if (!formOpen || editingPriority) return
+    const nextLevel = availableLevels[0]
+    if (!nextLevel) return
+    setFormState((prev) =>
+      availableLevels.includes(prev.level)
+        ? prev
+        : {
+            ...prev,
+            level: nextLevel,
+            color: PRIORITY_DEFAULT_COLORS[nextLevel],
+          },
+    )
+  }, [availableLevels, editingPriority, formOpen])
 
   const closeFormModal = () => {
     setFormOpen(false)
     resetForm()
-  }
-
-  const showFormError = (title: string, messages: string[], fieldId?: string) => {
-    setFormAlertTitle(title)
-    setFormMessages(messages)
-    if (fieldId) focusField(fieldId)
   }
 
   const handleLevelChange = (level: PriorityLevel) => {
@@ -152,8 +199,28 @@ export function PrioritiesPage() {
           ? 'color'
           : validationError.includes('descripción')
             ? 'priority-description'
-            : 'priority-name'
+            : validationError.includes('nivel')
+              ? 'priority-level'
+              : 'priority-name'
       showFormError(validationTitle, [validationError], fieldId)
+      return
+    }
+
+    if (!editingPriority && !availableLevels.includes(formState.level)) {
+      showFormError(
+        validationTitle,
+        ['Ya existe una prioridad activa con ese nivel. Desactiva la actual o elige otro nivel.'],
+        'priority-level',
+      )
+      return
+    }
+
+    if (!editingPriority && availableLevels.length === 0) {
+      showFormError(
+        'No hay niveles disponibles',
+        ['Desactiva una prioridad existente para reutilizar su nivel.'],
+        'priority-level',
+      )
       return
     }
 
@@ -180,7 +247,11 @@ export function PrioritiesPage() {
       showFormError(
         isValidationError(err) ? validationTitle : fallback,
         getErrorMessages(err, fallback),
-        isHexColor(color) ? 'priority-name' : 'color',
+        getErrorMessages(err, fallback).some((message) => /nivel/i.test(message))
+          ? 'priority-level'
+          : isHexColor(color)
+            ? 'priority-name'
+            : 'color',
       )
     } finally {
       setSaving(false)
@@ -341,7 +412,7 @@ export function PrioritiesPage() {
             <SecondaryButton onClick={closeFormModal} disabled={saving}>
               Cancelar
             </SecondaryButton>
-            <PrimaryButton type="submit" form="priority-form" disabled={saving}>
+            <PrimaryButton type="submit" form="priority-form" disabled={saving || (!editingPriority && availableLevels.length === 0)}>
               {saving ? 'Guardando...' : 'Guardar'}
             </PrimaryButton>
           </>
@@ -378,11 +449,22 @@ export function PrioritiesPage() {
               className="w-full rounded border border-border px-3 py-2 text-sm"
             >
               {(Object.keys(LEVEL_LABELS) as PriorityLevel[]).map((level) => (
-                <option key={level} value={level}>
+                <option key={level} value={level} disabled={!availableLevels.includes(level)}>
                   {LEVEL_LABELS[level]}
+                  {!availableLevels.includes(level) ? ' (ocupado)' : ''}
                 </option>
               ))}
             </select>
+            {!editingPriority && availableLevels.length === 0 && (
+              <p className="mt-1 text-xs text-muted">
+                Todos los niveles están en uso. Desactiva una prioridad existente para crear otra.
+              </p>
+            )}
+            {!editingPriority && availableLevels.length > 0 && availableLevels.length < 4 && (
+              <p className="mt-1 text-xs text-muted">
+                Solo puedes usar niveles sin una prioridad activa.
+              </p>
+            )}
           </div>
 
           <ColorField
