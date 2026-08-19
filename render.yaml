@@ -9,8 +9,7 @@ services:
     dockerfilePath: ./apps/backend/Dockerfile
     dockerContext: ./apps/backend
     healthCheckPath: /api/v1/health
-    preDeployCommand: npm run migration:run:prod
-    initialDeployHook: npm run db:seed:prod
+    # Free tier does not support preDeployCommand; migrate+seed run in the container CMD.
     buildFilter:
       paths:
         - apps/backend/**

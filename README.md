@@ -83,7 +83,7 @@ El archivo [`render.yaml`](render.yaml) define:
 
 Tras el primer deploy exitoso:
 
-- La API corre migraciones (`preDeployCommand`) y el seed idempotente (`initialDeployHook`).
+- La API aplica migraciones y el seed idempotente al arrancar el contenedor (el plan free no admite `preDeployCommand`).
 - El frontend construye `VITE_API_BASE_URL` a partir de `API_ORIGIN` (URL pública de la API).
 - Usa los mismos [usuarios de demostración](#usuarios-de-demostración) (`password`).
 
@@ -91,6 +91,7 @@ Tras el primer deploy exitoso:
 
 - Postgres free: 1 GB y caduca a los 30 días (luego 14 días de gracia para actualizar).
 - Los web services free se duermen tras ~15 minutos de inactividad.
+- Sin `preDeployCommand` (migraciones en el `CMD` del contenedor).
 - Sin disco persistente: los archivos en `uploads/` se pierden al redeploy/reinicio.
 
 Si el frontend quedó apuntando a una API vacía en el primer build, dispara un **Manual Deploy** de `ticketflow-web` para regenerar el bundle con `API_ORIGIN` ya resuelto.
