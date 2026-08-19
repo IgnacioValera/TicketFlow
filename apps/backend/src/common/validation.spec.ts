@@ -4,7 +4,7 @@ import { LoginDto } from '../auth/dto'
 import { CreateSlaPolicyDto, CreateCategoryDto } from '../catalogs/dto'
 import { CreateTicketDto, ChangeStatusDto, CreateCommentDto } from '../tickets/dto'
 import { CreateUserDto } from '../users/dto'
-import { CreateClientDto } from '../crm/dto'
+import { CreateClientDto, CreateOpportunityDto, CreateSurveyDto } from '../crm/dto'
 import { CreateArticleDto } from '../knowledge/knowledge.module'
 import { DateRangeQuery } from '../analytics/analytics.controller'
 import { RoleCode, TicketStatus, CompanyTier, ClientSegment } from '../database/entities'
@@ -217,6 +217,19 @@ describe('Validación de DTOs', () => {
     })
     const messages = dtoErrors(await validate(dto))
     expect(messages.some((message) => message.toLowerCase().includes('uuid'))).toBe(true)
+  })
+
+  it('rechaza oportunidad sin título ni cliente', async () => {
+    const dto = createDto(CreateOpportunityDto, { title: '   ', amount: -10, clientId: 'no-uuid' })
+    const messages = dtoErrors(await validate(dto))
+    expect(messages.some((message) => message.toLowerCase().includes('título'))).toBe(true)
+    expect(messages.some((message) => message.toLowerCase().includes('uuid'))).toBe(true)
+  })
+
+  it('rechaza encuesta con título vacío', async () => {
+    const dto = createDto(CreateSurveyDto, { title: '   ' })
+    const messages = dtoErrors(await validate(dto))
+    expect(messages.some((message) => message.toLowerCase().includes('título'))).toBe(true)
   })
 })
 

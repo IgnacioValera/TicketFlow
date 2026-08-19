@@ -1,13 +1,21 @@
 import { BadRequestException, UnprocessableEntityException } from '@nestjs/common'
-import { RoleCode } from '../database/entities'
+import { OpportunityStage, RoleCode, SurveyQuestionType, SurveyStatus } from '../database/entities'
 import { clientAccessMode, canAccessClient } from './access'
 import { isValidClientPhone, normalizeClientPhone } from './client-rules'
 import { calculateNps, classifyNps } from './nps'
-import { assertStageChange, probabilityForStage } from './opportunity-rules'
-import { OpportunityStage } from '../database/entities'
+import { assertStageChange, probabilityForStage, stagesForStatus, summarizeOpportunities } from './opportunity-rules'
 import { conversionRate, mapPipeline } from './dashboard-metrics'
 import { calculateClientScore } from './score'
 import { createSurveyToken, hashSurveyToken } from './survey-token'
+import { isUniqueViolation } from './db-errors'
+import {
+  assertAnswer,
+  assertCanClose,
+  assertCanPublish,
+  assertQuestion,
+  defaultQuestionOptions,
+  optionBreakdown,
+} from './survey-rules'
 
 describe('Score CRM', () => {
   it('usa 50 en dimensiones sin datos', () => {
@@ -74,10 +82,34 @@ describe('Etapas de oportunidad', () => {
     expect(() => assertStageChange(OpportunityStage.LOST, OpportunityStage.NEW, { reopen: true, reopenReason: 'El cliente regresó' })).not.toThrow()
   })
 
+  it('no reabre de una etapa terminal a otra terminal', () => {
+    expect(() => assertStageChange(OpportunityStage.LOST, OpportunityStage.WON, { reopen: true, reopenReason: 'Cambio de criterio' })).toThrow(UnprocessableEntityException)
+  })
+
   it('asigna probabilidad por etapa', () => {
     expect(probabilityForStage(OpportunityStage.WON, 10)).toBe(100)
     expect(probabilityForStage(OpportunityStage.LOST)).toBe(0)
     expect(probabilityForStage(OpportunityStage.PROPOSAL)).toBe(50)
+  })
+
+  it('filtra etapas abiertas, ganadas y perdidas', () => {
+    expect(stagesForStatus('OPEN')).toEqual([
+      OpportunityStage.NEW,
+      OpportunityStage.QUALIFICATION,
+      OpportunityStage.PROPOSAL,
+      OpportunityStage.NEGOTIATION,
+    ])
+    expect(stagesForStatus('WON')).toEqual([OpportunityStage.WON])
+    expect(stagesForStatus('LOST')).toEqual([OpportunityStage.LOST])
+  })
+
+  it('calcula totales sólo con los registros recibidos', () => {
+    expect(
+      summarizeOpportunities([
+        { amount: 100, stage: OpportunityStage.PROPOSAL, probability: 50 },
+        { amount: 40, stage: OpportunityStage.LOST, probability: 0 },
+      ]),
+    ).toEqual({ count: 2, amount: 140, weighted: 50 })
   })
 })
 
@@ -87,6 +119,62 @@ describe('Tokens de encuesta', () => {
     expect(token.raw).toHaveLength(64)
     expect(token.hash).toBe(hashSurveyToken(token.raw))
     expect(token.hash).not.toBe(token.raw)
+  })
+
+  it('detecta violaciones de unicidad de PostgreSQL', () => {
+    expect(isUniqueViolation(new Error('duplicate'))).toBe(false)
+    expect(isUniqueViolation({ driverError: { code: '23505' } })).toBe(true)
+    expect(isUniqueViolation({ code: '23503' })).toBe(false)
+  })
+})
+
+describe('Reglas de encuestas CRM', () => {
+  it('exige al menos dos opciones en preguntas de opción', () => {
+    expect(() => assertQuestion({ type: SurveyQuestionType.SINGLE_CHOICE, options: [{ label: 'Sólo una' }] })).toThrow(BadRequestException)
+    expect(() => assertQuestion({
+      type: SurveyQuestionType.MULTIPLE_CHOICE,
+      options: [{ label: 'A' }, { label: 'B' }],
+    })).not.toThrow()
+  })
+
+  it('completa Sí y No cuando no se envían opciones', () => {
+    expect(defaultQuestionOptions(SurveyQuestionType.YES_NO, [])).toEqual([
+      { label: 'Sí', value: 'yes' },
+      { label: 'No', value: 'no' },
+    ])
+  })
+
+  it('bloquea publicar sin preguntas y desactivar si no está activa', () => {
+    expect(() => assertCanPublish(SurveyStatus.DRAFT, 0)).toThrow(UnprocessableEntityException)
+    expect(() => assertCanPublish(SurveyStatus.PUBLISHED, 2)).toThrow(UnprocessableEntityException)
+    expect(() => assertCanClose(SurveyStatus.DRAFT)).toThrow(UnprocessableEntityException)
+    expect(() => assertCanPublish(SurveyStatus.CLOSED, 1)).not.toThrow()
+    expect(() => assertCanClose(SurveyStatus.PUBLISHED)).not.toThrow()
+  })
+
+  it('calcula porcentajes a partir de las respuestas almacenadas', () => {
+    const breakdown = optionBreakdown(
+      [
+        { id: 'yes', label: 'Sí', value: 'yes' },
+        { id: 'no', label: 'No', value: 'no' },
+      ],
+      [{ optionIds: ['yes'] }, { optionIds: ['yes'] }, { optionIds: ['no'] }],
+    )
+    expect(breakdown[0]).toMatchObject({ count: 2, percentage: 67 })
+    expect(breakdown[1]).toMatchObject({ count: 1, percentage: 33 })
+  })
+
+  it('rechaza una opción que no pertenece a la pregunta', () => {
+    expect(() => assertAnswer(
+      {
+        id: 'q1',
+        prompt: '¿Volverías a contratar?',
+        type: SurveyQuestionType.YES_NO,
+        required: true,
+        options: [{ id: 'yes', label: 'Sí', value: 'yes' }, { id: 'no', label: 'No', value: 'no' }],
+      },
+      { questionId: 'q1', optionIds: ['otro'] },
+    )).toThrow(BadRequestException)
   })
 })
 

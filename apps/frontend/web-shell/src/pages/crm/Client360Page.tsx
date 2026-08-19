@@ -80,7 +80,7 @@ export function Client360Page() {
               </SecondaryButton>
             )}
             {hasPermission(PERMISSIONS.CRM_OPPORTUNITY_CREATE) && (
-              <SecondaryButton onClick={() => navigate('/crm/opportunities?nuevo=1')}>
+              <SecondaryButton onClick={() => navigate(`/crm/opportunities?nuevo=1&cliente=${client.id}`)}>
                 Nueva oportunidad
               </SecondaryButton>
             )}
@@ -178,13 +178,19 @@ export function Client360Page() {
       {tab === 'Oportunidades' && (
         <ul className="divide-y divide-slate-100 rounded border border-slate-200 bg-white">
           {data.opportunities.length === 0 && (
-            <li className="p-4 text-sm text-slate-500">No hay oportunidades que coincidan con los filtros.</li>
+            <li className="p-4 text-sm text-slate-500">Aún no hay oportunidades registradas.</li>
           )}
           {data.opportunities.map((item) => (
             <li key={item.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
-              <span>
-                {item.title} · {formatMoney(item.amount)}
-              </span>
+              <button
+                type="button"
+                className="text-left"
+                onClick={() => navigate(`/crm/opportunities?editar=${item.id}`)}
+              >
+                <span className="font-medium text-brand-teal hover:underline">{item.title}</span>
+                {' · '}
+                {formatMoney(item.amount)}
+              </button>
               <OpportunityStageBadge stage={item.stage} />
             </li>
           ))}
