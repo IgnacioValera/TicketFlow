@@ -53,6 +53,7 @@ export function getSharedPriorityMeta(id: string) {
   const priority = getStore().find((item) => item.id === id)
   if (!priority) return null
   return {
+    id: priority.id,
     name: priority.name,
     color: priority.color,
     resolutionHours:
