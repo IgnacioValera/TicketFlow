@@ -52,7 +52,7 @@ test.describe('Encuestas CRM y ticket cerrado', () => {
     await expect(page.getByRole('heading', { name: 'Encuesta sin respuestas' })).toBeVisible()
     await page.getByLabel('Calificación de 0 a 10').fill('9')
     await page.getByText('Sí', { exact: true }).click()
-    await page.getByRole('button', { name: 'Enviar' }).click()
+    await page.getByRole('button', { name: 'Enviar respuestas' }).click()
     await expect(page.getByText('Gracias por tu respuesta')).toBeVisible()
 
     await page.goto('/public/surveys/demo-used-token', { waitUntil: 'domcontentloaded' })

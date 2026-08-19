@@ -151,10 +151,13 @@ export function SurveyBuilderPage() {
     if (!survey) return
     try {
       await crm.publishSurvey(survey.id)
+      setError('')
       setToast({ title: 'Encuesta activada', message: 'Ya puede responderse desde el flujo correcto.' })
       await load()
     } catch (err: unknown) {
-      setError(getErrorMessages(err, 'No se pudo activar la encuesta.')[0])
+      const message = getErrorMessages(err, 'No se pudo activar la encuesta.')[0]
+      setError(message)
+      setToast({ title: 'No se pudo activar', message })
     }
   }
 
@@ -162,10 +165,13 @@ export function SurveyBuilderPage() {
     if (!survey) return
     try {
       await crm.closeSurvey(survey.id)
+      setError('')
       setToast({ title: 'Encuesta desactivada', message: 'Ya no acepta respuestas nuevas.' })
       await load()
     } catch (err: unknown) {
-      setError(getErrorMessages(err, 'No se pudo desactivar la encuesta.')[0])
+      const message = getErrorMessages(err, 'No se pudo desactivar la encuesta.')[0]
+      setError(message)
+      setToast({ title: 'No se pudo desactivar', message })
     }
   }
 

@@ -6,6 +6,7 @@ import { assertStageChange, probabilityForStage, stagesForStatus, summarizeOppor
 import { conversionRate, mapPipeline } from './dashboard-metrics'
 import { calculateClientScore } from './score'
 import { createSurveyToken, hashSurveyToken } from './survey-token'
+import { isUniqueViolation } from './db-errors'
 import {
   assertAnswer,
   assertCanClose,
@@ -117,6 +118,12 @@ describe('Tokens de encuesta', () => {
     expect(token.raw).toHaveLength(64)
     expect(token.hash).toBe(hashSurveyToken(token.raw))
     expect(token.hash).not.toBe(token.raw)
+  })
+
+  it('detecta violaciones de unicidad de PostgreSQL', () => {
+    expect(isUniqueViolation(new Error('duplicate'))).toBe(false)
+    expect(isUniqueViolation({ driverError: { code: '23505' } })).toBe(true)
+    expect(isUniqueViolation({ code: '23503' })).toBe(false)
   })
 })
 

@@ -112,6 +112,11 @@ export class ChangeStageDto {
   @ApiPropertyOptional() @ValidateIf((o: ChangeStageDto) => Boolean(o.reopen) || o.reopenReason != null) @Trim() @IsString() @MinLength(1, { message: requiredMessage('El motivo de reapertura') }) @MaxLength(LIMITS.LOST_REASON) reopenReason?: string
 }
 
+export class CreateSurveyInvitationDto {
+  @ApiPropertyOptional() @IsOptional() @IsUUID('4') surveyId?: string
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() confirmRegenerate?: boolean
+}
+
 export class ActivitiesQueryDto extends CrmPaginationDto {
   @ApiPropertyOptional() @IsOptional() @IsUUID('4') clientId?: string
   @ApiPropertyOptional() @IsOptional() @IsUUID('4') opportunityId?: string

@@ -14,8 +14,15 @@ import {
   SurveyTrigger,
   User,
 } from '../database/entities'
+import { applyClientScope } from './access'
+import { isUniqueViolation } from './db-errors'
 import { CreateQuestionDto, CreateSurveyDto, ReorderQuestionsDto, RespondSurveyDto, SurveysQueryDto, UpdateSurveyDto } from './dto'
 import { calculateNps } from './nps'
+import {
+  hasPublishedTriggerConflict,
+  isAutomaticSurveyTrigger,
+  PUBLISHED_TRIGGER_CONFLICT,
+} from './survey-invitation'
 import {
   assertAnswer,
   assertCanClose,
@@ -76,8 +83,21 @@ export class SurveysService {
   async publish(id: string) {
     const survey = await this.find(id, true)
     assertCanPublish(survey.status, survey.questions?.length ?? 0)
+    if (isAutomaticSurveyTrigger(survey.trigger)) {
+      const existing = await this.surveys.findOne({
+        where: { status: SurveyStatus.PUBLISHED, trigger: survey.trigger },
+      })
+      if (hasPublishedTriggerConflict(existing?.id, survey.id)) {
+        throw new ConflictException(PUBLISHED_TRIGGER_CONFLICT)
+      }
+    }
     survey.status = SurveyStatus.PUBLISHED
-    await this.surveys.save(survey)
+    try {
+      await this.surveys.save(survey)
+    } catch (error) {
+      if (isUniqueViolation(error)) throw new ConflictException(PUBLISHED_TRIGGER_CONFLICT)
+      throw error
+    }
     return this.serialize(await this.find(id, true))
   }
 
@@ -183,15 +203,36 @@ export class SurveysService {
     return { submitted: true }
   }
 
-  async results(id: string) {
+  async results(id: string, user: User) {
     const survey = await this.find(id, true)
-    const responses = await this.responses.find({ where: { survey: { id } }, relations: { answers: { question: true } } })
+    const qb = this.responses
+      .createQueryBuilder('response')
+      .innerJoinAndSelect('response.invitation', 'invitation')
+      .leftJoinAndSelect('invitation.opportunity', 'opportunity')
+      .leftJoinAndSelect('invitation.client', 'client')
+      .leftJoinAndSelect('client.owner', 'clientOwner')
+      .leftJoinAndSelect('response.answers', 'answers')
+      .leftJoinAndSelect('answers.question', 'answerQuestion')
+      .where('response.survey_id = :id', { id })
+    applyClientScope(qb, user)
+    const responses = await qb.getMany()
     const npsScores = responses.map((item) => item.npsScore).filter((score): score is number => score !== null)
     const hasNpsQuestion = (survey.questions ?? []).some((question) => question.type === SurveyQuestionType.NPS)
     return {
       survey: this.serialize(survey),
       totalResponses: responses.length,
       nps: hasNpsQuestion ? calculateNps(npsScores) : null,
+      responses: responses.map((item) => ({
+        id: item.id,
+        opportunityId: item.invitation.opportunity?.id ?? null,
+        opportunityTitle: item.invitation.opportunity?.title ?? null,
+        clientId: item.invitation.client?.id ?? null,
+        clientName: item.invitation.client?.name ?? null,
+        trigger: item.invitation.trigger,
+        invitedAt: item.invitation.createdAt.toISOString(),
+        submittedAt: item.submittedAt.toISOString(),
+        npsScore: item.npsScore,
+      })),
       questions: (survey.questions ?? []).sort((a, b) => a.position - b.position).map((question) => {
         const answers = responses.flatMap((response) => response.answers ?? []).filter((answer) => answer.question.id === question.id)
         const mapped = answers.map((answer) => ({ textValue: answer.textValue, numberValue: answer.numberValue, optionIds: answer.optionIds }))
@@ -237,9 +278,13 @@ export class SurveysService {
   }
 
   private async findInvitation(token: string) {
-    const invitation = await this.invitations.findOne({ where: { tokenHash: hashSurveyToken(token) }, relations: { survey: true } })
+    const invitation = await this.invitations.findOne({
+      where: { tokenHash: hashSurveyToken(token) },
+      relations: { survey: true },
+    })
     if (!invitation) throw new NotFoundException('Enlace de encuesta inválido')
     if (invitation.usedAt) throw new ConflictException('La encuesta ya fue respondida')
+    if (invitation.revokedAt) throw new GoneException('El enlace de encuesta ya no está disponible')
     if (invitation.expiresAt.getTime() < Date.now()) throw new GoneException('El enlace de encuesta expiró')
     if (invitation.survey.status !== SurveyStatus.PUBLISHED) throw new GoneException('La encuesta ya no está disponible')
     return invitation

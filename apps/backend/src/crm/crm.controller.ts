@@ -19,6 +19,7 @@ import {
   CreateOpportunityDto,
   CreateQuestionDto,
   CreateSurveyDto,
+  CreateSurveyInvitationDto,
   OpportunitiesQueryDto,
   ReorderQuestionsDto,
   RespondSurveyDto,
@@ -64,9 +65,11 @@ export class OpportunitiesController {
   constructor(private readonly service: OpportunitiesService) {}
   @RequirePermissions('CRM_OPPORTUNITY_VIEW') @Get() async list(@Query() query: OpportunitiesQueryDto, @CurrentUser() user: User) { const r = await this.service.list(query, user); return result(r.items, 'OK', r.meta) }
   @RequirePermissions('CRM_EXPORT') @Get('export') @Header('Content-Type', 'text/csv; charset=utf-8') async export(@Query() query: OpportunitiesQueryDto, @CurrentUser() user: User) { return csvFile(await this.service.exportCsv(query, user), 'oportunidades.csv') }
+  @RequirePermissions('CRM_OPPORTUNITY_VIEW') @Get(':id') async find(@Param('id', ParseUuidPipe) id: string, @CurrentUser() user: User) { return result(await this.service.getById(id, user)) }
   @RequirePermissions('CRM_OPPORTUNITY_CREATE') @Post() async create(@Body() dto: CreateOpportunityDto, @CurrentUser() user: User) { return result(await this.service.create(dto, user), 'Oportunidad creada') }
   @RequirePermissions('CRM_OPPORTUNITY_MOVE') @Patch(':id/stage') async stage(@Param('id', ParseUuidPipe) id: string, @Body() dto: ChangeStageDto, @CurrentUser() user: User) { return result(await this.service.changeStage(id, dto, user), 'Etapa actualizada') }
-  @RequirePermissions('CRM_OPPORTUNITY_VIEW') @Post(':id/survey-links/:surveyId') async copyLink(@Param('id', ParseUuidPipe) id: string, @Param('surveyId', ParseUuidPipe) surveyId: string, @CurrentUser() user: User) { return result(await this.service.copyInvitationLink(id, surveyId, user), 'Enlace generado') }
+  @RequirePermissions('CRM_OPPORTUNITY_MOVE') @Post(':id/survey-invitation') async createInvitation(@Param('id', ParseUuidPipe) id: string, @Body() dto: CreateSurveyInvitationDto, @CurrentUser() user: User) { return result(await this.service.createSurveyInvitation(id, dto, user), 'Enlace generado') }
+  @RequirePermissions('CRM_OPPORTUNITY_MOVE') @Post(':id/survey-links/:surveyId') async copyLink(@Param('id', ParseUuidPipe) id: string, @Param('surveyId', ParseUuidPipe) surveyId: string, @CurrentUser() user: User) { return result(await this.service.copyInvitationLink(id, surveyId, user), 'Enlace generado') }
   @RequirePermissions('CRM_OPPORTUNITY_EDIT') @Put(':id') async update(@Param('id', ParseUuidPipe) id: string, @Body() dto: UpdateOpportunityDto, @CurrentUser() user: User) { return result(await this.service.update(id, dto, user), 'Oportunidad actualizada') }
 }
 
@@ -84,7 +87,7 @@ export class SurveysController {
   constructor(private readonly service: SurveysService) {}
   @RequirePermissions('CRM_SURVEY_VIEW') @Get() async list(@Query() query: SurveysQueryDto) { const r = await this.service.list(query); return result(r.items, 'OK', r.meta) }
   @RequirePermissions('CRM_SURVEY_MANAGE') @Post() async create(@Body() dto: CreateSurveyDto, @CurrentUser() user: User) { return result(await this.service.create(dto, user), 'Encuesta creada') }
-  @RequirePermissions('CRM_SURVEY_RESULTS') @Get(':id/results') async results(@Param('id', ParseUuidPipe) id: string) { return result(await this.service.results(id)) }
+  @RequirePermissions('CRM_SURVEY_RESULTS') @Get(':id/results') async results(@Param('id', ParseUuidPipe) id: string, @CurrentUser() user: User) { return result(await this.service.results(id, user)) }
   @RequirePermissions('CRM_SURVEY_VIEW') @Get(':id') async find(@Param('id', ParseUuidPipe) id: string) { return result(await this.service.getById(id)) }
   @RequirePermissions('CRM_SURVEY_MANAGE') @Post(':id/publish') async publish(@Param('id', ParseUuidPipe) id: string) { return result(await this.service.publish(id), 'Encuesta activada') }
   @RequirePermissions('CRM_SURVEY_MANAGE') @Post(':id/close') async close(@Param('id', ParseUuidPipe) id: string) { return result(await this.service.close(id), 'Encuesta desactivada') }

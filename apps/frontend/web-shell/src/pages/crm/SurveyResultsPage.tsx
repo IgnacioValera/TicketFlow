@@ -75,6 +75,25 @@ export function SurveyResultsPage() {
               </ResponsiveContainer>
             </div>
           )}
+          {data.responses && data.responses.length > 0 ? (
+            <section className="rounded border border-slate-200 bg-white p-4">
+              <h2 className="mb-3 text-sm font-semibold text-brand-navy">Respuestas vinculadas</h2>
+              <ul className="space-y-2 text-sm">
+                {data.responses.map((item) => (
+                  <li key={item.id} className="rounded bg-slate-50 px-3 py-2">
+                    <p>
+                      {item.opportunityTitle ? `Oportunidad: ${item.opportunityTitle}` : 'Sin oportunidad'}
+                      {item.clientName ? ` · Cliente: ${item.clientName}` : ''}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Disparador: {item.trigger === 'OPPORTUNITY_WON' ? 'Oportunidad ganada' : 'Manual'}
+                      {item.npsScore != null ? ` · NPS ${item.npsScore}` : ''}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
           <section className="space-y-3">
             {data.questions.map((question) => (
               <article key={question.id} className="rounded border border-slate-200 bg-white p-4">

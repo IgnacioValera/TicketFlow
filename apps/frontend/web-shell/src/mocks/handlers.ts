@@ -1036,7 +1036,7 @@ export const handlers = [
     })
   }),
 
-  ...createCrmHandlers(),
+  ...createCrmHandlers(mockUsers),
   ...createTicketHandlers(mockUsers),
 
   http.get('*/knowledge-articles', async ({ request }) => {

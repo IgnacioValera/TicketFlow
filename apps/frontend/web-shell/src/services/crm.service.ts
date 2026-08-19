@@ -12,6 +12,7 @@ import type {
   OpportunityStage,
   SurveyResults,
 } from '@/types/crm.types'
+import type { CreatedSurveyInvitation } from '@/utils/opportunity-survey'
 import { downloadBlob } from '@/utils/csv'
 
 export async function getClients(params: Record<string, unknown> = {}) {
@@ -57,6 +58,10 @@ export async function updateContact(id: string, payload: Record<string, unknown>
 export async function getOpportunities(params: Record<string, unknown> = {}) {
   return apiGet<CrmOpportunity[]>('/crm/opportunities', params) as Promise<ApiResponse<CrmOpportunity[]>>
 }
+export async function getOpportunity(id: string) {
+  const response = await apiGet<CrmOpportunity>(`/crm/opportunities/${id}`)
+  return response.data
+}
 export async function createOpportunity(payload: Record<string, unknown>) {
   const response = await apiPost<CrmOpportunity>('/crm/opportunities', payload)
   return response.data
@@ -66,11 +71,24 @@ export async function updateOpportunity(id: string, payload: Record<string, unkn
   return response.data
 }
 export async function changeStage(id: string, payload: { stage: OpportunityStage; lostReason?: string; reopen?: boolean; reopenReason?: string }) {
-  const response = await apiPatch<CrmOpportunity>(`/crm/opportunities/${id}/stage`, payload)
+  const response = await apiPatch<CrmOpportunity & { surveyInvitation?: CreatedSurveyInvitation | null }>(
+    `/crm/opportunities/${id}/stage`,
+    payload,
+  )
+  return response.data
+}
+export async function createSurveyInvitation(
+  opportunityId: string,
+  payload: { surveyId?: string; confirmRegenerate?: boolean } = {},
+) {
+  const response = await apiPost<CreatedSurveyInvitation>(
+    `/crm/opportunities/${opportunityId}/survey-invitation`,
+    payload,
+  )
   return response.data
 }
 export async function copySurveyLink(opportunityId: string, surveyId: string) {
-  const response = await apiPost<{ url: string; token: string; surveyTitle: string }>(`/crm/opportunities/${opportunityId}/survey-links/${surveyId}`)
+  const response = await apiPost<CreatedSurveyInvitation>(`/crm/opportunities/${opportunityId}/survey-links/${surveyId}`)
   return response.data
 }
 

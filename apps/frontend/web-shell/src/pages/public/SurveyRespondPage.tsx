@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { FormField } from '@/components/common/FormField'
 import { PrimaryButton, TextArea, TextInput } from '@/components/common/UiControls'
@@ -17,6 +17,7 @@ export function SurveyRespondPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
+  const submittingRef = useRef(false)
 
   useEffect(() => {
     if (!token) return
@@ -34,12 +35,13 @@ export function SurveyRespondPage() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!token || saving) return
+    if (!token || submittingRef.current) return
     const validation = publicAnswersError(questions, answers)
     if (validation) {
       setError(validation)
       return
     }
+    submittingRef.current = true
     setSaving(true)
     setError('')
     try {
@@ -51,6 +53,7 @@ export function SurveyRespondPage() {
       )
       setDone(true)
     } catch (err: unknown) {
+      submittingRef.current = false
       setError(getErrorMessages(err, 'Se produjo un error al guardar.')[0])
     } finally {
       setSaving(false)
@@ -61,7 +64,9 @@ export function SurveyRespondPage() {
     return (
       <div className="mx-auto max-w-xl p-8">
         <h1 className="text-xl font-semibold text-brand-navy">Gracias por tu respuesta</h1>
-        <p className="mt-2 text-sm text-slate-600">Tu encuesta se envió correctamente. Queda registrada una sola vez.</p>
+        <p className="mt-2 text-sm text-slate-600">
+          Tu encuesta se envió correctamente y quedó registrada una sola vez.
+        </p>
       </div>
     )
   }
@@ -161,7 +166,7 @@ export function SurveyRespondPage() {
             )}
           </fieldset>
         ))}
-        <PrimaryButton type="submit" disabled={saving}>{saving ? 'Enviando...' : 'Enviar'}</PrimaryButton>
+        <PrimaryButton type="submit" disabled={saving}>{saving ? 'Enviando...' : 'Enviar respuestas'}</PrimaryButton>
       </form>
     </div>
   )

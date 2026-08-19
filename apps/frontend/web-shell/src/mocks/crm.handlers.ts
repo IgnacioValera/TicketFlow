@@ -1,15 +1,21 @@
 import { http, HttpResponse } from 'msw'
 import type {
   CrmClient,
+  CrmContact,
   CrmDashboard,
+  CrmOpportunity,
   CrmSurvey,
   CrmSurveyQuestion,
+  OpportunityStage,
   SurveyQuestionType,
   SurveyResults,
   SurveyStatus,
   SurveyTrigger,
 } from '@/types/crm.types'
+import { PROBABILITY_BY_STAGE } from '@/types/crm.types'
+import type { User } from '@/types/user.types'
 import { calculateNps } from '@/utils/nps'
+import { invitationCardStatus } from '@/utils/opportunity-survey'
 import { optionBreakdown, ratingBreakdown } from '@/utils/survey-form'
 
 const mockClients: CrmClient[] = [
@@ -60,6 +66,20 @@ const mockClients: CrmClient[] = [
   },
 ]
 
+const mockContacts: CrmContact[] = [
+  {
+    id: 'ct1',
+    clientId: 'c1',
+    clientName: 'Acme Corp',
+    firstName: 'Ana',
+    lastName: 'Pérez',
+    email: 'ana@acme.test',
+    phone: '7771110000',
+    jobTitle: 'Compras',
+    isPrimary: true,
+  },
+]
+
 const mockDashboard: CrmDashboard = {
   pipeline: [
     { stage: 'NEW', count: 1, amount: 10000 },
@@ -98,6 +118,46 @@ function jsonError(message: string, status: number) {
 
 function nowIso() {
   return new Date().toISOString()
+}
+
+function randomToken() {
+  const bytes = new Uint8Array(32)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+function publicSurveyUrl(token: string, request: Request) {
+  const referer = request.headers.get('referer') || request.headers.get('origin')
+  const fromReferer = referer ? new URL(referer).origin : ''
+  const fromLocation = typeof location !== 'undefined' && location.origin ? location.origin : ''
+  const origin = (fromLocation || fromReferer).replace(/\/$/, '')
+  return `${origin}/public/surveys/${token}`
+}
+
+function actor(request: Request, users: User[]) {
+  const header = request.headers.get('Authorization')
+  if (!header?.startsWith('Bearer ')) return undefined
+  const token = header.replace('Bearer ', '')
+  if (token === 'mock-token-refreshed') return users[0]
+  return users.find((user) => user.id === token.replace('mock-token-', ''))
+}
+
+function denyUnless(request: Request, users: User[], permission: string) {
+  const user = actor(request, users)
+  if (!user) return jsonError('No autenticado', 401)
+  if (!user.permissions.includes(permission)) {
+    return jsonError('No tienes permisos para realizar esta acción', 403)
+  }
+  return null
+}
+
+const OPEN_STAGES: OpportunityStage[] = ['NEW', 'QUALIFICATION', 'PROPOSAL', 'NEGOTIATION']
+
+function stagesForStatus(status: string | null) {
+  if (status === 'WON') return ['WON'] as OpportunityStage[]
+  if (status === 'LOST') return ['LOST'] as OpportunityStage[]
+  if (status === 'OPEN') return OPEN_STAGES
+  return null
 }
 
 const npsQuestion: CrmSurveyQuestion = {
@@ -199,19 +259,240 @@ const surveys: CrmSurvey[] = [
   },
 ]
 
-const invitations = [
-  { token: 'demo-active-token', surveyId: 's-empty', usedAt: null as string | null, expiresAt: '2099-01-01T00:00:00.000Z' },
-  { token: 'demo-used-token', surveyId: 's-nps', usedAt: '2026-08-01T00:00:00.000Z', expiresAt: '2099-01-01T00:00:00.000Z' },
-  { token: 'demo-closed-token', surveyId: 's-closed', usedAt: null as string | null, expiresAt: '2099-01-01T00:00:00.000Z' },
+type StoredInvitation = {
+  token: string
+  surveyId: string
+  opportunityId: string | null
+  clientId: string | null
+  usedAt: string | null
+  expiresAt: string
+  revokedAt: string | null
+  createdAt: string
+  trigger: SurveyTrigger
+}
+
+const invitations: StoredInvitation[] = [
+  {
+    token: 'demo-active-token',
+    surveyId: 's-empty',
+    opportunityId: null,
+    clientId: null,
+    usedAt: null,
+    expiresAt: '2099-01-01T00:00:00.000Z',
+    revokedAt: null,
+    createdAt: '2026-08-01T00:00:00.000Z',
+    trigger: 'MANUAL',
+  },
+  {
+    token: 'demo-used-token',
+    surveyId: 's-nps',
+    opportunityId: null,
+    clientId: 'c1',
+    usedAt: '2026-08-01T00:00:00.000Z',
+    revokedAt: null,
+    createdAt: '2026-07-20T00:00:00.000Z',
+    expiresAt: '2099-01-01T00:00:00.000Z',
+    trigger: 'MANUAL',
+  },
+  {
+    token: 'demo-closed-token',
+    surveyId: 's-closed',
+    opportunityId: null,
+    clientId: null,
+    usedAt: null,
+    expiresAt: '2099-01-01T00:00:00.000Z',
+    revokedAt: null,
+    createdAt: '2026-08-01T00:00:00.000Z',
+    trigger: 'OPPORTUNITY_WON',
+  },
+  {
+    token: 'demo-expired-token',
+    surveyId: 's-empty',
+    opportunityId: null,
+    clientId: null,
+    usedAt: null,
+    expiresAt: '2020-01-01T00:00:00.000Z',
+    revokedAt: null,
+    createdAt: '2019-12-01T00:00:00.000Z',
+    trigger: 'MANUAL',
+  },
+  {
+    token: 'demo-expired-opp-token',
+    surveyId: 's-nps',
+    opportunityId: 'o-soporte',
+    clientId: 'c3',
+    usedAt: null,
+    expiresAt: '2020-01-01T00:00:00.000Z',
+    revokedAt: null,
+    createdAt: '2026-07-01T00:00:00.000Z',
+    trigger: 'MANUAL',
+  },
 ]
 
 type StoredAnswer = { questionId: string; textValue?: string | null; numberValue?: number | null; optionIds?: string[] | null }
 
-const responses: Array<{ id: string; surveyId: string; npsScore: number | null; answers: StoredAnswer[] }> = [
-  { id: 'r1', surveyId: 's-nps', npsScore: 9, answers: [{ questionId: 'q-nps', numberValue: 9 }, { questionId: 'q-yesno', optionIds: ['opt-yes'] }] },
-  { id: 'r2', surveyId: 's-nps', npsScore: 10, answers: [{ questionId: 'q-nps', numberValue: 10 }, { questionId: 'q-yesno', optionIds: ['opt-yes'] }] },
-  { id: 'r3', surveyId: 's-nps', npsScore: 6, answers: [{ questionId: 'q-nps', numberValue: 6 }, { questionId: 'q-yesno', optionIds: ['opt-no'] }] },
+const responses: Array<{
+  id: string
+  surveyId: string
+  npsScore: number | null
+  answers: StoredAnswer[]
+  opportunityId: string | null
+  opportunityTitle: string | null
+  clientId: string | null
+  clientName: string | null
+  trigger: SurveyTrigger
+  invitedAt: string
+  submittedAt: string
+}> = [
+  {
+    id: 'r1',
+    surveyId: 's-nps',
+    npsScore: 9,
+    answers: [{ questionId: 'q-nps', numberValue: 9 }, { questionId: 'q-yesno', optionIds: ['opt-yes'] }],
+    opportunityId: null,
+    opportunityTitle: null,
+    clientId: 'c1',
+    clientName: 'Acme Corp',
+    trigger: 'MANUAL',
+    invitedAt: '2026-07-20T00:00:00.000Z',
+    submittedAt: '2026-08-01T00:00:00.000Z',
+  },
+  {
+    id: 'r2',
+    surveyId: 's-nps',
+    npsScore: 10,
+    answers: [{ questionId: 'q-nps', numberValue: 10 }, { questionId: 'q-yesno', optionIds: ['opt-yes'] }],
+    opportunityId: null,
+    opportunityTitle: null,
+    clientId: 'c1',
+    clientName: 'Acme Corp',
+    trigger: 'MANUAL',
+    invitedAt: '2026-07-21T00:00:00.000Z',
+    submittedAt: '2026-08-02T00:00:00.000Z',
+  },
+  {
+    id: 'r3',
+    surveyId: 's-nps',
+    npsScore: 6,
+    answers: [{ questionId: 'q-nps', numberValue: 6 }, { questionId: 'q-yesno', optionIds: ['opt-no'] }],
+    opportunityId: null,
+    opportunityTitle: null,
+    clientId: 'c2',
+    clientName: 'Globex',
+    trigger: 'MANUAL',
+    invitedAt: '2026-07-22T00:00:00.000Z',
+    submittedAt: '2026-08-03T00:00:00.000Z',
+  },
 ]
+
+const opportunities: CrmOpportunity[] = [
+  {
+    id: 'o-renovacion',
+    clientId: 'c1',
+    clientName: 'Acme Corp',
+    contactId: 'ct1',
+    contactName: 'Ana Pérez',
+    ownerId: '1',
+    ownerName: 'Admin Sistema',
+    title: 'Renovación',
+    amount: 100000,
+    currency: 'MXN',
+    probability: 10,
+    stage: 'NEW',
+    expectedCloseDate: '2026-09-15',
+    lostReason: null,
+    notes: '',
+    createdAt: '2026-07-01T00:00:00.000Z',
+    updatedAt: '2026-07-01T00:00:00.000Z',
+  },
+  {
+    id: 'o-expansion',
+    clientId: 'c1',
+    clientName: 'Acme Corp',
+    contactId: null,
+    contactName: null,
+    ownerId: '1',
+    ownerName: 'Admin Sistema',
+    title: 'Expansión',
+    amount: 30000,
+    currency: 'MXN',
+    probability: 25,
+    stage: 'QUALIFICATION',
+    expectedCloseDate: '2026-10-01',
+    lostReason: null,
+    notes: '',
+    createdAt: '2026-07-02T00:00:00.000Z',
+    updatedAt: '2026-07-02T00:00:00.000Z',
+  },
+  {
+    id: 'o-licencias',
+    clientId: 'c2',
+    clientName: 'Globex',
+    contactId: null,
+    contactName: null,
+    ownerId: '1',
+    ownerName: 'Admin Sistema',
+    title: 'Licencias',
+    amount: 40000,
+    currency: 'MXN',
+    probability: 50,
+    stage: 'PROPOSAL',
+    expectedCloseDate: '2026-11-01',
+    lostReason: null,
+    notes: '',
+    createdAt: '2026-07-03T00:00:00.000Z',
+    updatedAt: '2026-07-03T00:00:00.000Z',
+  },
+  {
+    id: 'o-soporte',
+    clientId: 'c3',
+    clientName: 'Initech',
+    contactId: null,
+    contactName: null,
+    ownerId: '1',
+    ownerName: 'Admin Sistema',
+    title: 'Soporte anual',
+    amount: 30000,
+    currency: 'MXN',
+    probability: 100,
+    stage: 'WON',
+    expectedCloseDate: '2026-06-01',
+    lostReason: null,
+    notes: '',
+    createdAt: '2026-05-01T00:00:00.000Z',
+    updatedAt: '2026-06-01T00:00:00.000Z',
+  },
+]
+
+const invitationLocks = new Set<string>()
+const MOCK_STORE_KEY = 'ticketflow-msw-crm'
+
+function persistMockStore() {
+  if (typeof localStorage === 'undefined') return
+  localStorage.setItem(MOCK_STORE_KEY, JSON.stringify({ surveys, invitations, responses, opportunities }))
+}
+
+function hydrateMockStore() {
+  if (typeof localStorage === 'undefined') return
+  const raw = localStorage.getItem(MOCK_STORE_KEY)
+  if (!raw) return
+  try {
+    const parsed = JSON.parse(raw) as {
+      surveys?: CrmSurvey[]
+      invitations?: StoredInvitation[]
+      responses?: typeof responses
+      opportunities?: CrmOpportunity[]
+    }
+    if (parsed.surveys?.length) surveys.splice(0, surveys.length, ...parsed.surveys)
+    if (parsed.invitations) invitations.splice(0, invitations.length, ...parsed.invitations)
+    if (parsed.responses) responses.splice(0, responses.length, ...parsed.responses)
+    if (parsed.opportunities?.length) opportunities.splice(0, opportunities.length, ...parsed.opportunities)
+  } catch {
+    localStorage.removeItem(MOCK_STORE_KEY)
+  }
+}
+
+hydrateMockStore()
 
 function serialize(survey: CrmSurvey): CrmSurvey {
   const questions = [...(survey.questions ?? [])].sort((a, b) => a.position - b.position)
@@ -227,6 +508,17 @@ function buildResults(survey: CrmSurvey): SurveyResults {
     survey: serialize(survey),
     totalResponses: surveyResponses.length,
     nps: hasNps ? calculateNps(npsScores) : null,
+    responses: surveyResponses.map((item) => ({
+      id: item.id,
+      opportunityId: item.opportunityId,
+      opportunityTitle: item.opportunityTitle,
+      clientId: item.clientId,
+      clientName: item.clientName,
+      trigger: item.trigger,
+      invitedAt: item.invitedAt,
+      submittedAt: item.submittedAt,
+      npsScore: item.npsScore,
+    })),
     questions: questions.map((question) => {
       const answers = surveyResponses.flatMap((item) => item.answers.filter((answer) => answer.questionId === question.id))
       const choice = question.type === 'SINGLE_CHOICE' || question.type === 'MULTIPLE_CHOICE' || question.type === 'YES_NO'
@@ -250,7 +542,98 @@ function buildResults(survey: CrmSurvey): SurveyResults {
   }
 }
 
-export function createCrmHandlers() {
+function surveyCard(opportunity: CrmOpportunity) {
+  const published = surveys.find((item) => item.status === 'PUBLISHED' && item.trigger === 'OPPORTUNITY_WON')
+  const preferred = published
+    ? invitations.find((item) => item.opportunityId === opportunity.id && item.surveyId === published.id)
+    : invitations
+      .filter((item) => item.opportunityId === opportunity.id)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+  const status = invitationCardStatus({
+    hasPublishedAutomaticSurvey: Boolean(published),
+    invitation: preferred
+      ? { usedAt: preferred.usedAt, expiresAt: preferred.expiresAt, revokedAt: preferred.revokedAt }
+      : null,
+  })
+  const survey = preferred ? surveys.find((item) => item.id === preferred.surveyId) : published
+  return {
+    status,
+    surveyId: preferred?.surveyId ?? published?.id ?? null,
+    surveyTitle: survey?.title ?? null,
+    trigger: preferred?.trigger ?? published?.trigger ?? null,
+    createdAt: preferred?.createdAt ?? null,
+    expiresAt: preferred?.expiresAt ?? null,
+    usedAt: preferred?.usedAt ?? null,
+  }
+}
+
+function serializeOpportunity(item: CrmOpportunity, withCard = false) {
+  return withCard ? { ...item, surveyInvitation: surveyCard(item) } : item
+}
+
+export function createCrmHandlers(users: User[] = []) {
+  const createOrRegenerate = (
+    opportunity: CrmOpportunity,
+    survey: CrmSurvey,
+    request: Request,
+    confirmRegenerate: boolean,
+  ) => {
+    const lockKey = `${opportunity.id}:${survey.id}`
+    if (invitationLocks.has(lockKey)) {
+      return jsonError('Ya existe una invitación vigente para esta oportunidad.', 409)
+    }
+    invitationLocks.add(lockKey)
+    try {
+      const existing = invitations.find((item) => item.opportunityId === opportunity.id && item.surveyId === survey.id)
+      if (existing?.usedAt) return jsonError('La encuesta ya fue respondida', 409)
+      const status = invitationCardStatus({
+        hasPublishedAutomaticSurvey: true,
+        invitation: existing
+          ? { usedAt: existing.usedAt, expiresAt: existing.expiresAt, revokedAt: existing.revokedAt }
+          : null,
+      })
+      if (existing && status === 'PENDING') {
+        return jsonError('Ya existe una invitación vigente para esta oportunidad.', 409)
+      }
+      if (existing && (status === 'EXPIRED' || status === 'REVOKED') && !confirmRegenerate) {
+        return jsonError('Confirma la regeneración del enlace. El enlace anterior dejará de funcionar.', 409)
+      }
+      const token = randomToken()
+      const expiresAt = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString()
+      if (existing) {
+        existing.token = token
+        existing.expiresAt = expiresAt
+        existing.usedAt = null
+        existing.revokedAt = null
+        existing.createdAt = nowIso()
+        existing.trigger = survey.trigger
+        existing.clientId = opportunity.clientId
+      } else {
+        invitations.push({
+          token,
+          surveyId: survey.id,
+          opportunityId: opportunity.id,
+          clientId: opportunity.clientId,
+          usedAt: null,
+          expiresAt,
+          revokedAt: null,
+          createdAt: nowIso(),
+          trigger: survey.trigger,
+        })
+      }
+      persistMockStore()
+      return json({
+        created: true,
+        surveyId: survey.id,
+        surveyTitle: survey.title,
+        responseUrl: publicSurveyUrl(token, request),
+        expiresAt,
+      }, 'Enlace generado')
+    } finally {
+      invitationLocks.delete(lockKey)
+    }
+  }
+
   return [
     http.get('*/api/v1/crm/dashboard', () =>
       HttpResponse.json({ success: true, message: 'OK', data: mockDashboard, meta: null }),
@@ -276,7 +659,209 @@ export function createCrmHandlers() {
       }
       return HttpResponse.json({ success: true, message: 'OK', data: client, meta: null })
     }),
+    http.get('*/api/v1/crm/contacts', ({ request }) => {
+      const url = new URL(request.url)
+      const clientId = url.searchParams.get('clientId')
+      const items = clientId ? mockContacts.filter((item) => item.clientId === clientId) : mockContacts
+      return HttpResponse.json({
+        success: true,
+        message: 'OK',
+        data: items,
+        meta: { page: 1, perPage: 100, total: items.length, totalPages: 1 },
+      })
+    }),
+    http.get('*/api/v1/crm/opportunities', ({ request }) => {
+      hydrateMockStore()
+      const url = new URL(request.url)
+      const page = Number(url.searchParams.get('page') ?? 1)
+      const perPage = Number(url.searchParams.get('perPage') ?? 100)
+      const clientId = url.searchParams.get('clientId')
+      const stage = url.searchParams.get('stage') as OpportunityStage | null
+      const ownerId = url.searchParams.get('ownerId')
+      const search = (url.searchParams.get('search') ?? '').toLowerCase()
+      const statusStages = stagesForStatus(url.searchParams.get('status'))
+      let items = [...opportunities]
+      if (clientId) items = items.filter((item) => item.clientId === clientId)
+      if (stage) items = items.filter((item) => item.stage === stage)
+      if (ownerId) items = items.filter((item) => item.ownerId === ownerId)
+      if (statusStages) items = items.filter((item) => statusStages.includes(item.stage))
+      if (search) {
+        items = items.filter((item) =>
+          item.title.toLowerCase().includes(search)
+          || item.clientName.toLowerCase().includes(search)
+          || (item.ownerName ?? '').toLowerCase().includes(search),
+        )
+      }
+      const start = (page - 1) * perPage
+      return HttpResponse.json({
+        success: true,
+        message: 'OK',
+        data: items.slice(start, start + perPage),
+        meta: { page, perPage, total: items.length, totalPages: Math.max(1, Math.ceil(items.length / perPage)) },
+      })
+    }),
+    http.get('*/api/v1/crm/opportunities/:id', ({ params }) => {
+      hydrateMockStore()
+      const item = opportunities.find((entry) => entry.id === params.id)
+      if (!item) return jsonError('Oportunidad no encontrada', 404)
+      return json(serializeOpportunity(item, true))
+    }),
+    http.post('*/api/v1/crm/opportunities', async ({ request }) => {
+      const body = (await request.json()) as Partial<CrmOpportunity> & { title?: string; clientId?: string; amount?: number }
+      if (!body.title?.trim()) return jsonError('El nombre es obligatorio y no puede contener solo espacios', 400)
+      const client = mockClients.find((item) => item.id === body.clientId)
+      if (!client) return jsonError('Cliente no encontrado', 404)
+      const stage = (body.stage ?? 'NEW') as OpportunityStage
+      const created: CrmOpportunity = {
+        id: `o-${Date.now()}`,
+        clientId: client.id,
+        clientName: client.name,
+        contactId: body.contactId ?? null,
+        contactName: mockContacts.find((item) => item.id === body.contactId)
+          ? `${mockContacts.find((item) => item.id === body.contactId)?.firstName} ${mockContacts.find((item) => item.id === body.contactId)?.lastName}`
+          : null,
+        ownerId: body.ownerId ?? '1',
+        ownerName: 'Admin Sistema',
+        title: body.title.trim(),
+        amount: Number(body.amount ?? 0),
+        currency: body.currency ?? 'MXN',
+        probability: PROBABILITY_BY_STAGE[stage],
+        stage,
+        expectedCloseDate: body.expectedCloseDate ?? null,
+        lostReason: null,
+        notes: body.notes ?? '',
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      }
+      opportunities.unshift(created)
+      persistMockStore()
+      return json(created, 'Oportunidad creada', 201)
+    }),
+    http.put('*/api/v1/crm/opportunities/:id', async ({ params, request }) => {
+      const item = opportunities.find((entry) => entry.id === params.id)
+      if (!item) return jsonError('Oportunidad no encontrada', 404)
+      const body = (await request.json()) as Partial<CrmOpportunity>
+      if ((item.stage === 'WON' || item.stage === 'LOST') && body.stage && body.stage === item.stage) {
+        if (body.title || body.amount !== undefined) {
+          return jsonError('Reabre la oportunidad antes de editarla', 422)
+        }
+      }
+      if (body.title) item.title = body.title.trim()
+      if (body.amount !== undefined) item.amount = Number(body.amount)
+      if (body.notes !== undefined) item.notes = body.notes
+      if (body.clientId && body.clientId !== item.clientId) {
+        const client = mockClients.find((entry) => entry.id === body.clientId)
+        if (client) {
+          item.clientId = client.id
+          item.clientName = client.name
+        }
+      }
+      item.updatedAt = nowIso()
+      persistMockStore()
+      return json(item, 'Oportunidad actualizada')
+    }),
+    http.patch('*/api/v1/crm/opportunities/:id/stage', async ({ params, request }) => {
+      const denied = denyUnless(request, users, 'CRM_OPPORTUNITY_MOVE')
+      if (denied) return denied
+      const item = opportunities.find((entry) => entry.id === params.id)
+      if (!item) return jsonError('Oportunidad no encontrada', 404)
+      const body = (await request.json()) as {
+        stage: OpportunityStage
+        lostReason?: string
+        reopen?: boolean
+        reopenReason?: string
+      }
+      if (item.stage === body.stage) return jsonError('La oportunidad ya está en esa etapa', 422)
+      if ((item.stage === 'WON' || item.stage === 'LOST') && !body.reopen) {
+        return jsonError('Una oportunidad ganada o perdida sólo se reabre con una acción explícita', 422)
+      }
+      if (body.stage === 'LOST' && !body.lostReason?.trim()) {
+        return jsonError('El motivo de pérdida es obligatorio', 400)
+      }
+      const previous = item.stage
+      item.stage = body.stage
+      item.probability = PROBABILITY_BY_STAGE[body.stage]
+      item.lostReason = body.stage === 'LOST' ? body.lostReason!.trim() : body.stage === 'WON' ? null : item.lostReason
+      item.updatedAt = nowIso()
+      persistMockStore()
+      if (previous === 'WON' || body.stage !== 'WON') {
+        return json({
+          ...item,
+          surveyInvitation: body.stage === 'WON'
+            ? {
+                created: false,
+                message: previous === 'WON'
+                  ? 'Ya existe una invitación vigente para esta oportunidad.'
+                  : undefined,
+              }
+            : null,
+        }, 'Etapa actualizada')
+      }
+      const survey = surveys.find((entry) => entry.status === 'PUBLISHED' && entry.trigger === 'OPPORTUNITY_WON')
+      if (!survey) {
+        return json({
+          ...item,
+          surveyInvitation: {
+            created: false,
+            message: 'La oportunidad se marcó como ganada. No hay una encuesta activa para este disparador.',
+          },
+        }, 'Etapa actualizada')
+      }
+      const existing = invitations.find((entry) => entry.opportunityId === item.id && entry.surveyId === survey.id)
+      if (existing) {
+        return json({
+          ...item,
+          surveyInvitation: {
+            created: false,
+            surveyId: survey.id,
+            surveyTitle: survey.title,
+            message: existing.usedAt
+              ? 'La encuesta ya fue respondida'
+              : 'Ya existe una invitación vigente para esta oportunidad.',
+          },
+        }, 'Etapa actualizada')
+      }
+      const created = createOrRegenerate(item, survey, request, false)
+      if (created.status !== 200) return created
+      const payload = await created.json() as {
+        data: { created: boolean; surveyId: string; surveyTitle: string; responseUrl: string; expiresAt: string }
+      }
+      return json({ ...item, surveyInvitation: payload.data }, 'Etapa actualizada')
+    }),
+    http.post('*/api/v1/crm/opportunities/:id/survey-invitation', async ({ params, request }) => {
+      const denied = denyUnless(request, users, 'CRM_OPPORTUNITY_MOVE')
+      if (denied) return denied
+      const item = opportunities.find((entry) => entry.id === params.id)
+      if (!item) return jsonError('Oportunidad no encontrada', 404)
+      const body = (await request.json().catch(() => ({}))) as { surveyId?: string; confirmRegenerate?: boolean }
+      let survey: CrmSurvey | undefined
+      if (body.surveyId) {
+        survey = surveys.find((entry) => entry.id === body.surveyId)
+        if (!survey) return jsonError('Encuesta no encontrada', 404)
+        if (survey.status !== 'PUBLISHED') return jsonError('La encuesta no está activa', 422)
+        if (survey.trigger === 'OPPORTUNITY_WON' && item.stage !== 'WON') {
+          return jsonError('La encuesta de oportunidad ganada sólo se genera cuando la oportunidad está ganada', 422)
+        }
+      } else {
+        if (item.stage !== 'WON') return jsonError('Selecciona una encuesta manual activa', 422)
+        survey = surveys.find((entry) => entry.status === 'PUBLISHED' && entry.trigger === 'OPPORTUNITY_WON')
+        if (!survey) {
+          return jsonError('La oportunidad se marcó como ganada. No hay una encuesta activa para este disparador.', 422)
+        }
+      }
+      return createOrRegenerate(item, survey, request, Boolean(body.confirmRegenerate))
+    }),
+    http.post('*/api/v1/crm/opportunities/:id/survey-links/:surveyId', async ({ params, request }) => {
+      const denied = denyUnless(request, users, 'CRM_OPPORTUNITY_MOVE')
+      if (denied) return denied
+      const item = opportunities.find((entry) => entry.id === params.id)
+      if (!item) return jsonError('Oportunidad no encontrada', 404)
+      const survey = surveys.find((entry) => entry.id === params.surveyId)
+      if (!survey) return jsonError('Encuesta no encontrada', 404)
+      return createOrRegenerate(item, survey, request, false)
+    }),
     http.get('*/api/v1/crm/surveys', ({ request }) => {
+      hydrateMockStore()
       const url = new URL(request.url)
       const status = url.searchParams.get('status') as SurveyStatus | null
       const items = surveys.filter((survey) => !status || survey.status === status).map(serialize)
@@ -300,9 +885,13 @@ export function createCrmHandlers() {
         questions: [],
       }
       surveys.unshift(created)
+      persistMockStore()
       return json(serialize(created), 'Encuesta creada', 201)
     }),
-    http.get('*/api/v1/crm/surveys/:id/results', ({ params }) => {
+    http.get('*/api/v1/crm/surveys/:id/results', ({ params, request }) => {
+      hydrateMockStore()
+      const denied = denyUnless(request, users, 'CRM_SURVEY_RESULTS')
+      if (denied) return denied
       const survey = surveys.find((item) => item.id === params.id)
       if (!survey) return jsonError('Encuesta no encontrada', 404)
       return json(buildResults(survey))
@@ -325,6 +914,7 @@ export function createCrmHandlers() {
         const question = current.find((item) => item.id === questionId)!
         return { ...question, position }
       })
+      persistMockStore()
       return json(serialize(survey), 'Orden actualizado')
     }),
     http.put('*/api/v1/crm/surveys/:id', async ({ params, request }) => {
@@ -335,6 +925,7 @@ export function createCrmHandlers() {
       if (body.title) survey.title = body.title.trim()
       if (body.description !== undefined) survey.description = body.description.trim()
       if (body.trigger) survey.trigger = body.trigger
+      persistMockStore()
       return json(serialize(survey), 'Encuesta actualizada')
     }),
     http.post('*/api/v1/crm/surveys/:id/publish', ({ params }) => {
@@ -342,7 +933,16 @@ export function createCrmHandlers() {
       if (!survey) return jsonError('Encuesta no encontrada', 404)
       if (survey.status === 'PUBLISHED') return jsonError('La encuesta ya está activa', 422)
       if (!(survey.questions?.length)) return jsonError('Agrega al menos una pregunta para publicar', 422)
+      if (survey.trigger !== 'MANUAL') {
+        const existing = surveys.find(
+          (item) => item.status === 'PUBLISHED' && item.trigger === survey.trigger && item.id !== survey.id,
+        )
+        if (existing) {
+          return jsonError('Ya existe una encuesta activa para el disparador Oportunidad ganada. Desactívala antes de activar otra.', 409)
+        }
+      }
       survey.status = 'PUBLISHED'
+      persistMockStore()
       return json(serialize(survey), 'Encuesta activada')
     }),
     http.post('*/api/v1/crm/surveys/:id/close', ({ params }) => {
@@ -350,6 +950,7 @@ export function createCrmHandlers() {
       if (!survey) return jsonError('Encuesta no encontrada', 404)
       if (survey.status !== 'PUBLISHED') return jsonError('Sólo se desactivan encuestas publicadas', 422)
       survey.status = 'CLOSED'
+      persistMockStore()
       return json(serialize(survey), 'Encuesta desactivada')
     }),
     http.post('*/api/v1/crm/surveys/:id/questions', async ({ params, request }) => {
@@ -384,6 +985,7 @@ export function createCrmHandlers() {
       }
       survey.questions = [...(survey.questions ?? []), question]
       survey.questionCount = survey.questions.length
+      persistMockStore()
       return json(serialize(survey), 'Pregunta agregada')
     }),
     http.delete('*/api/v1/crm/surveys/:id/questions/:questionId', ({ params }) => {
@@ -392,12 +994,15 @@ export function createCrmHandlers() {
       if (survey.status !== 'DRAFT') return jsonError('Sólo se editan encuestas en borrador', 422)
       survey.questions = (survey.questions ?? []).filter((question) => question.id !== params.questionId)
       survey.questionCount = survey.questions.length
+      persistMockStore()
       return json(serialize(survey), 'Pregunta eliminada')
     }),
     http.get('*/api/v1/public/surveys/:token', ({ params }) => {
+      hydrateMockStore()
       const invitation = invitations.find((item) => item.token === params.token)
       if (!invitation) return jsonError('Enlace de encuesta inválido', 404)
       if (invitation.usedAt) return jsonError('La encuesta ya fue respondida', 409)
+      if (invitation.revokedAt) return jsonError('El enlace de encuesta ya no está disponible', 410)
       if (new Date(invitation.expiresAt).getTime() < Date.now()) return jsonError('El enlace de encuesta expiró', 410)
       const survey = surveys.find((item) => item.id === invitation.surveyId)
       if (!survey || survey.status !== 'PUBLISHED') return jsonError('La encuesta ya no está disponible', 410)
@@ -409,9 +1014,12 @@ export function createCrmHandlers() {
       })
     }),
     http.post('*/api/v1/public/surveys/:token/respond', async ({ params, request }) => {
+      hydrateMockStore()
       const invitation = invitations.find((item) => item.token === params.token)
       if (!invitation) return jsonError('Enlace de encuesta inválido', 404)
       if (invitation.usedAt) return jsonError('La encuesta ya fue respondida', 409)
+      if (invitation.revokedAt) return jsonError('El enlace de encuesta ya no está disponible', 410)
+      if (new Date(invitation.expiresAt).getTime() < Date.now()) return jsonError('El enlace de encuesta expiró', 410)
       const survey = surveys.find((item) => item.id === invitation.surveyId)
       if (!survey || survey.status !== 'PUBLISHED') return jsonError('La encuesta ya no está disponible', 410)
       const body = (await request.json()) as { answers: StoredAnswer[] }
@@ -420,15 +1028,35 @@ export function createCrmHandlers() {
         const answer = byId.get(question.id)
         const empty = !answer?.textValue?.trim() && answer?.numberValue === undefined && !(answer?.optionIds?.length)
         if (question.required && empty) return jsonError(`Falta responder: ${question.prompt}`, 400)
+        if (answer?.optionIds?.length) {
+          const valid = new Set(question.options.map((option) => option.id))
+          if (answer.optionIds.some((optionId) => !valid.has(optionId))) {
+            return jsonError('La opción no pertenece a la pregunta', 400)
+          }
+        }
       }
       invitation.usedAt = nowIso()
       const nps = (survey.questions ?? []).find((question) => question.type === 'NPS')
+      const opportunity = invitation.opportunityId
+        ? opportunities.find((item) => item.id === invitation.opportunityId)
+        : undefined
+      const client = invitation.clientId
+        ? mockClients.find((item) => item.id === invitation.clientId)
+        : undefined
       responses.push({
         id: `r-${Date.now()}`,
         surveyId: survey.id,
         npsScore: nps ? byId.get(nps.id)?.numberValue ?? null : null,
         answers: body.answers ?? [],
+        opportunityId: opportunity?.id ?? null,
+        opportunityTitle: opportunity?.title ?? null,
+        clientId: client?.id ?? invitation.clientId,
+        clientName: client?.name ?? null,
+        trigger: invitation.trigger,
+        invitedAt: invitation.createdAt,
+        submittedAt: invitation.usedAt,
       })
+      persistMockStore()
       return json({ submitted: true }, 'Respuesta registrada')
     }),
   ]
