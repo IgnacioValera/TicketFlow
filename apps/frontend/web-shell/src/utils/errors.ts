@@ -11,6 +11,9 @@ function translateMessage(message: string) {
   if (/Failed to fetch|Network Error|Unexpected error/i.test(message)) {
     return 'No se pudo completar la solicitud.'
   }
+  if (/must be a valid enum/i.test(message)) {
+    return 'Selecciona un nivel de prioridad válido.'
+  }
   if (/No se pudo cargar la información/i.test(message)) {
     return 'No se pudo completar la solicitud.'
   }

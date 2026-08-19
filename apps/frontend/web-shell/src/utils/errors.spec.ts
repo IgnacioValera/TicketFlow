@@ -9,6 +9,12 @@ describe('Errores de API', () => {
     ])
   })
 
+  it('traduce mensajes de enum de nivel', () => {
+    expect(getErrorMessages({ message: 'level must be a valid enum value' }, 'Error')).toEqual([
+      'Selecciona un nivel de prioridad válido.',
+    ])
+  })
+
   it('muestra cada mensaje de un arreglo', () => {
     expect(
       getErrorMessages({ message: ['El nombre es obligatorio', 'color must be a hexadecimal color'] }, 'Error'),

@@ -1,7 +1,7 @@
 import { plainToInstance } from 'class-transformer'
 import { validate } from 'class-validator'
 import { LoginDto } from '../auth/dto'
-import { CreateSlaPolicyDto, CreateCategoryDto } from '../catalogs/dto'
+import { CreateSlaPolicyDto, CreateCategoryDto, CreatePriorityDto } from '../catalogs/dto'
 import { CreateTicketDto, ChangeStatusDto, CreateCommentDto } from '../tickets/dto'
 import { CreateUserDto } from '../users/dto'
 import { CreateArticleDto } from '../knowledge/knowledge.module'
@@ -80,6 +80,25 @@ describe('Validación de DTOs', () => {
   it('rechaza categoría de catálogo con nombre vacío', async () => {
     const dto = createDto(CreateCategoryDto, { name: '  ' })
     expect((await validate(dto)).length).toBeGreaterThan(0)
+  })
+
+  it('rechaza prioridad con color inválido', async () => {
+    const dto = createDto(CreatePriorityDto, {
+      name: 'Alta',
+      level: 'HIGH',
+      color: 'rojo',
+    })
+    const messages = dtoErrors(await validate(dto))
+    expect(messages.some((message) => message.toLowerCase().includes('hexadecimal'))).toBe(true)
+  })
+
+  it('acepta prioridad válida sin descripción', async () => {
+    const dto = createDto(CreatePriorityDto, {
+      name: 'Media',
+      level: 'MEDIUM',
+      color: '#2563EB',
+    })
+    expect(await validate(dto)).toHaveLength(0)
   })
 
   it('rechaza rango de fechas invertido', async () => {

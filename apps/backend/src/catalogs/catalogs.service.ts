@@ -22,7 +22,9 @@ export class CatalogsService {
 
   async listPriorities(query: CatalogQueryDto) { return this.listCatalog(this.priorities, query, 'priority') }
   async createPriority(dto: CreatePriorityDto) { await this.ensureUnique(this.priorities, dto.name); if (await this.priorities.exists({ where: { level: dto.level } })) throw new ConflictException('Ya existe una prioridad con ese nivel'); return this.priorities.save(this.priorities.create({ ...dto, name: dto.name.trim(), color: dto.color ?? '#247b7b', description: dto.description?.trim() ?? '' })) }
-  async updatePriority(id: string, dto: UpdatePriorityDto) { const item = await this.find(this.priorities, id, 'Prioridad'); if (dto.name) { await this.ensureUnique(this.priorities, dto.name, id); item.name = dto.name.trim() }; if (dto.level) item.level = dto.level; if (dto.color) item.color = dto.color; if (dto.description !== undefined) item.description = dto.description.trim(); return this.priorities.save(item) }
+  async updatePriority(id: string, dto: UpdatePriorityDto) { const item = await this.find(this.priorities, id, 'Prioridad'); if (dto.name) { await this.ensureUnique(this.priorities, dto.name, id); item.name = dto.name.trim() }; if (dto.level && dto.level !== item.level) { if (await this.priorities.exists({ where: { level: dto.level } })) throw new ConflictException('Ya existe una prioridad con ese nivel'); item.level = dto.level }; if (dto.color) item.color = dto.color; if (dto.description !== undefined) item.description = dto.description.trim(); return this.priorities.save(item) }
+  async deactivatePriority(id: string) { return this.setPriorityStatus(id, CatalogStatus.INACTIVE) }
+  async setPriorityStatus(id: string, status: CatalogStatus) { const item = await this.find(this.priorities, id, 'Prioridad'); item.status = status; return this.priorities.save(item) }
 
   async listPolicies(query: CatalogQueryDto) {
     const { page, perPage, skip } = parsePagination(query.page, query.perPage)

@@ -58,7 +58,9 @@ export class CreatePriorityDto {
   @MaxLength(LIMITS.PRIORITY_NAME, { message: maxLengthMessage('El nombre', LIMITS.PRIORITY_NAME) })
   name: string
 
-  @ApiProperty({ enum: PriorityLevel }) @IsEnum(PriorityLevel) level: PriorityLevel
+  @ApiProperty({ enum: PriorityLevel })
+  @IsEnum(PriorityLevel, { message: 'Selecciona un nivel de prioridad válido.' })
+  level: PriorityLevel
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -5,6 +5,8 @@ import type { User, UserRole, UserStatus } from '@/types/user.types'
 import { createCrmHandlers } from '@/mocks/crm.handlers'
 import { createTicketHandlers } from '@/mocks/ticket.handlers'
 import { validatePasswordPolicy } from '@/utils/validation'
+import { isHexColor } from '@/utils/color'
+import { sharedMockPriorities } from '@/mocks/shared-priorities'
 
 const mockPasswords: Record<string, string> = {
   '1': 'password',
@@ -114,40 +116,7 @@ const mockCategories: Category[] = [
   },
 ]
 
-const mockPriorities: Priority[] = [
-  {
-    id: '1',
-    name: 'Baja',
-    level: 'LOW',
-    color: '#94a3b8',
-    description: 'Impacto minimo en operaciones',
-    status: 'ACTIVE',
-  },
-  {
-    id: '2',
-    name: 'Media',
-    level: 'MEDIUM',
-    color: '#247b7b',
-    description: 'Afecta a un grupo reducido de usuarios',
-    status: 'ACTIVE',
-  },
-  {
-    id: '3',
-    name: 'Alta',
-    level: 'HIGH',
-    color: '#f97316',
-    description: 'Interrumpe procesos importantes',
-    status: 'ACTIVE',
-  },
-  {
-    id: '4',
-    name: 'Critica',
-    level: 'CRITICAL',
-    color: '#db3a34',
-    description: 'Detiene operaciones criticas del negocio',
-    status: 'ACTIVE',
-  },
-]
+const mockPriorities = sharedMockPriorities
 
 const mockSlaPolicies: SlaPolicy[] = [
   {
@@ -771,6 +740,7 @@ export const handlers = [
       description?: string
     }
     const name = body.name?.trim()
+    const color = body.color?.trim().toUpperCase()
 
     if (!name) {
       return HttpResponse.json(
@@ -778,17 +748,46 @@ export const handlers = [
         { status: 422 },
       )
     }
+    if (name.length < 2) {
+      return HttpResponse.json(
+        { success: false, message: 'El nombre debe tener al menos 2 caracteres', data: null, meta: null },
+        { status: 422 },
+      )
+    }
+    if (color && !isHexColor(color)) {
+      return HttpResponse.json(
+        {
+          success: false,
+          message: 'El color debe tener formato hexadecimal, por ejemplo #2563EB.',
+          data: null,
+          meta: null,
+        },
+        { status: 422 },
+      )
+    }
+    if (
+      mockPriorities.some(
+        (priority) => priority.level === body.level && priority.status === 'ACTIVE',
+      )
+    ) {
+      return HttpResponse.json(
+        { success: false, message: 'Ya existe una prioridad con ese nivel', data: null, meta: null },
+        { status: 409 },
+      )
+    }
 
     const newPriority: Priority = {
-      id: String(mockPriorities.length + 1),
+      id: String(Date.now()),
       name,
       level: body.level,
-      color: body.color || '#247b7b',
+      color: color && isHexColor(color) ? color : '#247B7B',
       description: body.description?.trim() || '',
       status: 'ACTIVE',
     }
 
     mockPriorities.push(newPriority)
+    const { syncTicketPriorityAppearance: syncTickets } = await import('@/mocks/ticket.handlers')
+    syncTickets(newPriority.id, newPriority.name, newPriority.color)
 
     return HttpResponse.json(
       { success: true, message: 'Prioridad creada', data: newPriority, meta: null },
@@ -807,11 +806,38 @@ export const handlers = [
       )
     }
 
+    const color = body.color?.trim().toUpperCase()
+    if (color && !isHexColor(color)) {
+      return HttpResponse.json(
+        {
+          success: false,
+          message: 'El color debe tener formato hexadecimal, por ejemplo #2563EB.',
+          data: null,
+          meta: null,
+        },
+        { status: 422 },
+      )
+    }
+
+    const nextLevel = body.level || mockPriorities[index].level
+    if (
+      nextLevel !== mockPriorities[index].level &&
+      mockPriorities.some(
+        (priority, priorityIndex) =>
+          priorityIndex !== index && priority.level === nextLevel && priority.status === 'ACTIVE',
+      )
+    ) {
+      return HttpResponse.json(
+        { success: false, message: 'Ya existe una prioridad con ese nivel', data: null, meta: null },
+        { status: 409 },
+      )
+    }
+
     const updatedPriority: Priority = {
       ...mockPriorities[index],
       name: body.name?.trim() || mockPriorities[index].name,
-      level: body.level || mockPriorities[index].level,
-      color: body.color || mockPriorities[index].color,
+      level: nextLevel,
+      color: color && isHexColor(color) ? color : mockPriorities[index].color,
       description:
         typeof body.description === 'string'
           ? body.description.trim()
@@ -819,10 +845,63 @@ export const handlers = [
     }
 
     mockPriorities[index] = updatedPriority
+    const { syncTicketPriorityAppearance: syncTickets } = await import('@/mocks/ticket.handlers')
+    syncTickets(updatedPriority.id, updatedPriority.name, updatedPriority.color)
 
     return HttpResponse.json({
       success: true,
       message: 'Prioridad actualizada',
+      data: updatedPriority,
+      meta: null,
+    })
+  }),
+
+  http.patch('*/priorities/:id/status', async ({ params, request }) => {
+    const body = (await request.json()) as { status: Priority['status'] }
+    const index = mockPriorities.findIndex((priority) => priority.id === params.id)
+
+    if (index === -1) {
+      return HttpResponse.json(
+        { success: false, message: 'No encontrado', data: null, meta: null },
+        { status: 404 },
+      )
+    }
+
+    const updatedPriority: Priority = {
+      ...mockPriorities[index],
+      status: body.status,
+    }
+
+    mockPriorities[index] = updatedPriority
+
+    return HttpResponse.json({
+      success: true,
+      message: 'Estado de prioridad actualizado',
+      data: updatedPriority,
+      meta: null,
+    })
+  }),
+
+  http.delete('*/priorities/:id', async ({ params }) => {
+    const index = mockPriorities.findIndex((priority) => priority.id === params.id)
+
+    if (index === -1) {
+      return HttpResponse.json(
+        { success: false, message: 'No encontrado', data: null, meta: null },
+        { status: 404 },
+      )
+    }
+
+    const updatedPriority: Priority = {
+      ...mockPriorities[index],
+      status: 'INACTIVE',
+    }
+
+    mockPriorities[index] = updatedPriority
+
+    return HttpResponse.json({
+      success: true,
+      message: 'Prioridad desactivada',
       data: updatedPriority,
       meta: null,
     })

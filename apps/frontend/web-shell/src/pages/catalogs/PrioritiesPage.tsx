@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { ColorField } from '@/components/common/ColorField'
+import { ConfirmModal, Modal } from '@/components/common/Modal'
 import { DataTable, type Column } from '@/components/common/DataTable'
 import { ErrorState } from '@/components/common/ErrorState'
 import { FormAlert } from '@/components/common/FormAlert'
-import { Modal } from '@/components/common/Modal'
 import { PageHeader } from '@/components/common/PageHeader'
 import { TableActionButton } from '@/components/common/TableActionButton'
 import { PrimaryButton, SecondaryButton } from '@/components/common/UiControls'
@@ -14,6 +14,11 @@ import * as prioritiesService from '@/services/priorities.service'
 import type { CatalogStatus, Priority, PriorityLevel } from '@/types/catalog.types'
 import { PRIORITY_DEFAULT_COLORS, isHexColor, normalizeHexColor } from '@/utils/color'
 import { getErrorMessages, isValidationError } from '@/utils/errors'
+import {
+  buildPriorityPayload,
+  validatePriorityForm,
+  type PriorityFormValues,
+} from '@/utils/priority-form'
 
 const STATUS_LABELS: Record<CatalogStatus, string> = {
   ACTIVE: 'Activa',
@@ -27,14 +32,7 @@ const LEVEL_LABELS: Record<PriorityLevel, string> = {
   CRITICAL: 'Crítica',
 }
 
-type PriorityFormState = {
-  name: string
-  level: PriorityLevel
-  color: string
-  description: string
-}
-
-const INITIAL_FORM: PriorityFormState = {
+const INITIAL_FORM: PriorityFormValues = {
   name: '',
   level: 'MEDIUM',
   color: PRIORITY_DEFAULT_COLORS.MEDIUM,
@@ -59,10 +57,16 @@ export function PrioritiesPage() {
 
   const [formOpen, setFormOpen] = useState(false)
   const [editingPriority, setEditingPriority] = useState<Priority | null>(null)
-  const [formState, setFormState] = useState<PriorityFormState>(INITIAL_FORM)
+  const [formState, setFormState] = useState<PriorityFormValues>(INITIAL_FORM)
   const [formAlertTitle, setFormAlertTitle] = useState('')
   const [formMessages, setFormMessages] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
+
+  const [statusTarget, setStatusTarget] = useState<{
+    priority: Priority
+    status: CatalogStatus
+  } | null>(null)
+  const [statusSaving, setStatusSaving] = useState(false)
 
   const resetForm = () => {
     setFormState(INITIAL_FORM)
@@ -140,45 +144,16 @@ export function PrioritiesPage() {
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
-    const name = formState.name.trim()
-    const description = formState.description.trim()
-    const color = normalizeHexColor(formState.color)
     const validationTitle = 'Revisa los datos ingresados'
-
-    if (!name) {
-      showFormError(validationTitle, ['El nombre es obligatorio'], 'priority-name')
-      return
-    }
-    if (name.length > LIMITS.PRIORITY_NAME) {
-      showFormError(
-        validationTitle,
-        [`El nombre no puede superar ${LIMITS.PRIORITY_NAME} caracteres`],
-        'priority-name',
-      )
-      return
-    }
-    if (!isHexColor(color)) {
-      showFormError(
-        validationTitle,
-        ['El color debe tener formato hexadecimal, por ejemplo #2563EB.'],
-        'color',
-      )
-      return
-    }
-    if (formState.description && !description) {
-      showFormError(
-        validationTitle,
-        ['La descripción no puede contener solo espacios'],
-        'priority-description',
-      )
-      return
-    }
-    if (description.length > LIMITS.CATALOG_DESCRIPTION) {
-      showFormError(
-        validationTitle,
-        [`La descripción no puede superar ${LIMITS.CATALOG_DESCRIPTION} caracteres`],
-        'priority-description',
-      )
+    const validationError = validatePriorityForm(formState)
+    if (validationError) {
+      const fieldId =
+        validationError.includes('color') || validationError.includes('hexadecimal')
+          ? 'color'
+          : validationError.includes('descripción')
+            ? 'priority-description'
+            : 'priority-name'
+      showFormError(validationTitle, [validationError], fieldId)
       return
     }
 
@@ -187,12 +162,7 @@ export function PrioritiesPage() {
     setFormMessages([])
 
     try {
-      const payload = {
-        name,
-        level: formState.level,
-        color,
-        ...(description ? { description } : {}),
-      }
+      const payload = buildPriorityPayload(formState)
 
       if (editingPriority) {
         await prioritiesService.updatePriority(editingPriority.id, payload)
@@ -206,6 +176,7 @@ export function PrioritiesPage() {
       const fallback = editingPriority
         ? 'No se pudo actualizar la prioridad'
         : 'No se pudo crear la prioridad'
+      const color = normalizeHexColor(formState.color)
       showFormError(
         isValidationError(err) ? validationTitle : fallback,
         getErrorMessages(err, fallback),
@@ -213,6 +184,23 @@ export function PrioritiesPage() {
       )
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleStatusChange = async () => {
+    if (!statusTarget) return
+
+    setStatusSaving(true)
+    try {
+      await prioritiesService.updatePriorityStatus(statusTarget.priority.id, statusTarget.status)
+      setStatusTarget(null)
+      await loadPriorities()
+    } catch (err: unknown) {
+      setError(
+        (err as { message?: string }).message || 'No se pudo actualizar el estado de la prioridad',
+      )
+    } finally {
+      setStatusSaving(false)
     }
   }
 
@@ -259,12 +247,31 @@ export function PrioritiesPage() {
         key: 'actions',
         header: 'Acciones',
         render: (row) => (
-          <TableActionButton
-            label={`Editar prioridad ${row.name}`}
-            icon="edit"
-            onClick={() => openEditModal(row)}
-            disabled={!canManage}
-          />
+          <div className="flex flex-wrap gap-2">
+            <TableActionButton
+              label={`Editar prioridad ${row.name}`}
+              icon="edit"
+              onClick={() => openEditModal(row)}
+              disabled={!canManage}
+            />
+            {row.status === 'ACTIVE' ? (
+              <TableActionButton
+                label={`Desactivar prioridad ${row.name}`}
+                variant="warning"
+                icon="pause"
+                onClick={() => setStatusTarget({ priority: row, status: 'INACTIVE' })}
+                disabled={!canManage}
+              />
+            ) : (
+              <TableActionButton
+                label={`Activar prioridad ${row.name}`}
+                variant="success"
+                icon="check"
+                onClick={() => setStatusTarget({ priority: row, status: 'ACTIVE' })}
+                disabled={!canManage}
+              />
+            )}
+          </div>
         ),
       },
     ],
@@ -397,6 +404,22 @@ export function PrioritiesPage() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmModal
+        open={!!statusTarget}
+        onClose={() => {
+          if (!statusSaving) setStatusTarget(null)
+        }}
+        onConfirm={() => void handleStatusChange()}
+        title={statusTarget?.status === 'ACTIVE' ? 'Activar prioridad' : 'Desactivar prioridad'}
+        message={
+          statusTarget
+            ? `¿Deseas ${statusTarget.status === 'ACTIVE' ? 'activar' : 'desactivar'} la prioridad ${statusTarget.priority.name}?`
+            : ''
+        }
+        confirmLabel={statusTarget?.status === 'ACTIVE' ? 'Activar' : 'Desactivar'}
+        loading={statusSaving}
+      />
     </div>
   )
 }

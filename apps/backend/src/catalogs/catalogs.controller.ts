@@ -21,6 +21,8 @@ export class PrioritiesController {
   @Get() async list(@Query() query: CatalogQueryDto) { const r = await this.service.listPriorities(query); return result(r.items, 'OK', r.meta) }
   @RequirePermissions('PRIORITY_MANAGE') @Post() async create(@Body() dto: CreatePriorityDto) { return result(await this.service.createPriority(dto), 'Prioridad creada') }
   @RequirePermissions('PRIORITY_MANAGE') @Put(':id') async update(@Param('id', ParseUuidPipe) id: string, @Body() dto: UpdatePriorityDto) { return result(await this.service.updatePriority(id, dto), 'Prioridad actualizada') }
+  @RequirePermissions('PRIORITY_MANAGE') @Patch(':id/status') async status(@Param('id', ParseUuidPipe) id: string, @Body() dto: UpdateCatalogStatusDto) { return result(await this.service.setPriorityStatus(id, dto.status), 'Estado de prioridad actualizado') }
+  @RequirePermissions('PRIORITY_MANAGE') @Delete(':id') async remove(@Param('id', ParseUuidPipe) id: string) { return result(await this.service.deactivatePriority(id), 'Prioridad desactivada') }
 }
 @ApiBearerAuth() @ApiTags('SLA') @Controller('sla-policies')
 export class SlaPoliciesController {

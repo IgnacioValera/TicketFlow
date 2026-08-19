@@ -1,6 +1,7 @@
-import { apiGet, apiPost, apiPut } from '@/services/apiClient'
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '@/services/apiClient'
 import type { ApiResponse } from '@/types/api.types'
 import type {
+  CatalogStatus,
   CreatePriorityPayload,
   PrioritiesListParams,
   Priority,
@@ -22,5 +23,18 @@ export async function updatePriority(
   payload: UpdatePriorityPayload,
 ): Promise<Priority> {
   const response = await apiPut<Priority>(`/priorities/${id}`, payload)
+  return response.data
+}
+
+export async function deactivatePriority(id: string): Promise<Priority> {
+  const response = await apiDelete<Priority>(`/priorities/${id}`)
+  return response.data
+}
+
+export async function updatePriorityStatus(
+  id: string,
+  status: CatalogStatus,
+): Promise<Priority> {
+  const response = await apiPatch<Priority>(`/priorities/${id}/status`, { status })
   return response.data
 }

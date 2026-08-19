@@ -10,6 +10,7 @@ import {
   canRequestDateRange,
   filterTicketsByCreatedRange,
 } from '@/utils/reports'
+import { getSharedPriorityMeta } from '@/mocks/shared-priorities'
 import type { User } from '@/types/user.types'
 import type {
   Ticket,
@@ -41,7 +42,11 @@ const mockPriorities = [
   { id: '2', name: 'Media', color: '#247b7b', resolutionHours: 48 },
   { id: '3', name: 'Alta', color: '#f97316', resolutionHours: 24 },
   { id: '4', name: 'Critica', color: '#db3a34', resolutionHours: 8 },
-]
+] as const
+
+function resolvePriority(priorityId: string) {
+  return getSharedPriorityMeta(priorityId) ?? mockPriorities.find((p) => p.id === priorityId)!
+}
 
 const mockCompanies = [
   { id: '1', name: 'Acme Corp' },
@@ -76,7 +81,7 @@ function buildTicket(
     >,
 ): Ticket {
   const cat = mockCategories.find((c) => c.id === partial.categoryId)!
-  const pri = mockPriorities.find((p) => p.id === partial.priorityId)!
+  const pri = resolvePriority(partial.priorityId)
   const createdAt = partial.createdAt ?? hoursAgo(10)
   const resolutionHours = partial.resolutionHours ?? pri.resolutionHours
   const slaDueAt =
@@ -568,8 +573,12 @@ function paginate<T>(items: T[], page = 1, perPage = 10) {
 }
 
 function enrichTicket(store: TicketStore): Ticket {
+  const pri = getSharedPriorityMeta(store.ticket.priorityId)
   return {
     ...store.ticket,
+    priorityName: pri?.name ?? store.ticket.priorityName,
+    priorityColor: pri?.color ?? store.ticket.priorityColor,
+    resolutionHours: pri?.resolutionHours ?? store.ticket.resolutionHours,
     statusHistory: store.statusHistory.map((item) => ({
       ...item,
       eventType: item.eventType ?? inferMockEventType(item.oldStatus, item.newStatus),
@@ -659,6 +668,14 @@ function addHistory(
   })
 }
 
+export function syncTicketPriorityAppearance(priorityId: string, name: string, color: string) {
+  for (const store of ticketStores) {
+    if (store.ticket.priorityId !== priorityId) continue
+    store.ticket.priorityName = name
+    store.ticket.priorityColor = color
+  }
+}
+
 export function createTicketHandlers(mockUsers: User[]) {
   return [
     http.get('*/api/v1/tickets', async ({ request }) => {
@@ -708,7 +725,7 @@ export function createTicketHandlers(mockUsers: User[]) {
       const page = Number(url.searchParams.get('page')) || 1
       const perPage = Number(url.searchParams.get('perPage')) || 10
       const result = paginate(
-        filtered.map((s) => s.ticket),
+        filtered.map((s) => enrichTicket(s)),
         page,
         perPage,
       )
@@ -744,7 +761,7 @@ export function createTicketHandlers(mockUsers: User[]) {
 
       folioCounter += 1
       const id = `t${Date.now()}`
-      const pri = mockPriorities.find((p) => p.id === body.priorityId)!
+      const pri = resolvePriority(body.priorityId)
       const company = body.companyId ? mockCompanies.find((c) => c.id === body.companyId) : null
       const createdAt = new Date().toISOString()
       const slaDueAt = new Date(Date.now() + pri.resolutionHours * 3600000).toISOString()
@@ -848,7 +865,7 @@ export function createTicketHandlers(mockUsers: User[]) {
         }
       }
       if (body.priorityId) {
-        const pri = mockPriorities.find((p) => p.id === body.priorityId)
+        const pri = resolvePriority(body.priorityId)
         if (pri) {
           store.ticket.priorityId = pri.id
           store.ticket.priorityName = pri.name
