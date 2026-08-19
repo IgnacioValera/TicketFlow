@@ -11,6 +11,7 @@ import { TicketForm } from '@/components/tickets/TicketForm'
 import { TicketStatusActions } from '@/components/tickets/TicketStatusActions'
 import { TicketSurveyModal } from '@/components/tickets/TicketSurveyModal'
 import { TicketTimeline } from '@/components/tickets/TicketTimeline'
+import { PrimaryButton } from '@/components/common/UiControls'
 import { PERMISSIONS } from '@/constants/permissions'
 import { useAuth } from '@/hooks/useAuth'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -49,6 +50,7 @@ export function TicketDetailPage() {
   const [editLoading, setEditLoading] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
   const [surveyOpen, setSurveyOpen] = useState(false)
+  const [surveySkippedFor, setSurveySkippedFor] = useState<string | null>(null)
   const [priorities, setPriorities] = useState<Priority[]>([])
   const [priorityLoading, setPriorityLoading] = useState(false)
   const [actionError, setActionError] = useState('')
@@ -62,13 +64,18 @@ export function TicketDetailPage() {
     void refresh().catch(() => undefined)
   }, [refresh])
 
+  const canRespondSurvey =
+    Boolean(ticket) &&
+    ticket?.status === 'CLOSED' &&
+    !ticket?.survey &&
+    user?.id === ticket?.requesterId &&
+    hasPermission(PERMISSIONS.SURVEY_RESPOND)
+
   useEffect(() => {
-    if (ticket?.status === 'CLOSED' && !ticket.survey && user?.id === ticket.requesterId) {
-      if (hasPermission(PERMISSIONS.SURVEY_RESPOND)) {
-        setSurveyOpen(true)
-      }
+    if (canRespondSurvey && ticket && surveySkippedFor !== ticket.id) {
+      setSurveyOpen(true)
     }
-  }, [ticket, user, hasPermission])
+  }, [canRespondSurvey, ticket, surveySkippedFor])
 
   useEffect(() => {
     const load = async () => {
@@ -368,7 +375,7 @@ export function TicketDetailPage() {
             />
           </div>
 
-          {ticket.survey && (
+          {ticket.survey ? (
             <div className="ui-card p-4">
               <h3 className="mb-2 text-sm font-semibold text-brand-navy">Encuesta</h3>
               <p className="text-sm">
@@ -378,7 +385,13 @@ export function TicketDetailPage() {
                 <p className="mt-1 text-sm text-slate-600">{ticket.survey.comment}</p>
               )}
             </div>
-          )}
+          ) : canRespondSurvey ? (
+            <div className="ui-card p-4">
+              <h3 className="mb-2 text-sm font-semibold text-brand-navy">Encuesta</h3>
+              <p className="mb-3 text-sm text-slate-600">El ticket está cerrado. Puedes responder la encuesta una sola vez.</p>
+              <PrimaryButton type="button" onClick={() => setSurveyOpen(true)}>Responder encuesta</PrimaryButton>
+            </div>
+          ) : null}
         </aside>
       </div>
 
@@ -391,7 +404,10 @@ export function TicketDetailPage() {
 
       <TicketSurveyModal
         open={surveyOpen}
-        onClose={() => setSurveyOpen(false)}
+        onClose={() => {
+          if (ticket) setSurveySkippedFor(ticket.id)
+          setSurveyOpen(false)
+        }}
         onSubmit={async (rating, comment) => {
           await submitSurvey(ticket.id, { rating, comment })
           await refresh()

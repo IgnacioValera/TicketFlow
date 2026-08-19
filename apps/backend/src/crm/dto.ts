@@ -2,6 +2,7 @@ import { Type } from 'class-transformer'
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger'
 import {
   ArrayMaxSize,
+  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsDateString,
@@ -111,6 +112,11 @@ export class ChangeStageDto {
   @ApiPropertyOptional() @ValidateIf((o: ChangeStageDto) => Boolean(o.reopen) || o.reopenReason != null) @Trim() @IsString() @MinLength(1, { message: requiredMessage('El motivo de reapertura') }) @MaxLength(LIMITS.LOST_REASON) reopenReason?: string
 }
 
+export class CreateSurveyInvitationDto {
+  @ApiPropertyOptional() @IsOptional() @IsUUID('4') surveyId?: string
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() confirmRegenerate?: boolean
+}
+
 export class ActivitiesQueryDto extends CrmPaginationDto {
   @ApiPropertyOptional() @IsOptional() @IsUUID('4') clientId?: string
   @ApiPropertyOptional() @IsOptional() @IsUUID('4') opportunityId?: string
@@ -137,23 +143,27 @@ export class SurveysQueryDto extends CrmPaginationDto {
 
 export class CreateSurveyDto {
   @ApiProperty() @Trim() @IsString() @MinLength(1, { message: requiredMessage('El título') }) @MaxLength(LIMITS.SURVEY_TITLE, { message: maxLengthMessage('El título', LIMITS.SURVEY_TITLE) }) title: string
-  @ApiPropertyOptional() @IsOptional() @Trim() @IsString() @MaxLength(LIMITS.SURVEY_DESCRIPTION) description?: string
+  @ApiPropertyOptional() @IsOptional() @Trim() @IsString() @MaxLength(LIMITS.SURVEY_DESCRIPTION, { message: maxLengthMessage('La descripción', LIMITS.SURVEY_DESCRIPTION) }) description?: string
   @ApiPropertyOptional({ enum: SurveyTrigger }) @IsOptional() @IsEnum(SurveyTrigger) trigger?: SurveyTrigger
 }
 
 export class UpdateSurveyDto extends PartialType(CreateSurveyDto) {}
 
 export class CreateQuestionOptionDto {
-  @ApiProperty() @Trim() @IsString() @MinLength(1) @MaxLength(LIMITS.SURVEY_OPTION) label: string
+  @ApiProperty() @Trim() @IsString() @MinLength(1, { message: requiredMessage('La opción') }) @MaxLength(LIMITS.SURVEY_OPTION, { message: maxLengthMessage('La opción', LIMITS.SURVEY_OPTION) }) label: string
   @ApiPropertyOptional() @IsOptional() @Trim() @IsString() @MaxLength(80) value?: string
 }
 
 export class CreateQuestionDto {
-  @ApiProperty() @Trim() @IsString() @MinLength(1, { message: requiredMessage('La pregunta') }) @MaxLength(LIMITS.SURVEY_PROMPT) prompt: string
+  @ApiProperty() @Trim() @IsString() @MinLength(1, { message: requiredMessage('La pregunta') }) @MaxLength(LIMITS.SURVEY_PROMPT, { message: maxLengthMessage('La pregunta', LIMITS.SURVEY_PROMPT) }) prompt: string
   @ApiProperty({ enum: SurveyQuestionType }) @IsEnum(SurveyQuestionType) type: SurveyQuestionType
   @ApiPropertyOptional() @IsOptional() @IsBoolean() required?: boolean
   @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsInt() @Min(0) position?: number
   @ApiPropertyOptional({ type: [CreateQuestionOptionDto] }) @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => CreateQuestionOptionDto) options?: CreateQuestionOptionDto[]
+}
+
+export class ReorderQuestionsDto {
+  @ApiProperty({ type: [String] }) @IsArray() @ArrayMinSize(1) @IsUUID('4', { each: true }) questionIds: string[]
 }
 
 export class SurveyAnswerDto {

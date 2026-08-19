@@ -1,3 +1,5 @@
+import type { CreatedSurveyInvitation, SurveyInvitationCard } from '@/utils/opportunity-survey'
+
 export type ClientStatus = 'ACTIVE' | 'INACTIVE' | 'PROSPECT'
 export type ClientSegment = 'ENTERPRISE' | 'MID_MARKET' | 'SMB'
 export type ClientTier = 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM'
@@ -52,7 +54,9 @@ export interface CrmOpportunity {
   expectedCloseDate: string | null
   lostReason: string | null
   notes: string
-  invitations?: Array<{ surveyId: string; surveyTitle: string; url: string; token: string }>
+  createdAt?: string
+  updatedAt?: string
+  surveyInvitation?: SurveyInvitationCard | CreatedSurveyInvitation | null
 }
 
 export interface CrmActivity {
@@ -85,7 +89,37 @@ export interface CrmSurvey {
   description: string
   status: SurveyStatus
   trigger: SurveyTrigger
+  questionCount?: number
   questions?: CrmSurveyQuestion[]
+}
+
+export interface SurveyQuestionResults {
+  id: string
+  prompt: string
+  type: SurveyQuestionType
+  required: boolean
+  answerCount: number
+  options?: Array<{ id: string; label: string; value: string; count: number; percentage: number }>
+  ratings?: Array<{ value: number; count: number; percentage: number }>
+  texts?: string[]
+}
+
+export interface SurveyResults {
+  survey: CrmSurvey
+  totalResponses: number
+  nps: { nps: number; promoters: number; passives: number; detractors: number; total: number } | null
+  questions: SurveyQuestionResults[]
+  responses?: Array<{
+    id: string
+    opportunityId: string | null
+    opportunityTitle: string | null
+    clientId: string | null
+    clientName: string | null
+    trigger: SurveyTrigger
+    invitedAt: string
+    submittedAt: string
+    npsScore: number | null
+  }>
 }
 
 export interface CrmDashboard {

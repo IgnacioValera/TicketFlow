@@ -53,6 +53,18 @@ export function hasPermission(user: User, code: string) {
   return (user.role.permissions ?? []).some((permission) => permission.code === code)
 }
 
+export function assertTicketSurvey(ticket: { status: TicketStatus; requester: { id: string } }, user: User) {
+  if (!hasPermission(user, 'SURVEY_RESPOND')) {
+    throw new ForbiddenException('No tienes permiso para responder la encuesta')
+  }
+  if (ticket.requester.id !== user.id) {
+    throw new ForbiddenException('Sólo el solicitante puede responder la encuesta')
+  }
+  if (ticket.status !== TicketStatus.CLOSED) {
+    throw new UnprocessableEntityException('La encuesta está disponible cuando el ticket está cerrado')
+  }
+}
+
 export function assertTransition(from: TicketStatus, to: TicketStatus, user: User, isAssignee: boolean, isRequester: boolean) {
   if (!TRANSITIONS[from]?.includes(to)) throw new UnprocessableEntityException(`Transición de ${from} a ${to} no permitida`)
   const elevated = user.role.code === RoleCode.ADMIN || user.role.code === RoleCode.SUPERVISOR
