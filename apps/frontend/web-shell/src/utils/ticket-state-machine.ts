@@ -2,7 +2,7 @@ import type { TicketStatus } from '@/types/ticket.types'
 import type { UserRole } from '@/types/user.types'
 import { PERMISSIONS } from '@/types/permission.types'
 
-const TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
+export const TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
   OPEN: ['ASSIGNED', 'CANCELLED'],
   ASSIGNED: ['IN_PROGRESS', 'ESCALATED', 'CANCELLED'],
   IN_PROGRESS: ['WAITING_USER', 'RESOLVED', 'ESCALATED'],

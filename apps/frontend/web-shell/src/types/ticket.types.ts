@@ -37,11 +37,13 @@ export interface TicketAttachment {
 export interface TicketStatusHistory {
   id: string
   ticketId: string
+  eventType?: string
   oldStatus: TicketStatus | null
   newStatus: TicketStatus
   changedBy: string
   changedByName: string
   reason?: string
+  details?: Record<string, unknown> | null
   createdAt: string
 }
 
