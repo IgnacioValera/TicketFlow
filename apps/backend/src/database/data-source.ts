@@ -7,6 +7,7 @@ import { CrmSchema1762000000000 } from './migrations/1762000000000-CrmSchema'
 import { MustChangePasswordAndKnowledge1763000000000 } from './migrations/1763000000000-MustChangePasswordAndKnowledge'
 import { RepairMojibakeTexts1764000000000 } from './migrations/1764000000000-RepairMojibakeTexts'
 import { CrmSurveyInvitationAutomation1765000000000 } from './migrations/1765000000000-CrmSurveyInvitationAutomation'
+import { UserClientAndNotifications1766000000000 } from './migrations/1766000000000-UserClientAndNotifications'
 
 const migrations = [
   InitialSchema1760000000000,
@@ -15,6 +16,7 @@ const migrations = [
   MustChangePasswordAndKnowledge1763000000000,
   RepairMojibakeTexts1764000000000,
   CrmSurveyInvitationAutomation1765000000000,
+  UserClientAndNotifications1766000000000,
 ]
 
 const ssl = process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false

@@ -158,6 +158,11 @@ export function UsersListPage() {
       render: (row) => ROLES[row.role],
     },
     {
+      key: 'clientName',
+      header: 'Cliente',
+      render: (row) => row.clientName || (row.role === 'REQUESTER' || row.role === 'CLIENT' ? 'Sin cliente asignado' : '—'),
+    },
+    {
       key: 'status',
       header: 'Estado',
       render: (row) => STATUS_LABELS[row.status],

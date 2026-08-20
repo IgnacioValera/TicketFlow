@@ -13,6 +13,13 @@ import {
 } from '@/utils/reports'
 import { normalizeTicketForm, validateTicketForm, type TicketFormValues } from '@/utils/ticket-form'
 import type { User } from '@/types/user.types'
+import {
+  notifyInternalComment,
+  notifyPublicComment,
+  notifyStatusChanged,
+  notifyTicketAssigned,
+  notifyTicketCreated,
+} from '@/mocks/notifications-store'
 import type {
   Ticket,
   TicketAttachment,
@@ -45,11 +52,6 @@ const mockPriorities = [
   { id: '2', name: 'Media', color: '#247b7b', resolutionHours: 48 },
   { id: '3', name: 'Alta', color: '#f97316', resolutionHours: 24 },
   { id: '4', name: 'Critica', color: '#db3a34', resolutionHours: 8 },
-]
-
-const mockCompanies = [
-  { id: '1', name: 'Acme Corp' },
-  { id: '2', name: 'Globex' },
 ]
 
 function hoursAgo(h: number) {
@@ -708,7 +710,7 @@ export function createTicketHandlers(mockUsers: User[]) {
         )
       }
 
-      const body = (await request.json()) as TicketFormValues & { companyId?: string; clientId?: string }
+      const body = (await request.json()) as TicketFormValues & { companyId?: string; clientId?: string; requesterId?: string }
       const normalized = normalizeTicketForm(body)
       const validationError = validateTicketForm(normalized)
       if (validationError) {
@@ -735,8 +737,23 @@ export function createTicketHandlers(mockUsers: User[]) {
 
       folioCounter += 1
       const id = `t${Date.now()}`
-      const companyId = body.clientId ?? body.companyId
-      const company = companyId ? mockCompanies.find((c) => c.id === companyId) : null
+      const isPortal = user.role === 'CLIENT' || user.role === 'REQUESTER'
+      if (isPortal && !user.clientId) {
+        return HttpResponse.json(
+          {
+            success: false,
+            message: 'Tu usuario no está vinculado con un cliente. Solicita apoyo al administrador.',
+            data: null,
+            meta: null,
+          },
+          { status: 409 },
+        )
+      }
+      const selectedRequester =
+        !isPortal && body.requesterId ? mockUsers.find((item) => item.id === body.requesterId) : null
+      const requester = selectedRequester ?? user
+      const clientId = isPortal || selectedRequester ? requester.clientId ?? null : null
+      const clientName = isPortal || selectedRequester ? requester.clientName ?? null : null
       const createdAt = new Date().toISOString()
       const slaDueAt = new Date(Date.now() + pri.resolutionHours * 3600000).toISOString()
 
@@ -746,12 +763,14 @@ export function createTicketHandlers(mockUsers: User[]) {
         title: normalized.title,
         description: normalized.description,
         status: 'OPEN',
-        requesterId: user.id,
-        requesterName: user.fullName,
+        requesterId: requester.id,
+        requesterName: requester.fullName,
         categoryId: normalized.categoryId,
         priorityId: normalized.priorityId,
-        companyId: company?.id ?? null,
-        companyName: company?.name ?? null,
+        companyId: clientId,
+        companyName: clientName,
+        clientId,
+        clientName,
         createdAt,
         slaDueAt,
         slaCreatedAt: createdAt,
@@ -776,6 +795,7 @@ export function createTicketHandlers(mockUsers: User[]) {
         survey: null,
       }
       ticketStores.unshift(store)
+      notifyTicketCreated(ticket, user)
       return HttpResponse.json(
         { success: true, message: 'Ticket creado', data: ticket, meta: null },
         { status: 201 },
@@ -875,6 +895,7 @@ export function createTicketHandlers(mockUsers: User[]) {
         /* keep */
       }
       addHistory(store, old, body.status, user!, body.reason)
+      notifyStatusChanged(store.ticket, user!, body.status)
       return HttpResponse.json({
         success: true,
         message: 'Estado actualizado',
@@ -899,12 +920,14 @@ export function createTicketHandlers(mockUsers: User[]) {
           { status: 422 },
         )
       const old = store.ticket.status
+      const previousAssigneeId = store.ticket.assigneeId
       store.ticket.assigneeId = agent.id
       store.ticket.assigneeName = agent.fullName
       if (store.ticket.status === 'OPEN') {
         store.ticket.status = 'ASSIGNED'
         addHistory(store, old, 'ASSIGNED', user!, 'Asignado a agente')
       }
+      notifyTicketAssigned(store.ticket, user!, previousAssigneeId)
       return HttpResponse.json({
         success: true,
         message: 'Ticket asignado',
@@ -986,6 +1009,8 @@ export function createTicketHandlers(mockUsers: User[]) {
         createdAt: new Date().toISOString(),
       }
       store.comments.push(comment)
+      if (isInternal) notifyInternalComment(store.ticket, user, comment.id)
+      else notifyPublicComment(store.ticket, user, comment.id)
       return HttpResponse.json(
         { success: true, message: 'Comentario agregado', data: comment, meta: null },
         { status: 201 },

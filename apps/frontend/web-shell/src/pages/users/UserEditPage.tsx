@@ -2,7 +2,9 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ErrorState } from '@/components/common/ErrorState'
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
+import { ConfirmModal } from '@/components/common/Modal'
 import { PrimaryButton } from '@/components/common/UiControls'
+import { ClientSelectField } from '@/components/users/ClientSelectField'
 import { ROLES } from '@/constants/roles'
 import { LIMITS } from '@/constants/validation'
 import * as usersService from '@/services/users.service'
@@ -18,10 +20,15 @@ export function UserEditPage() {
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<UserRole>('AGENT')
+  const [initialRole, setInitialRole] = useState<UserRole>('AGENT')
+  const [clientId, setClientId] = useState('')
+  const [clientName, setClientName] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [confirmInternal, setConfirmInternal] = useState(false)
   const [submitLock] = useState(() => createSubmitLock())
+  const isRequester = role === 'REQUESTER'
 
   useEffect(() => {
     if (!id) return
@@ -32,6 +39,9 @@ export function UserEditPage() {
         setFullName(user.fullName)
         setEmail(user.email)
         setRole(user.role)
+        setInitialRole(user.role)
+        setClientId(user.clientId ?? '')
+        setClientName(user.clientName ?? null)
       } catch (err: unknown) {
         setError((err as { message?: string }).message || 'Error al cargar usuario')
       } finally {
@@ -41,16 +51,8 @@ export function UserEditPage() {
     void load()
   }, [id])
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!id || submitting || submitLock.pending) return
-    setError('')
-    const formError = userEditFormError({ fullName, email, role })
-    if (formError) {
-      setError(formError)
-      return
-    }
-
+  const save = async () => {
+    if (!id) return
     await submitLock.run(async () => {
       setSubmitting(true)
       try {
@@ -58,14 +60,32 @@ export function UserEditPage() {
           fullName: fullName.trim(),
           email: email.trim(),
           role,
+          clientId: isRequester ? clientId : undefined,
         })
         navigate('/users')
       } catch (err: unknown) {
         setError(errorMessage(err, 'Error al actualizar usuario'))
       } finally {
         setSubmitting(false)
+        setConfirmInternal(false)
       }
     })
+  }
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!id || submitting || submitLock.pending) return
+    setError('')
+    const formError = userEditFormError({ fullName, email, role, clientId })
+    if (formError) {
+      setError(formError)
+      return
+    }
+    if (initialRole === 'REQUESTER' && role !== 'REQUESTER') {
+      setConfirmInternal(true)
+      return
+    }
+    await save()
   }
 
   if (loading) return <LoadingSkeleton variant="form" label="Cargando usuario…" />
@@ -143,6 +163,15 @@ export function UserEditPage() {
             ))}
           </select>
         </div>
+        {isRequester && (
+          <ClientSelectField
+            value={clientId}
+            onChange={setClientId}
+            disabled={submitting}
+            required
+            currentLabel={clientName}
+          />
+        )}
         <div className="flex gap-3 pt-2">
           <PrimaryButton type="submit" disabled={submitting} loading={submitting} loadingText="Guardando…">
             Guardar cambios
@@ -155,6 +184,14 @@ export function UserEditPage() {
           </Link>
         </div>
       </form>
+      <ConfirmModal
+        open={confirmInternal}
+        title="Quitar asociación con el cliente"
+        message="Al cambiar a un rol interno se eliminará la asociación vigente con el cliente. Los tickets históricos no se modifican."
+        confirmLabel="Continuar"
+        onClose={() => setConfirmInternal(false)}
+        onConfirm={() => void save()}
+      />
     </div>
   )
 }

@@ -8,7 +8,7 @@ async function login(page: import('@playwright/test').Page, email: string) {
 }
 
 async function switchUser(page: import('@playwright/test').Page, email: string) {
-  await page.locator('header button[aria-expanded]:not([aria-label="Creación rápida"])').click()
+  await page.locator('header button[aria-label="Perfil"]').click()
   await page.getByRole('button', { name: 'Cerrar sesión' }).click()
   await expect(page).toHaveURL(/login/)
   await page.getByLabel('Correo electrónico').fill(email)
@@ -44,7 +44,7 @@ test.describe('Flujo completo de ticket', () => {
     await expect(page).toHaveURL(/\/tickets\/[^/]+$/)
     await expect(page.getByRole('heading', { name: ticketTitle })).toBeVisible()
 
-    const folio = (await page.locator('span.font-mono').textContent())?.trim() ?? ''
+    const folio = (await page.locator('span.font-mono.text-sm.text-slate-600').textContent())?.trim() ?? ''
 
     await switchUser(page, 'supervisor@helpdesk.com')
     await openTicketFromList(page, folio, ticketTitle)

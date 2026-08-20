@@ -7,6 +7,7 @@ export interface TicketFormValues {
   categoryId: string
   priorityId: string
   clientId?: string
+  requesterId?: string
 }
 
 export function validateTicketForm(values: TicketFormValues): string | null {
@@ -36,5 +37,6 @@ export function normalizeTicketForm(values: TicketFormValues) {
     categoryId: values.categoryId,
     priorityId: values.priorityId,
     clientId: values.clientId?.trim() ? values.clientId : undefined,
+    requesterId: values.requesterId?.trim() ? values.requesterId : undefined,
   }
 }

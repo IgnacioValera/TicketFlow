@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ErrorState } from '@/components/common/ErrorState'
 import { PasswordRequirements } from '@/components/common/PasswordRequirements'
 import { PrimaryButton } from '@/components/common/UiControls'
+import { ClientSelectField } from '@/components/users/ClientSelectField'
 import { ASSIGNABLE_ROLES, ROLES } from '@/constants/roles'
 import { LIMITS } from '@/constants/validation'
 import * as usersService from '@/services/users.service'
@@ -18,9 +19,11 @@ export function UserCreatePage() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [role, setRole] = useState<UserRole>('AGENT')
+  const [clientId, setClientId] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitLock] = useState(() => createSubmitLock())
+  const isRequester = role === 'REQUESTER'
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -32,6 +35,7 @@ export function UserCreatePage() {
       password,
       confirmPassword,
       role,
+      clientId,
     })
     if (formError) {
       setError(formError)
@@ -46,6 +50,7 @@ export function UserCreatePage() {
           email: email.trim(),
           password,
           role,
+          clientId: isRequester ? clientId : undefined,
         })
         navigate('/users')
       } catch (err: unknown) {
@@ -142,7 +147,11 @@ export function UserCreatePage() {
           <select
             id="role"
             value={role}
-            onChange={(e) => setRole(e.target.value as UserRole)}
+            onChange={(e) => {
+              const next = e.target.value as UserRole
+              setRole(next)
+              if (next !== 'REQUESTER') setClientId('')
+            }}
             className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
             disabled={submitting}
           >
@@ -153,6 +162,9 @@ export function UserCreatePage() {
             ))}
           </select>
         </div>
+        {isRequester && (
+          <ClientSelectField value={clientId} onChange={setClientId} disabled={submitting} required />
+        )}
         <div className="flex gap-3 pt-2">
           <PrimaryButton type="submit" disabled={submitting} loading={submitting} loadingText="Guardando…">
             Crear usuario

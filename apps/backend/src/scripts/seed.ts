@@ -38,7 +38,7 @@ async function seed() {
     ['Admin Sistema', 'admin@helpdesk.com', RoleCode.ADMIN],
     ['Agente Soporte', 'agent@helpdesk.com', RoleCode.AGENT],
     ['Supervisor Mesa', 'supervisor@helpdesk.com', RoleCode.SUPERVISOR],
-    ['Usuario Solicitante', 'requester@helpdesk.com', RoleCode.CLIENT],
+    ['Usuario Solicitante', 'requester@helpdesk.com', RoleCode.REQUESTER],
     ['Ejecutivo Comercial', 'sales@helpdesk.com', RoleCode.SALES],
   ]
   const users = new Map<RoleCode, User>()
@@ -82,14 +82,19 @@ async function seed() {
     clients.set(name, client)
   }
 
+  const acme = clients.get('Acme Corp')!
+  const requesterUser = users.get(RoleCode.REQUESTER)!
+  requesterUser.client = acme
+  users.set(RoleCode.REQUESTER, await userRepo.save(requesterUser))
+
   const ticketRepo = AppDataSource.getRepository(Ticket)
   if (await ticketRepo.count() === 0) {
-    const now = Date.now(), requester = users.get(RoleCode.CLIENT)!, agent = users.get(RoleCode.AGENT)!, supervisor = users.get(RoleCode.SUPERVISOR)!, acme = clients.get('Acme Corp')!
+    const now = Date.now(), requester = users.get(RoleCode.REQUESTER)!, agent = users.get(RoleCode.AGENT)!, supervisor = users.get(RoleCode.SUPERVISOR)!
     const seeds: Array<[string,string,TicketStatus,Category,Priority,number,User|null,Client|null]> = [
-      ['No puedo acceder al sistema de nómina','Credenciales inválidas después de restablecer la contraseña.',TicketStatus.OPEN,categories.get('Software')!,priorities.get(PriorityLevel.HIGH)!,2,null,null],
-      ['Impresora no responde','La impresora del piso 3 no imprime documentos.',TicketStatus.ASSIGNED,categories.get('Hardware')!,priorities.get(PriorityLevel.MEDIUM)!,20,agent,null],
+      ['No puedo acceder al sistema de nómina','Credenciales inválidas después de restablecer la contraseña.',TicketStatus.OPEN,categories.get('Software')!,priorities.get(PriorityLevel.HIGH)!,2,null,acme],
+      ['Impresora no responde','La impresora del piso 3 no imprime documentos.',TicketStatus.ASSIGNED,categories.get('Hardware')!,priorities.get(PriorityLevel.MEDIUM)!,20,agent,acme],
       ['Error en módulo de reportes','El dashboard muestra error 500 al exportar.',TicketStatus.IN_PROGRESS,categories.get('Software')!,priorities.get(PriorityLevel.CRITICAL)!,6,agent,acme],
-      ['Solicitud de acceso VPN','Nuevo colaborador requiere acceso VPN.',TicketStatus.RESOLVED,categories.get('Accesos')!,priorities.get(PriorityLevel.MEDIUM)!,48,agent,null],
+      ['Solicitud de acceso VPN','Nuevo colaborador requiere acceso VPN.',TicketStatus.RESOLVED,categories.get('Accesos')!,priorities.get(PriorityLevel.MEDIUM)!,48,agent,acme],
       ['Servidor de archivos caído','No hay acceso al recurso compartido corporativo.',TicketStatus.ESCALATED,categories.get('Hardware')!,priorities.get(PriorityLevel.CRITICAL)!,10,agent,acme],
     ]
     let number = 0

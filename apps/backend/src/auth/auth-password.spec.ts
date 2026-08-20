@@ -190,7 +190,7 @@ describe('Actualización del perfil propio', () => {
 
     expect(users.findOne).toHaveBeenCalledWith({
       where: { id: 'user-1' },
-      relations: { role: { permissions: true } },
+      relations: { role: { permissions: true }, client: true },
     })
     expect(result.fullName).toBe('Admin Actualizado')
     expect(result.role).toBe('ADMIN')
