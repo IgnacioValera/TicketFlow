@@ -11,7 +11,6 @@ import {
 import { flushSync } from 'react-dom'
 import * as authService from '@/services/auth.service'
 import { setAuthHandlers } from '@/services/apiClient'
-import { ROLE_PERMISSIONS } from '@/constants/roles'
 import type { LoginCredentials, User } from '@/types/user.types'
 import { tokenStorage } from '@/utils/storage'
 
@@ -28,9 +27,12 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 function normalizeUser(user: User): User {
-  const permissions =
-    user.permissions?.length > 0 ? user.permissions : (ROLE_PERMISSIONS[user.role] ?? [])
-  return { ...user, permissions, mustChangePassword: Boolean(user.mustChangePassword) }
+  return {
+    ...user,
+    permissions: Array.isArray(user.permissions) ? user.permissions : [],
+    mustChangePassword: Boolean(user.mustChangePassword),
+    permissionsVersion: user.permissionsVersion ?? 0,
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -61,11 +63,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    setAuthHandlers(authService.refreshToken, () => {
-      tokenStorage.clearTokens()
-      setUser(null)
-    })
-  }, [])
+    setAuthHandlers(
+      authService.refreshToken,
+      () => {
+        tokenStorage.clearTokens()
+        setUser(null)
+      },
+      () => refreshProfile(),
+    )
+  }, [refreshProfile])
+
+  useEffect(() => {
+    const revalidate = () => {
+      if (!tokenStorage.getAccessToken()) return
+      void refreshProfile()
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') revalidate()
+    }
+    window.addEventListener('focus', revalidate)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('focus', revalidate)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [refreshProfile])
 
   useEffect(() => {
     const init = async () => {

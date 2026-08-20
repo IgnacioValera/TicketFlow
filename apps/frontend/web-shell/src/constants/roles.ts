@@ -31,6 +31,7 @@ const PORTAL = [
   PERMISSIONS.COMMENT_PUBLIC, PERMISSIONS.ATTACHMENT_UPLOAD, PERMISSIONS.SURVEY_RESPOND,
 ]
 
+/** Catálogo de ejemplo para mocks de desarrollo. No autoriza en producción. */
 export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
   ADMIN: Object.values(PERMISSIONS),
   SALES: [PERMISSIONS.LOGIN, ...CRM_SALES],
@@ -63,7 +64,9 @@ export const ROUTE_PERMISSIONS: Record<string, string[]> = {
   '/crm/opportunities': [PERMISSIONS.CRM_OPPORTUNITY_VIEW],
   '/crm/activities': [PERMISSIONS.CRM_ACTIVITY_VIEW],
   '/crm/surveys': [PERMISSIONS.CRM_SURVEY_VIEW],
-  '/knowledge': [PERMISSIONS.KNOWLEDGE_MANAGE, PERMISSIONS.TICKET_VIEW_OWN],
+  '/knowledge': [PERMISSIONS.KNOWLEDGE_MANAGE],
+  '/ticket-flow': [PERMISSIONS.TICKET_VIEW_OWN, PERMISSIONS.TICKET_VIEW_ALL],
+  '/administration/roles-permissions': [PERMISSIONS.ROLE_PERMISSION_MANAGE],
 }
 
 export function isPortalRole(role: UserRole) {

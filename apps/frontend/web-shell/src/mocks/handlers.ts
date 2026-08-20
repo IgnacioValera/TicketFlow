@@ -4,6 +4,7 @@ import type { Category, Company, Priority, SlaPolicy } from '@/types/catalog.typ
 import type { User, UserRole, UserStatus } from '@/types/user.types'
 import { createCrmHandlers } from '@/mocks/crm.handlers'
 import { createTicketHandlers } from '@/mocks/ticket.handlers'
+import { createAccessHandlers } from '@/mocks/access.handlers'
 import {
   listNotifications,
   markAllRead,
@@ -1082,6 +1083,7 @@ export const handlers = [
 
   ...createCrmHandlers(mockUsers),
   ...createTicketHandlers(mockUsers),
+  ...createAccessHandlers(mockUsers, findUserByToken),
 
   http.get('*/knowledge-articles/:id', async ({ params }) => {
     const id = String(params.id)

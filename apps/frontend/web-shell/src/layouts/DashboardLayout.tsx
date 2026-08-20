@@ -178,7 +178,7 @@ export function DashboardLayout() {
                   <QuickTooltip key={item.path} label={item.label} enabled={collapsed}>
                     <NavLink
                       to={item.path}
-                      aria-label={item.label}
+                      aria-label={collapsed ? item.label : undefined}
                       onClick={() => setSidebarOpen(false)}
                       className={() =>
                         `flex w-full items-center rounded text-sm transition-colors ${collapsed ? 'h-9 justify-center px-2' : 'gap-2.5 px-2.5 py-1.5'} ${item.path === activeNavPath ? 'bg-sidebar-active font-medium text-white' : 'text-white/75 hover:bg-sidebar-active/70 hover:text-white'}`

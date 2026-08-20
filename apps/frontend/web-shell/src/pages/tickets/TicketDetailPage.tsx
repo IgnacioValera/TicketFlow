@@ -95,8 +95,7 @@ export function TicketDetailPage() {
     ((hasPermission(PERMISSIONS.TICKET_EDIT_OWN) &&
       ticket.requesterId === user?.id &&
       ['OPEN', 'ASSIGNED'].includes(ticket.status)) ||
-      user?.role === 'SUPERVISOR' ||
-      user?.role === 'ADMIN')
+      hasPermission(PERMISSIONS.TICKET_VIEW_ALL))
 
   const canAssign =
     !isFinalized &&
@@ -105,9 +104,8 @@ export function TicketDetailPage() {
   const canChangePriority =
     ticket &&
     !isFinalized &&
-    (user?.role === 'SUPERVISOR' ||
-      user?.role === 'ADMIN' ||
-      (user?.role === 'AGENT' && ticket.assigneeId === user.id))
+    (hasPermission(PERMISSIONS.TICKET_VIEW_ALL) ||
+      (hasPermission(PERMISSIONS.TICKET_STATUS_CHANGE) && ticket.assigneeId === user?.id))
 
   const handleEdit = async (values: {
     title: string

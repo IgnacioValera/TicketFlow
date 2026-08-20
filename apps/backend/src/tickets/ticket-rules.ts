@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, UnprocessableEntityException } from '@nestjs/common'
 import { LIMITS } from '../common/limits'
+import { hasEffectivePermission } from '../common/effective-permissions'
 import { RoleCode, TicketStatus, User } from '../database/entities'
 
 export const TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
@@ -50,7 +51,7 @@ export function assertStatusReason(from: TicketStatus, to: TicketStatus, reason?
 }
 
 export function hasPermission(user: User, code: string) {
-  return (user.role.permissions ?? []).some((permission) => permission.code === code)
+  return hasEffectivePermission(user, code)
 }
 
 export function assertTicketSurvey(ticket: { status: TicketStatus; requester: { id: string } }, user: User) {

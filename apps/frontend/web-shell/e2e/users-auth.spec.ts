@@ -40,7 +40,7 @@ async function createManagedUser(page: Page, fullName: string, email: string, ro
   await page.getByLabel('Correo electrónico').fill(email)
   await page.getByLabel('Contraseña inicial').fill('Password1!')
   await page.getByLabel('Confirmar contraseña').fill('Password1!')
-  await chooseSelectOption(page.getByLabel('Rol'), { label: roleLabel })
+  await chooseSelectOption(page.getByLabel('Rol', { exact: true }), { label: roleLabel })
   if (roleLabel === 'Solicitante') {
     await page.locator('#clientId').click()
     await expect(page.getByRole('option').nth(1)).toBeVisible({ timeout: 10000 })
