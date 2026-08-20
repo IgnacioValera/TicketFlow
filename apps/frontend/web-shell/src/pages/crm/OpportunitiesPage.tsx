@@ -7,7 +7,8 @@ import { ConfirmToast } from '@/components/common/FeedbackAlert'
 import { ErrorState } from '@/components/common/ErrorState'
 import { FormField } from '@/components/common/FormField'
 import { Modal } from '@/components/common/Modal'
-import { PageHeader } from '@/components/common/PageHeader'
+import { TableActionButton } from '@/components/common/TableActionButton'
+import { SearchableSelect } from '@/components/common/SearchableSelect'
 import { PrimaryButton, SecondaryButton, SelectInput, TextArea, TextInput } from '@/components/common/UiControls'
 import { OpportunitySurveyCard } from '@/components/crm/OpportunitySurveyCard'
 import { SurveyInvitationModal } from '@/components/crm/SurveyInvitationModal'
@@ -385,42 +386,28 @@ export function OpportunitiesPage() {
       {
         key: 'actions',
         header: 'Acciones',
-        render: (row) =>
-          canEdit ? (
-            <div className="flex gap-3">
-              <button
-                type="button"
-                className="text-sm font-medium text-brand-teal hover:underline"
+        render: (row) => (
+          <div className="flex flex-wrap gap-2">
+            {canEdit && (
+              <TableActionButton
+                label={`Editar oportunidad ${row.title}`}
+                icon="edit"
                 onClick={(event) => {
                   event.stopPropagation()
                   openEdit(row)
                 }}
-              >
-                Editar
-              </button>
-              <button
-                type="button"
-                className="text-sm font-medium text-brand-teal hover:underline"
-                onClick={(event) => {
-                  event.stopPropagation()
-                  void openDetail(row)
-                }}
-              >
-                Ver detalle
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className="text-sm font-medium text-brand-teal hover:underline"
+              />
+            )}
+            <TableActionButton
+              label={`Ver detalle de ${row.title}`}
+              icon="eye"
               onClick={(event) => {
                 event.stopPropagation()
                 void openDetail(row)
               }}
-            >
-              Ver detalle
-            </button>
-          ),
+            />
+          </div>
+        ),
       },
     ],
     [canEdit],
@@ -428,24 +415,49 @@ export function OpportunitiesPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader
-        kicker="CRM"
-        title="Oportunidades"
-        description="Embudo de ventas: sigue cada oportunidad desde nueva hasta ganada o perdida."
-        actions={
-          canCreate ? <PrimaryButton onClick={() => openCreate()}>+ Nueva oportunidad</PrimaryButton> : undefined
-        }
-      />
+      <div className="flex flex-wrap items-center gap-2 border-b border-brand-slate/30 pb-2">
+        <div className="min-w-[16rem] max-w-md flex-1">
+          <TextInput
+            placeholder="Buscar oportunidades..."
+            value={searchInput}
+            onChange={(e) => {
+              setSearchInput(e.target.value)
+              setPage(1)
+            }}
+          />
+        </div>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <div className="flex rounded border border-slate-300 bg-white p-0.5">
+            <button
+              type="button"
+              className={`rounded px-3 py-1.5 text-sm font-medium ${view === 'list' ? 'bg-brand-teal text-white' : 'text-brand-navy hover:bg-brand-cream/50'}`}
+              onClick={() => {
+                setView('list')
+                setPage(1)
+              }}
+            >
+              Lista
+            </button>
+            <button
+              type="button"
+              className={`rounded px-3 py-1.5 text-sm font-medium ${view === 'kanban' ? 'bg-brand-teal text-white' : 'text-brand-navy hover:bg-brand-cream/50'}`}
+              onClick={() => {
+                setView('kanban')
+                setPage(1)
+              }}
+            >
+              Kanban
+            </button>
+          </div>
+          {canCreate && (
+            <PrimaryButton onClick={() => openCreate()}>
+              <AppIcon name="plus" className="h-4 w-4" />
+              Nueva oportunidad
+            </PrimaryButton>
+          )}
+        </div>
+      </div>
       <div className="flex flex-wrap items-center gap-2">
-        <TextInput
-          className="max-w-xs"
-          placeholder="Buscar oportunidades..."
-          value={searchInput}
-          onChange={(e) => {
-            setSearchInput(e.target.value)
-            setPage(1)
-          }}
-        />
         <select
           aria-label="Etapa"
           value={stageFilter}
@@ -511,30 +523,8 @@ export function OpportunitiesPage() {
           ))}
         </select>
         {hasFilters && <SecondaryButton onClick={clearFilters}>Limpiar filtros</SecondaryButton>}
-        <div className="ml-auto flex rounded border border-slate-300 bg-white p-0.5">
-          <button
-            type="button"
-            className={`rounded px-3 py-1.5 text-sm ${view === 'list' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
-            onClick={() => {
-              setView('list')
-              setPage(1)
-            }}
-          >
-            Lista
-          </button>
-          <button
-            type="button"
-            className={`rounded px-3 py-1.5 text-sm ${view === 'kanban' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
-            onClick={() => {
-              setView('kanban')
-              setPage(1)
-            }}
-          >
-            Kanban
-          </button>
-        </div>
       </div>
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-muted">
         {listedCount} oportunidades · {formatMoney(totals.amount)} · ponderado {formatMoney(totals.weighted)}
       </p>
       {error && <ErrorState message={error} onRetry={() => void load()} />}
@@ -577,16 +567,16 @@ export function OpportunitiesPage() {
                   className={`flex w-72 shrink-0 flex-col rounded border bg-slate-50 ${isTarget ? 'border-brand-teal ring-2 ring-brand-teal/30' : 'border-slate-200'}`}
                 >
                   <header className="border-b border-slate-200 px-3 py-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
                       {getOpportunityStageLabel(stage)}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted">
                       {columnItems.length} · {formatMoney(total)}
                     </p>
                   </header>
                   <div className="flex min-h-48 flex-col gap-2 p-2">
                     {columnItems.length === 0 && (
-                      <p className="px-2 py-6 text-center text-xs text-slate-400">Sin oportunidades</p>
+                      <p className="px-2 py-6 text-center text-xs text-muted">Sin oportunidades</p>
                     )}
                     {columnItems.map((item) => (
                       <article
@@ -603,35 +593,31 @@ export function OpportunitiesPage() {
                         className={`rounded border border-slate-200 bg-white p-3 text-sm shadow-sm transition ${canMove ? 'hover:border-brand-teal/50 hover:shadow-md' : ''} ${draggingId === item.id ? 'is-dragging opacity-50' : ''}`}
                       >
                         {canMove && (
-                          <div className="mb-1 flex items-center gap-1 text-slate-400">
+                          <div className="mb-1 flex items-center gap-1 text-muted">
                             <AppIcon name="grip" className="h-3.5 w-3.5" />
                             <span className="text-[10px] uppercase tracking-wide">Arrastrar</span>
                           </div>
                         )}
-                        <p className="text-xs text-slate-500">{item.clientName}</p>
-                        <p className="font-semibold text-brand-navy">{item.title}</p>
-                        <p className="mt-1 text-sm font-medium">{formatMoney(item.amount, item.currency)}</p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-muted">{item.clientName}</p>
+                        <p className="font-semibold text-text">{item.title}</p>
+                        <p className="mt-1 text-sm font-medium text-text">{formatMoney(item.amount, item.currency)}</p>
+                        <p className="text-xs text-muted">
                           {item.probability}% · {item.ownerName || 'Sin responsable'}
                         </p>
-                        <p className="text-xs text-slate-400">{formatDate(item.expectedCloseDate)}</p>
-                        <div className="mt-2 flex flex-wrap gap-3">
+                        <p className="text-xs text-muted">{formatDate(item.expectedCloseDate)}</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
                           {canEdit && (
-                            <button
-                              type="button"
-                              className="text-xs font-medium text-brand-teal hover:underline"
+                            <TableActionButton
+                              label={`Editar oportunidad ${item.title}`}
+                              icon="edit"
                               onClick={() => openEdit(item)}
-                            >
-                              Editar
-                            </button>
+                            />
                           )}
-                          <button
-                            type="button"
-                            className="text-xs font-medium text-brand-teal hover:underline"
+                          <TableActionButton
+                            label={`Ver detalle de ${item.title}`}
+                            icon="eye"
                             onClick={() => void openDetail(item)}
-                          >
-                            Ver detalle
-                          </button>
+                          />
                         </div>
                       </article>
                     ))}
@@ -658,7 +644,7 @@ export function OpportunitiesPage() {
       >
         {detail ? (
           <div className="space-y-4">
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-muted">
               {detail.clientName} · {formatMoney(detail.amount, detail.currency)} · {getOpportunityStageLabel(detail.stage)}
             </p>
             <OpportunitySurveyCard
@@ -675,7 +661,7 @@ export function OpportunitiesPage() {
       </Modal>
       <Modal open={open} onClose={() => !saving && resetForm()} title={editing ? 'Editar oportunidad' : 'Nueva oportunidad'}>
         <form onSubmit={(e) => void submit(e)} className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Información general</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">Información general</p>
           <FormField label="Nombre de oportunidad" required error={fieldErrors.title}>
             <TextInput
               maxLength={LIMITS.OPPORTUNITY_TITLE}
@@ -684,28 +670,36 @@ export function OpportunitiesPage() {
             />
           </FormField>
           <div className="grid gap-3 sm:grid-cols-2">
-            <FormField label="Cliente" required error={fieldErrors.clientId}>
-              <SelectInput
+            <FormField label="Cliente" htmlFor="opportunity-client" required error={fieldErrors.clientId}>
+              <SearchableSelect
+                id="opportunity-client"
                 value={form.clientId}
-                onChange={(e) => setForm((c) => ({ ...c, clientId: e.target.value, contactId: '' }))}
-              >
-                <option value="">Seleccionar cliente</option>
-                {clients.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.name}
-                  </option>
-                ))}
-              </SelectInput>
+                onChange={(clientId) => setForm((c) => ({ ...c, clientId, contactId: '' }))}
+                options={clients.map((client) => ({ value: client.id, label: client.name }))}
+                placeholder="Seleccionar cliente"
+                searchPlaceholder="Buscar cliente..."
+                emptyMessage="No hay clientes disponibles"
+                noResultsMessage="Ningún cliente coincide con la búsqueda"
+              />
             </FormField>
-            <FormField label="Contacto" error={fieldErrors.contactId}>
-              <SelectInput value={form.contactId} onChange={(e) => setForm((c) => ({ ...c, contactId: e.target.value }))}>
-                <option value="">Sin contacto</option>
-                {contacts.map((contact) => (
-                  <option key={contact.id} value={contact.id}>
-                    {contact.firstName} {contact.lastName}
-                  </option>
-                ))}
-              </SelectInput>
+            <FormField label="Contacto" htmlFor="opportunity-contact" error={fieldErrors.contactId}>
+              <SearchableSelect
+                id="opportunity-contact"
+                value={form.contactId}
+                onChange={(contactId) => setForm((c) => ({ ...c, contactId }))}
+                options={contacts.map((contact) => ({
+                  value: contact.id,
+                  label: `${contact.firstName} ${contact.lastName}`.trim(),
+                  description: contact.email,
+                }))}
+                placeholder="Sin contacto"
+                searchPlaceholder="Buscar contacto..."
+                emptyMessage={form.clientId ? 'Este cliente no tiene contactos' : 'Selecciona un cliente primero'}
+                noResultsMessage="Ningún contacto coincide con la búsqueda"
+                disabled={!form.clientId}
+                allowEmpty
+                emptyLabel="Sin contacto"
+              />
             </FormField>
           </div>
           <FormField label="Responsable">
@@ -831,7 +825,7 @@ export function OpportunitiesPage() {
           }}
           className="space-y-3"
         >
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-muted">
             {reopenFor?.item.title} está {reopenFor ? getOpportunityStatusLabel(opportunityStatus(reopenFor.item.stage)).toLowerCase() : ''}.
             Indica el motivo para moverla a {reopenFor ? getOpportunityStageLabel(reopenFor.stage) : ''}.
           </p>

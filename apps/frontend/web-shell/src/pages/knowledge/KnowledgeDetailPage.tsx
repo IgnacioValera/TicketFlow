@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ErrorState } from '@/components/common/ErrorState'
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
-import { PageHeader } from '@/components/common/PageHeader'
 import { SurfaceCard } from '@/components/common/SurfaceCard'
 import { SecondaryButton } from '@/components/common/UiControls'
 import { PERMISSIONS } from '@/constants/permissions'
@@ -56,7 +55,7 @@ export function KnowledgeDetailPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <Link to="/knowledge" className="text-sm text-brand-teal hover:underline">
           ← Volver al listado
         </Link>
@@ -70,15 +69,15 @@ export function KnowledgeDetailPage() {
         )}
       </div>
 
-      <PageHeader
-        kicker={knowledgeTopic(article)}
-        title={article.title}
-        description={
-          article.updatedAt
-            ? `Actualizado el ${new Date(article.updatedAt).toLocaleDateString('es-MX', { dateStyle: 'medium' })}`
-            : undefined
-        }
-      />
+      <div>
+        <p className="text-xs font-medium text-muted">{knowledgeTopic(article)}</p>
+        <h1 className="mt-1 text-xl font-semibold tracking-tight text-text">{article.title}</h1>
+        {article.updatedAt && (
+          <p className="mt-1 text-sm text-muted">
+            Actualizado el {new Date(article.updatedAt).toLocaleDateString('es-MX', { dateStyle: 'medium' })}
+          </p>
+        )}
+      </div>
 
       <SurfaceCard className="space-y-5 p-6">
         {tags.length > 0 && (

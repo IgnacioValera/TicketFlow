@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { AppIcon } from '@/components/common/AppIcon'
 import { ConfirmModal, Modal } from '@/components/common/Modal'
 import { DataTable, type Column } from '@/components/common/DataTable'
 import { ErrorState } from '@/components/common/ErrorState'
+import { ConfirmToast } from '@/components/common/FeedbackAlert'
 import { TableActionButton } from '@/components/common/TableActionButton'
 import { PrimaryButton, SecondaryButton } from '@/components/common/UiControls'
 import { ROLES } from '@/constants/roles'
@@ -24,12 +25,14 @@ const STATUS_LABELS: Record<UserStatus, string> = {
 
 export function UsersListPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user: currentUser } = useAuth()
   const { hasPermission } = usePermissions()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [toast, setToast] = useState<{ title: string; message: string } | null>(null)
   const [roleFilter, setRoleFilter] = useState<UserRole | ''>('')
   const [statusFilter, setStatusFilter] = useState<UserStatus | ''>('')
   const [search, setSearch] = useState('')
@@ -54,6 +57,22 @@ export function UsersListPage() {
       setTemporaryPassword('')
     }
   }, [])
+
+  useEffect(() => {
+    if (!toast) return
+    const timer = window.setTimeout(() => setToast(null), 6000)
+    return () => window.clearTimeout(timer)
+  }, [toast])
+
+  useEffect(() => {
+    const state = location.state as { createdName?: string } | null
+    if (!state?.createdName) return
+    setToast({
+      title: 'Usuario creado',
+      message: `${state.createdName} se agregó al directorio.`,
+    })
+    navigate(location.pathname, { replace: true, state: null })
+  }, [location.pathname, location.state, navigate])
 
   const loadUsers = useCallback(async () => {
     setLoading(true)
@@ -242,41 +261,27 @@ export function UsersListPage() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
-            Administración
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-text md:text-3xl">
-            Usuarios
-          </h1>
-          <p className="mt-1 text-sm text-muted">
-            Gestiona identidades, roles y estado de acceso.
-          </p>
+      <ConfirmToast open={Boolean(toast)} title={toast?.title ?? ''} message={toast?.message ?? ''} />
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        <div className="w-full max-w-xs">
+          <input
+            type="search"
+            placeholder="Buscar por nombre o correo..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
+            className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-teal focus:outline-none"
+          />
         </div>
-        <PrimaryButton type="button" onClick={() => navigate('/users/create')}>
-          Nuevo usuario
-        </PrimaryButton>
-      </div>
-
-      <div className="ui-card mb-5 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
-        <input
-          type="search"
-          placeholder="Buscar por nombre o correo..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value)
-            setPage(1)
-          }}
-          className="rounded-lg border border-brand-slate px-3 py-2 text-sm focus:border-brand-teal focus:outline-none"
-        />
         <select
           value={roleFilter}
           onChange={(e) => {
             setRoleFilter(e.target.value as UserRole | '')
             setPage(1)
           }}
-          className="rounded-lg border border-brand-slate px-3 py-2 text-sm"
+          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
         >
           <option value="">Todos los roles</option>
           {(Object.keys(ROLES) as UserRole[]).map((role) => (
@@ -291,13 +296,19 @@ export function UsersListPage() {
             setStatusFilter(e.target.value as UserStatus | '')
             setPage(1)
           }}
-          className="rounded-lg border border-brand-slate px-3 py-2 text-sm"
+          className="w-40 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
         >
           <option value="">Todos los estados</option>
           <option value="ACTIVE">Activo</option>
           <option value="INACTIVE">Inactivo</option>
           <option value="LOCKED">Bloqueado</option>
         </select>
+        <div className="ml-auto">
+          <PrimaryButton type="button" onClick={() => navigate('/users/create')}>
+            <AppIcon name="plus" className="h-4 w-4" />
+            Nuevo usuario
+          </PrimaryButton>
+        </div>
       </div>
 
       {success && (
@@ -355,6 +366,7 @@ export function UsersListPage() {
               )}
               {hasPermission(PERMISSIONS.USER_MANAGE) && (
                 <PrimaryButton type="button" onClick={() => navigate('/users/create')}>
+                  <AppIcon name="plus" className="h-4 w-4" />
                   Crear usuario
                 </PrimaryButton>
               )}

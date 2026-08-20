@@ -11,7 +11,7 @@ import { ConfirmToast } from '@/components/common/FeedbackAlert'
 import { ErrorState } from '@/components/common/ErrorState'
 import { FormField } from '@/components/common/FormField'
 import { Modal } from '@/components/common/Modal'
-import { PageHeader } from '@/components/common/PageHeader'
+import { TableActionButton } from '@/components/common/TableActionButton'
 import { PrimaryButton, SecondaryButton, SelectInput, TextInput } from '@/components/common/UiControls'
 import { PERMISSIONS } from '@/constants/permissions'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -195,16 +195,14 @@ export function ClientsListPage() {
         header: 'Acciones',
         render: (row) =>
           hasPermission(PERMISSIONS.CRM_CLIENT_EDIT) ? (
-            <button
-              type="button"
-              className="text-sm font-medium text-brand-teal hover:underline"
+            <TableActionButton
+              label={`Editar cliente ${row.name}`}
+              icon="edit"
               onClick={(event) => {
                 event.stopPropagation()
                 openEdit(row)
               }}
-            >
-              Editar
-            </button>
+            />
           ) : (
             '—'
           ),
@@ -246,78 +244,60 @@ export function ClientsListPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader
-        kicker="CRM"
-        title="Clientes"
-        description="Gestiona la cartera de clientes y sus relaciones comerciales."
-        actions={
-          <>
-            {hasPermission(PERMISSIONS.CRM_EXPORT) && (
-              <SecondaryButton disabled={exporting} onClick={() => void handleExport()}>
-                {exporting ? 'Exportando...' : 'Exportar'}
-              </SecondaryButton>
-            )}
-            {hasPermission(PERMISSIONS.CRM_CLIENT_CREATE) && (
-              <PrimaryButton onClick={openCreate}>+ Nuevo cliente</PrimaryButton>
-            )}
-          </>
-        }
-      />
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="w-full max-w-xs">
           <TextInput
-            className="max-w-xs"
             placeholder="Buscar clientes..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
           />
-          {hasFilters && <SecondaryButton onClick={clearFilters}>Limpiar filtros</SecondaryButton>}
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="relative min-w-0">
-            <select
-              aria-label="Segmento"
-              value={segment}
-              onChange={(e) => {
-                setSegment(e.target.value)
-                setPage(1)
-              }}
-              className="w-full appearance-none rounded-lg border border-border bg-white px-3 py-2.5 pr-9 text-sm text-brand-navy shadow-sm"
-            >
-              <option value="">Todos los segmentos</option>
-              {(Object.keys(CLIENT_SEGMENT_LABELS) as ClientSegment[]).map((item) => (
-                <option key={item} value={item}>
-                  {CLIENT_SEGMENT_LABELS[item]}
-                </option>
-              ))}
-            </select>
-            <AppIcon
-              name="chevron-down"
-              className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-            />
-          </div>
-          <div className="relative min-w-0">
-            <select
-              aria-label="Estado"
-              value={status}
-              onChange={(e) => {
-                setStatus(e.target.value)
-                setPage(1)
-              }}
-              className="w-full appearance-none rounded-lg border border-border bg-white px-3 py-2.5 pr-9 text-sm text-brand-navy shadow-sm"
-            >
-              <option value="">Todos los estados</option>
-              {(Object.keys(CLIENT_STATUS_LABELS) as ClientStatus[]).map((item) => (
-                <option key={item} value={item}>
-                  {CLIENT_STATUS_LABELS[item]}
-                </option>
-              ))}
-            </select>
-            <AppIcon
-              name="chevron-down"
-              className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-            />
-          </div>
+        <select
+          aria-label="Segmento"
+          value={segment}
+          onChange={(e) => {
+            setSegment(e.target.value)
+            setPage(1)
+          }}
+          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
+        >
+          <option value="">Todos los segmentos</option>
+          {(Object.keys(CLIENT_SEGMENT_LABELS) as ClientSegment[]).map((item) => (
+            <option key={item} value={item}>
+              {CLIENT_SEGMENT_LABELS[item]}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Estado"
+          value={status}
+          onChange={(e) => {
+            setStatus(e.target.value)
+            setPage(1)
+          }}
+          className="w-40 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
+        >
+          <option value="">Todos los estados</option>
+          {(Object.keys(CLIENT_STATUS_LABELS) as ClientStatus[]).map((item) => (
+            <option key={item} value={item}>
+              {CLIENT_STATUS_LABELS[item]}
+            </option>
+          ))}
+        </select>
+        {hasFilters && <SecondaryButton onClick={clearFilters}>Limpiar filtros</SecondaryButton>}
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {hasPermission(PERMISSIONS.CRM_EXPORT) && (
+            <SecondaryButton disabled={exporting} onClick={() => void handleExport()}>
+              <AppIcon name="download" className="h-4 w-4" />
+              {exporting ? 'Exportando...' : 'Exportar'}
+            </SecondaryButton>
+          )}
+          {hasPermission(PERMISSIONS.CRM_CLIENT_CREATE) && (
+            <PrimaryButton onClick={openCreate}>
+              <AppIcon name="plus" className="h-4 w-4" />
+              Nuevo cliente
+            </PrimaryButton>
+          )}
         </div>
       </div>
       {error && <ErrorState message={error} onRetry={() => void load()} />}
@@ -343,7 +323,10 @@ export function ClientsListPage() {
           hasFilters ? (
             <SecondaryButton onClick={clearFilters}>Limpiar filtros</SecondaryButton>
           ) : hasPermission(PERMISSIONS.CRM_CLIENT_CREATE) ? (
-            <PrimaryButton onClick={openCreate}>Crear cliente</PrimaryButton>
+            <PrimaryButton onClick={openCreate}>
+              <AppIcon name="plus" className="h-4 w-4" />
+              Crear cliente
+            </PrimaryButton>
           ) : undefined
         }
       />

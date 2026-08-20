@@ -3,11 +3,11 @@ import { useParams } from 'react-router-dom'
 import { ErrorState } from '@/components/common/ErrorState'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
-import { PageHeader } from '@/components/common/PageHeader'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { SurfaceCard } from '@/components/common/SurfaceCard'
 import { SecondaryButton } from '@/components/common/UiControls'
 import { TicketFlowView } from '@/components/tickets/TicketFlowView'
+import { TicketFlowTicketSelect } from '@/components/tickets/TicketFlowTicketSelect'
 import { TICKET_FLOW_COPY } from '@/pages/tickets/ticket-flow-copy'
 import * as ticketService from '@/services/ticket.service'
 import type { Ticket } from '@/types/ticket.types'
@@ -150,37 +150,21 @@ export function TicketFlowPage() {
 
   return (
     <div className="min-w-0 space-y-5 overflow-x-hidden">
-      <PageHeader
-        kicker="Mesa de ayuda"
-        title="Flujo visual"
-        description="Historial real del ticket: etapas recorridas, estado actual, excepciones y responsables."
-        actions={
-          showSelector ? (
-            <div className="flex min-w-0 max-w-full flex-col gap-2 sm:flex-row sm:items-end">
-              <StatusFilterControl
-                value={statusFilter}
-                counts={filterCounts}
-                onChange={handleStatusFilter}
-              />
-              <label className="min-w-[220px] flex-1">
-                <span className="sr-only">Seleccionar ticket</span>
-                <select
-                  value={selectedTicketId}
-                  onChange={(event) => handleTicketChange(event.target.value)}
-                  className="w-full rounded border border-border bg-surface px-3.5 py-2 text-sm font-medium"
-                >
-                  <option value="">{TICKET_FLOW_COPY.selectTicket}</option>
-                  {filteredTickets.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.folio} · {item.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          ) : null
-        }
-      />
+      {showSelector ? (
+        <div className="flex min-w-0 max-w-full flex-col gap-2 sm:flex-row sm:items-end">
+          <StatusFilterControl
+            value={statusFilter}
+            counts={filterCounts}
+            onChange={handleStatusFilter}
+          />
+          <TicketFlowTicketSelect
+            tickets={filteredTickets}
+            value={selectedTicketId}
+            onChange={handleTicketChange}
+            resetKey={statusFilter}
+          />
+        </div>
+      ) : null}
 
       {waiting ? (
         <LoadingSkeleton variant="flow" label={TICKET_FLOW_COPY.loadingHistory} delayed={false} />

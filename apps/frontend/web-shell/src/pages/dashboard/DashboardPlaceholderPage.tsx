@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { AppIcon } from '@/components/common/AppIcon'
 import { ErrorState } from '@/components/common/ErrorState'
 import { CardSkeleton } from '@/components/common/LoadingSkeleton'
 import { EmptyState } from '@/components/common/EmptyState'
@@ -59,31 +60,13 @@ export function DashboardPlaceholderPage() {
   }
 
   if (loading && !summary) {
-    return (
-      <div className="space-y-6">
-        <header className="rounded border border-slate-200 bg-[#163a5f] p-5 text-white">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/50">Resumen operativo</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">Panel</h1>
-        </header>
-        <CardSkeleton />
-      </div>
-    )
+    return <CardSkeleton />
   }
 
   const hasTickets = (summary?.kpis ?? []).some((kpi) => kpi.value > 0)
 
   return (
     <div className="space-y-6">
-      <header className="rounded border border-slate-200 bg-[#163a5f] p-5 text-white">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/50">Resumen operativo</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">Panel</h1>
-        <p className="mt-2 text-sm text-white/70">
-          {scope === 'OWN'
-            ? 'Vista limitada para agente: solo tus indicadores y tickets asignados.'
-            : 'Vista global del estado operativo de la mesa de ayuda.'}
-        </p>
-      </header>
-
       {summary?.slaAlerts && <SlaAlertsBanner alerts={summary.slaAlerts} />}
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -122,8 +105,9 @@ export function DashboardPlaceholderPage() {
         {hasPermission(PERMISSIONS.TICKET_CREATE) && (
           <Link
             to="/tickets/create"
-            className="rounded border border-brand-teal/30 bg-brand-teal/5 px-4 py-3 text-sm font-medium text-brand-teal transition hover:bg-brand-teal/10"
+            className="inline-flex items-center gap-2 rounded border border-brand-teal/30 bg-brand-teal/5 px-4 py-3 text-sm font-medium text-brand-teal transition hover:bg-brand-teal/10"
           >
+            <AppIcon name="plus" className="h-4 w-4" />
             Crear ticket
           </Link>
         )}
@@ -137,8 +121,9 @@ export function DashboardPlaceholderPage() {
             hasPermission(PERMISSIONS.TICKET_CREATE) ? (
               <Link
                 to="/tickets/create"
-                className="inline-flex rounded bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
+                className="inline-flex items-center gap-2 rounded bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
               >
+                <AppIcon name="plus" className="h-4 w-4" />
                 Crear primer ticket
               </Link>
             ) : undefined
