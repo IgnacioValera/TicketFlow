@@ -18,7 +18,7 @@ async function login(page: Page, email = 'admin@helpdesk.com') {
   await expect(page).not.toHaveURL(/login/)
 }
 
-async function flowTicketOption(page: Page, ticketId: string) {
+function flowTicketOption(page: Page, ticketId: string) {
   return page.locator(`[data-ticket-id="${ticketId}"]`)
 }
 
@@ -38,6 +38,7 @@ async function selectFlowTicket(page: Page, ticketId: string) {
 async function expectFlowTicketOption(page: Page, ticketId: string, present: boolean) {
   await openTicketSelect(page)
   await expect(flowTicketOption(page, ticketId)).toHaveCount(present ? 1 : 0)
+  await closeTicketSelect(page)
 }
 
 async function closeTicketSelect(page: Page) {
@@ -120,7 +121,7 @@ test.describe('Flujo visual', () => {
 
   test('historial largo, excepciones y zoom no eliminan la selección', async ({ page }) => {
     await openFlow(page)
-    await selectFlowTicket(page, 't8')
+    await selectFlowTicket(page, 't5')
     await expect(page.getByText('Excepción').first()).toBeVisible()
     await page.getByRole('button', { name: /Escalado/ }).first().click()
     await expect(page.getByText('Requiere infraestructura')).toBeVisible()

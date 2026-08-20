@@ -1,12 +1,13 @@
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useAppNavigate } from '@/hooks/useAppNavigate'
+import { usePathname } from 'next/navigation'
 import { canUseHistoryBack } from '@/utils/session-gate'
 
 export function useSafeBack(fallbackPath: string) {
-  const navigate = useNavigate()
-  const location = useLocation()
+  const navigate = useAppNavigate()
+  const pathname = usePathname() ?? ''
 
   return () => {
-    if (canUseHistoryBack(location.key)) {
+    if (canUseHistoryBack(pathname)) {
       navigate(-1)
       return
     }

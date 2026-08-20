@@ -1,4 +1,6 @@
-import { ForbiddenPage } from '@/pages/errors/ForbiddenPage'
+'use client'
+
+import { ForbiddenPage } from '@/views/errors/ForbiddenPage'
 import { usePermissions } from '@/hooks/usePermissions'
 import type { UserRole } from '@/types/user.types'
 

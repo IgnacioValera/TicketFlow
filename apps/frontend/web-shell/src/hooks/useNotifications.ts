@@ -1,5 +1,5 @@
+import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import * as notificationsService from '@/services/notifications.service'
 import { createSubmitLock } from '@/utils/submit-lock'
@@ -11,7 +11,7 @@ import {
 
 export function useNotifications() {
   const { isAuthenticated, user } = useAuth()
-  const location = useLocation()
+  const pathname = usePathname() ?? ''
   const [items, setItems] = useState<NotificationItem[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -19,7 +19,7 @@ export function useNotifications() {
   const inFlight = useRef(false)
   const pendingRefresh = useRef(false)
   const [readLock] = useState(() => createSubmitLock())
-  const enabled = shouldPollNotifications(isAuthenticated, location.pathname) && Boolean(user)
+  const enabled = shouldPollNotifications(isAuthenticated, pathname) && Boolean(user)
 
   const refresh = useCallback(async () => {
     if (!enabled) return

@@ -84,7 +84,7 @@ El archivo [`render.yaml`](render.yaml) define:
 Tras el primer deploy exitoso:
 
 - La API aplica migraciones y el seed idempotente al arrancar el contenedor (el plan free no admite `preDeployCommand`).
-- El frontend construye `VITE_API_BASE_URL` a partir de `API_ORIGIN` (URL pública de la API).
+- El frontend construye `NEXT_PUBLIC_API_BASE_URL` a partir de `API_ORIGIN` (URL pública de la API).
 - Usa los mismos [usuarios de demostración](#usuarios-de-demostración) (`password`).
 
 ### Limitaciones del plan free
@@ -100,7 +100,7 @@ Si el frontend quedó apuntando a una API vacía en el primer build, dispara un 
 
 | Carpeta | Descripción |
 |---------|-------------|
-| `apps/frontend/web-shell` | Aplicación web React + Vite (mesa de ayuda) |
+| `apps/frontend/web-shell` | Aplicación web React + Next.js App Router (mesa de ayuda) |
 | `apps/backend` | API NestJS, migración, seed y pruebas |
 | `docker-compose.yml` | Stack local (PostgreSQL + API + frontend) |
 | `render.yaml` | Blueprint de despliegue en Render |

@@ -1,5 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+'use client'
+
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { useAppNavigate } from '@/hooks/useAppNavigate'
 import { AppIcon, type AppIconName } from '@/components/common/AppIcon'
 import { BrandMark } from '@/components/common/BrandLogo'
 import { QuickTooltip } from '@/components/common/QuickTooltip'
@@ -25,17 +29,18 @@ function initials(name = '') {
   )
 }
 
-export function DashboardLayout() {
+export function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth()
   const { hasPermission } = usePermissions()
-  const navigate = useNavigate()
-  const location = useLocation()
+  const navigate = useAppNavigate()
+  const pathname = usePathname() ?? ''
   const profileMenuRef = useRef<HTMLDivElement>(null)
   const createMenuRef = useRef<HTMLDivElement>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [collapsed, setCollapsed] = useState(
-    () => localStorage.getItem('ticketflow-sidebar') === 'collapsed',
-  )
+  const [collapsed, setCollapsed] = useState(false)
+  useEffect(() => {
+    setCollapsed(localStorage.getItem('ticketflow-sidebar') === 'collapsed')
+  }, [])
   const [profileOpen, setProfileOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
 
@@ -48,21 +53,21 @@ export function DashboardLayout() {
     items: navItems.filter((item) => item.group === group),
   })).filter(({ items }) => items.length)
   const activeNavPath = resolveActiveNavPath(
-    location.pathname,
+    pathname,
     navItems.map((item) => item.path),
   )
   const currentItem = navItems.find((item) => item.path === activeNavPath)
   const pageTitle =
     currentItem?.label ??
-    (location.pathname.startsWith('/profile')
+    (pathname.startsWith('/profile')
       ? 'Mi perfil'
-      : location.pathname.startsWith('/notifications')
+      : pathname.startsWith('/notifications')
         ? 'Notificaciones'
         : 'TicketFlow')
   const pageSection =
     currentItem?.group && currentItem.group !== 'Inicio'
       ? currentItem.group
-      : location.pathname.startsWith('/profile') || location.pathname.startsWith('/notifications')
+      : pathname.startsWith('/profile') || pathname.startsWith('/notifications')
         ? 'Cuenta'
         : undefined
 
@@ -142,7 +147,7 @@ export function DashboardLayout() {
           className={`flex h-14 items-center border-b border-white/10 ${collapsed ? 'justify-center gap-0.5 px-1' : 'justify-between px-3'}`}
         >
           <Link
-            to="/"
+            href="/"
             title="TicketFlow"
             aria-label="TicketFlow, ir al inicio"
             className="flex min-w-0 items-center"
@@ -176,17 +181,15 @@ export function DashboardLayout() {
               <div className="space-y-0.5">
                 {items.map((item) => (
                   <QuickTooltip key={item.path} label={item.label} enabled={collapsed}>
-                    <NavLink
-                      to={item.path}
-                      aria-label={collapsed ? item.label : undefined}
+                    <Link
+                      href={item.path}
+                      aria-label={item.label}
                       onClick={() => setSidebarOpen(false)}
-                      className={() =>
-                        `flex w-full items-center rounded text-sm transition-colors ${collapsed ? 'h-9 justify-center px-2' : 'gap-2.5 px-2.5 py-1.5'} ${item.path === activeNavPath ? 'bg-sidebar-active font-medium text-white' : 'text-white/75 hover:bg-sidebar-active/70 hover:text-white'}`
-                      }
+                      className={`flex w-full items-center rounded text-sm transition-colors ${collapsed ? 'h-9 justify-center px-2' : 'gap-2.5 px-2.5 py-1.5'} ${item.path === activeNavPath ? 'bg-sidebar-active font-medium text-white' : 'text-white/75 hover:bg-sidebar-active/70 hover:text-white'}`}
                     >
                       <AppIcon name={item.icon} className="h-4 w-4 shrink-0" />
                       {!collapsed && <span className="truncate">{item.label}</span>}
-                    </NavLink>
+                    </Link>
                   </QuickTooltip>
                 ))}
               </div>
@@ -238,7 +241,7 @@ export function DashboardLayout() {
                       {createActions.map((action) => (
                         <Link
                           key={action.to}
-                          to={action.to}
+                          href={action.to}
                           onClick={() => setCreateOpen(false)}
                           className="flex items-center gap-2 px-3 py-2 text-sm text-text hover:bg-page"
                         >
@@ -281,7 +284,7 @@ export function DashboardLayout() {
                     </div>
                     <div className="p-1">
                       <Link
-                        to="/profile"
+                        href="/profile"
                         onClick={() => setProfileOpen(false)}
                         className="flex items-center gap-2 rounded px-3 py-2 text-sm text-text hover:bg-page"
                       >
@@ -306,7 +309,7 @@ export function DashboardLayout() {
 
         <main className="min-w-0 flex-1 p-4 md:p-5">
           <div className="mx-auto w-full max-w-[1600px]">
-            <Outlet />
+            {children}
           </div>
         </main>
       </div>

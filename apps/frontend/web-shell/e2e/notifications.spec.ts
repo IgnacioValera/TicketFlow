@@ -77,7 +77,6 @@ test.describe('Cliente del solicitante y centro de notificaciones', () => {
     await page.getByPlaceholder('Buscar folio o título...').fill(ticketTitle)
     await page.getByRole('link', { name: folio }).click()
     await page.getByRole('button', { name: 'Asignar agente' }).click()
-    await expect(page.locator('#assignee option').nth(1)).toBeAttached()
     await chooseSelectOption(page.locator('#assignee'), { index: 1 })
     await page.getByRole('dialog', { name: 'Asignar agente' }).getByRole('button', { name: 'Asignar', exact: true }).click()
     await expect(page.getByRole('definition').filter({ hasText: 'Agente Soporte' })).toBeVisible()

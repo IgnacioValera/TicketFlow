@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
 
 interface KpiCardProps {
   title: string
@@ -40,7 +40,7 @@ export function KpiCard({ title, value, suffix, tone = 'neutral', href, onClick,
 
   if (href) {
     return (
-      <Link to={href} className={className} aria-label={`${title}: ${display}${suffix ?? ''}${cta ? `. ${cta}` : ''}`}>
+      <Link href={href} className={className} aria-label={`${title}: ${display}${suffix ?? ''}${cta ? `. ${cta}` : ''}`}>
         {content}
       </Link>
     )

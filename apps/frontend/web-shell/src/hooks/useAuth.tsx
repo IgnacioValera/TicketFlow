@@ -1,3 +1,5 @@
+'use client'
+
 import {
   createContext,
   useCallback,
@@ -26,6 +28,9 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+/** Survive Soft Navigation remounts of AuthProvider under Next App Router. */
+let sessionUser: User | null = null
+
 function normalizeUser(user: User): User {
   return {
     ...user,
@@ -35,14 +40,19 @@ function normalizeUser(user: User): User {
   }
 }
 
+function setSessionUser(user: User | null) {
+  sessionUser = user
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [user, setUser] = useState<User | null>(sessionUser)
+  const [isLoading, setIsLoading] = useState(() => !sessionUser && Boolean(tokenStorage.getAccessToken()))
   const profileEpoch = useRef(0)
 
   const logout = useCallback(async () => {
     profileEpoch.current += 1
     await authService.logout()
+    setSessionUser(null)
     setUser(null)
   }, [])
 
@@ -50,7 +60,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const epoch = profileEpoch.current
     const profile = await authService.getProfile()
     if (epoch !== profileEpoch.current) return
-    setUser(normalizeUser(profile))
+    const normalized = normalizeUser(profile)
+    setSessionUser(normalized)
+    setUser(normalized)
   }, [])
 
   const updateOwnProfile = useCallback(async (payload: { fullName: string }) => {
@@ -58,7 +70,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const epoch = profileEpoch.current
     const profile = await authService.updateOwnProfile(payload)
     const normalized = normalizeUser(profile)
-    if (epoch === profileEpoch.current) setUser(normalized)
+    if (epoch === profileEpoch.current) {
+      setSessionUser(normalized)
+      setUser(normalized)
+    }
     return normalized
   }, [])
 
@@ -67,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authService.refreshToken,
       () => {
         tokenStorage.clearTokens()
+        setSessionUser(null)
         setUser(null)
       },
       () => refreshProfile(),
@@ -90,6 +106,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshProfile])
 
   useEffect(() => {
+    if (sessionUser) {
+      setIsLoading(false)
+      return
+    }
     const init = async () => {
       const token = tokenStorage.getAccessToken()
       if (!token) {
@@ -98,9 +118,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       try {
         const profile = await authService.getProfile()
-        setUser(normalizeUser(profile))
+        const normalized = normalizeUser(profile)
+        setSessionUser(normalized)
+        setUser(normalized)
       } catch {
         tokenStorage.clearTokens()
+        setSessionUser(null)
         setUser(null)
       } finally {
         setIsLoading(false)
@@ -113,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const response = await authService.login(credentials)
     const normalized = normalizeUser(response.user)
     flushSync(() => {
+      setSessionUser(normalized)
       setUser(normalized)
     })
     return normalized

@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { AppIcon } from '@/components/common/AppIcon'
-import { TICKET_FLOW_COPY } from '@/pages/tickets/ticket-flow-copy'
+import { TICKET_FLOW_COPY } from '@/views/tickets/ticket-flow-copy'
 import type { Ticket } from '@/types/ticket.types'
 import { filterTicketsByQuery } from '@/utils/ticket-flow'
 import { moveTicketSearchIndex } from '@/utils/ticket-search'

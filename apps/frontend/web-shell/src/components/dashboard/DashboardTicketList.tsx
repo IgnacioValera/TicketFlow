@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
 import { EmptyState } from '@/components/common/EmptyState'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { SLA_COLORS, SLA_LABELS } from '@/utils/sla.utils'
@@ -24,7 +24,7 @@ export function DashboardTicketList({
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-brand-navy">{title}</h2>
         {viewAllHref && (
-          <Link to={viewAllHref} className="text-xs font-medium text-brand-teal hover:underline">
+          <Link href={viewAllHref} className="text-xs font-medium text-brand-teal hover:underline">
             Ver todos
           </Link>
         )}
@@ -36,7 +36,7 @@ export function DashboardTicketList({
           {tickets.map((ticket) => (
             <li key={ticket.id}>
               <Link
-                to={`/tickets/${ticket.id}`}
+                href={`/tickets/${ticket.id}`}
                 className="flex flex-col gap-2 px-1 py-3 hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">

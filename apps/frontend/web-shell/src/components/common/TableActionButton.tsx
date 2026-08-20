@@ -1,6 +1,6 @@
+import Link from 'next/link'
 import { useEffect, useRef, useState, type ButtonHTMLAttributes } from 'react'
 import { createPortal } from 'react-dom'
-import { Link } from 'react-router-dom'
 import { AppIcon, type AppIconName } from '@/components/common/AppIcon'
 
 type TableActionVariant = 'default' | 'success' | 'warning' | 'danger'
@@ -71,7 +71,7 @@ export function TableActionButton({
 
   const control = to ? (
     <Link
-      to={to}
+      href={to}
       aria-label={label}
       aria-disabled={disabled || undefined}
       className={`${classes} ${disabled ? 'pointer-events-none opacity-50' : ''}`}

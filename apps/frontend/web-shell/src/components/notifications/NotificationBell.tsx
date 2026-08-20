@@ -1,5 +1,6 @@
+import Link from 'next/link'
+import { useAppNavigate } from '@/hooks/useAppNavigate'
 import { useEffect, useId, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
 import { AppIcon } from '@/components/common/AppIcon'
 import { useNotifications } from '@/hooks/useNotifications'
 import {
@@ -11,7 +12,7 @@ import {
 } from '@/utils/notifications'
 
 export function NotificationBell() {
-  const navigate = useNavigate()
+  const navigate = useAppNavigate()
   const { items, unreadCount, loading, error, refresh, markRead, markAllRead } = useNotifications()
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -147,7 +148,7 @@ export function NotificationBell() {
           </div>
           <div className="border-t border-border px-3 py-2">
             <Link
-              to="/notifications"
+              href="/notifications"
               className="text-sm font-medium text-primary hover:underline"
               onClick={() => setOpen(false)}
             >

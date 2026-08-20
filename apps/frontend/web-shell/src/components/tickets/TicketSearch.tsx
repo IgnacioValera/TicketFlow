@@ -1,5 +1,5 @@
+import { useAppNavigate } from '@/hooks/useAppNavigate'
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { AppIcon } from '@/components/common/AppIcon'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { useTicketSearch } from '@/hooks/useTicketSearch'
@@ -23,7 +23,7 @@ function PriorityChip({ ticket }: { ticket: Ticket }) {
 }
 
 export function TicketSearch() {
-  const navigate = useNavigate()
+  const navigate = useAppNavigate()
   const { query, setQuery, results, status, clear } = useTicketSearch()
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
