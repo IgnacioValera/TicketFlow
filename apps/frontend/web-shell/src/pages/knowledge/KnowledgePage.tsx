@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AppIcon } from '@/components/common/AppIcon'
 import { ConfirmModal, Modal } from '@/components/common/Modal'
+import { ConfirmToast } from '@/components/common/FeedbackAlert'
 import { EmptyState } from '@/components/common/EmptyState'
 import { FormField } from '@/components/common/FormField'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -25,6 +27,8 @@ const EMPTY_FORM = { title: '', content: '', tags: '', categoryId: '' }
 export function KnowledgePage() {
   const { hasPermission } = usePermissions()
   const canManage = hasPermission(PERMISSIONS.KNOWLEDGE_MANAGE)
+  const location = useLocation()
+  const navigate = useNavigate()
   const [items, setItems] = useState<KnowledgeArticle[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [search, setSearch] = useState('')
@@ -35,6 +39,7 @@ export function KnowledgePage() {
   const [error, setError] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<KnowledgeArticle | null>(null)
   const [saving, setSaving] = useState(false)
+  const [toast, setToast] = useState<{ title: string; message: string } | null>(null)
 
   const load = async (query = search) => {
     setItems(await crm.getKnowledge(query || undefined))
@@ -47,6 +52,20 @@ export function KnowledgePage() {
   useEffect(() => {
     void categoriesService.getCategories({ status: 'ACTIVE', perPage: 100 }).then((r) => setCategories(r.data))
   }, [])
+
+  useEffect(() => {
+    if (!toast) return
+    const timer = window.setTimeout(() => setToast(null), 6000)
+    return () => window.clearTimeout(timer)
+  }, [toast])
+
+  useEffect(() => {
+    const editId = (location.state as { editId?: string } | null)?.editId
+    if (!editId || items.length === 0) return
+    const article = items.find((item) => item.id === editId)
+    if (article) openEdit(article)
+    navigate(location.pathname, { replace: true, state: null })
+  }, [items, location.pathname, location.state, navigate])
 
   const topics = useMemo(() => {
     return [...new Set(items.map((item) => knowledgeTopic(item)))].sort((a, b) => a.localeCompare(b, 'es'))
@@ -80,9 +99,23 @@ export function KnowledgePage() {
     setSaving(true)
     setError('')
     try {
-      const payload = { ...form, categoryId: form.categoryId || undefined }
-      if (editing) await crm.updateKnowledge(editing.id, payload)
-      else await crm.createKnowledge(payload)
+      const categoryValue = form.categoryId.trim()
+      const base = {
+        title: form.title.trim(),
+        content: form.content.trim(),
+        tags: form.tags.trim() || undefined,
+      }
+      if (editing) {
+        await crm.updateKnowledge(editing.id, {
+          ...base,
+          categoryId: categoryValue ? categoryValue : null,
+        })
+      } else {
+        await crm.createKnowledge({
+          ...base,
+          ...(categoryValue ? { categoryId: categoryValue } : {}),
+        })
+      }
       setOpen(false)
       await load()
     } catch (err: unknown) {
@@ -94,13 +127,24 @@ export function KnowledgePage() {
 
   const remove = async () => {
     if (!deleteTarget) return
-    await crm.deleteKnowledge(deleteTarget.id)
-    setDeleteTarget(null)
-    await load()
+    const title = deleteTarget.title
+    try {
+      await crm.deleteKnowledge(deleteTarget.id)
+      setDeleteTarget(null)
+      await load()
+      setToast({
+        title: 'Artículo desactivado',
+        message: `“${title}” ya no aparecerá en la base de conocimiento.`,
+      })
+    } catch (err: unknown) {
+      setDeleteTarget(null)
+      setError(errorMessage(err, 'No se pudo desactivar el artículo'))
+    }
   }
 
   return (
     <div className="space-y-5">
+      <ConfirmToast open={Boolean(toast)} title={toast?.title ?? ''} message={toast?.message ?? ''} />
       <PageHeader
         kicker="Mesa de ayuda"
         title="Base de conocimiento"
@@ -155,11 +199,15 @@ export function KnowledgePage() {
           {visible.map((item) => (
             <SurfaceCard key={item.id} as="article" className="flex flex-col p-5">
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
                     {knowledgeTopic(item)}
                   </p>
-                  <h2 className="mt-1 text-base font-semibold text-text">{item.title}</h2>
+                  <h2 className="mt-1 text-base font-semibold text-text">
+                    <Link to={`/knowledge/${item.id}`} className="hover:text-brand-teal hover:underline">
+                      {item.title}
+                    </Link>
+                  </h2>
                 </div>
                 {canManage && (
                   <div className="flex gap-1">
@@ -174,6 +222,12 @@ export function KnowledgePage() {
                 )}
               </div>
               <p className="mt-3 text-sm leading-6 text-muted">{knowledgeExcerpt(item.content)}</p>
+              <Link
+                to={`/knowledge/${item.id}`}
+                className="mt-2 text-sm font-medium text-brand-teal hover:underline"
+              >
+                Ver artículo completo
+              </Link>
               <div className="mt-4 flex flex-wrap gap-2">
                 {parseKnowledgeTags(item.tags).map((tag) => (
                   <span
@@ -205,16 +259,18 @@ export function KnowledgePage() {
           {error && (
             <p className="rounded border border-danger/30 bg-red-50 px-3 py-2 text-sm text-danger">{error}</p>
           )}
-          <FormField label="Título" required>
+          <FormField label="Título" htmlFor="knowledge-title" required>
             <TextInput
+              id="knowledge-title"
               required
               minLength={4}
               value={form.title}
               onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
             />
           </FormField>
-          <FormField label="Contenido" required>
+          <FormField label="Contenido" htmlFor="knowledge-content" required>
             <TextArea
+              id="knowledge-content"
               required
               minLength={20}
               rows={6}
@@ -222,15 +278,17 @@ export function KnowledgePage() {
               onChange={(event) => setForm((current) => ({ ...current, content: event.target.value }))}
             />
           </FormField>
-          <FormField label="Etiquetas">
+          <FormField label="Etiquetas" htmlFor="knowledge-tags">
             <TextInput
+              id="knowledge-tags"
               value={form.tags}
               onChange={(event) => setForm((current) => ({ ...current, tags: event.target.value }))}
               placeholder="contraseña, acceso, cuenta"
             />
           </FormField>
-          <FormField label="Categoría">
+          <FormField label="Categoría" htmlFor="knowledge-category">
             <SelectInput
+              id="knowledge-category"
               value={form.categoryId}
               onChange={(event) => setForm((current) => ({ ...current, categoryId: event.target.value }))}
             >
