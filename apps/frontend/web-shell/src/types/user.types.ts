@@ -11,6 +11,7 @@ export interface User {
   clientId?: string | null
   clientName?: string | null
   permissions: string[]
+  permissionsVersion?: number
   mustChangePassword?: boolean
   lastLoginAt?: string | null
   createdAt?: string

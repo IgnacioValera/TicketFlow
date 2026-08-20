@@ -4,6 +4,7 @@ import { AuthLayout } from '@/layouts/AuthLayout'
 import { DashboardLayout } from '@/layouts/DashboardLayout'
 import { DashboardPlaceholderPage } from '@/pages/dashboard/DashboardPlaceholderPage'
 import { ForbiddenPage } from '@/pages/errors/ForbiddenPage'
+import { RolesPermissionsPage } from '@/pages/administration/RolesPermissionsPage'
 import { LoginPage } from '@/pages/login/LoginPage'
 import { CategoriesPage } from '@/pages/catalogs/CategoriesPage'
 import { PrioritiesPage } from '@/pages/catalogs/PrioritiesPage'
@@ -70,14 +71,42 @@ export const routes: RouteObject[] = [
               </RoleRoute>
             ),
           },
-          { path: 'ticket-flow', element: <TicketFlowPage /> },
+          {
+            path: 'ticket-flow',
+            element: (
+              <RoleRoute path="/ticket-flow">
+                <TicketFlowPage />
+              </RoleRoute>
+            ),
+          },
           {
             path: 'tickets',
             children: [
-              { index: true, element: <RoleRoute permission={PERMISSIONS.TICKET_VIEW_OWN}><TicketsListPage /></RoleRoute> },
+              {
+                index: true,
+                element: (
+                  <RoleRoute permission={[PERMISSIONS.TICKET_VIEW_OWN, PERMISSIONS.TICKET_VIEW_ALL]}>
+                    <TicketsListPage />
+                  </RoleRoute>
+                ),
+              },
               { path: 'create', element: <RoleRoute permission={PERMISSIONS.TICKET_CREATE}><TicketCreatePage /></RoleRoute> },
-              { path: ':id/flow', element: <RoleRoute permission={PERMISSIONS.TICKET_VIEW_OWN}><TicketFlowPage /></RoleRoute> },
-              { path: ':id', element: <RoleRoute permission={PERMISSIONS.TICKET_VIEW_OWN}><TicketDetailPage /></RoleRoute> },
+              {
+                path: ':id/flow',
+                element: (
+                  <RoleRoute permission={[PERMISSIONS.TICKET_VIEW_OWN, PERMISSIONS.TICKET_VIEW_ALL]}>
+                    <TicketFlowPage />
+                  </RoleRoute>
+                ),
+              },
+              {
+                path: ':id',
+                element: (
+                  <RoleRoute permission={[PERMISSIONS.TICKET_VIEW_OWN, PERMISSIONS.TICKET_VIEW_ALL]}>
+                    <TicketDetailPage />
+                  </RoleRoute>
+                ),
+              },
             ],
           },
           {
@@ -113,6 +142,14 @@ export const routes: RouteObject[] = [
             ],
           },
           { path: 'reports', element: <RoleRoute path="/reports"><ReportsPage /></RoleRoute> },
+          {
+            path: 'administration/roles-permissions',
+            element: (
+              <RoleRoute permission={PERMISSIONS.ROLE_PERMISSION_MANAGE}>
+                <RolesPermissionsPage />
+              </RoleRoute>
+            ),
+          },
           { path: 'notifications', element: <NotificationsPage /> },
           { path: 'profile', element: <ProfilePage /> },
           { path: 'forbidden', element: <ForbiddenPage /> },

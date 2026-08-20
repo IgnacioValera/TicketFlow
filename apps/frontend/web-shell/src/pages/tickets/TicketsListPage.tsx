@@ -9,7 +9,6 @@ import { StatusBadge } from '@/components/common/StatusBadge'
 import { SlaSemaphore } from '@/components/tickets/SlaSemaphore'
 import { TicketsKanbanBoard } from '@/components/tickets/TicketsKanbanBoard'
 import { PERMISSIONS } from '@/constants/permissions'
-import { useAuth } from '@/hooks/useAuth'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useTickets } from '@/hooks/useTickets'
 import * as categoriesService from '@/services/categories.service'
@@ -34,7 +33,6 @@ function readSearchParam(
 }
 
 export function TicketsListPage() {
-  const { user } = useAuth()
   const { hasPermission } = usePermissions()
   const { tickets, loading, error, loadTickets } = useTickets()
   const [searchParams] = useSearchParams()
@@ -53,10 +51,9 @@ export function TicketsListPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('table')
 
   const defaultTab: ListTab = useMemo(() => {
-    if (user?.role === 'AGENT') return 'mine'
-    if (user?.role === 'SUPERVISOR' || user?.role === 'ADMIN') return 'all'
-    return 'all'
-  }, [user?.role])
+    if (hasPermission(PERMISSIONS.TICKET_VIEW_ALL)) return 'all'
+    return 'mine'
+  }, [hasPermission])
 
   const [tab, setTab] = useState<ListTab>(defaultTab)
 
@@ -165,17 +162,17 @@ export function TicketsListPage() {
     },
   ]
 
+  const canViewOwn = hasPermission(PERMISSIONS.TICKET_VIEW_OWN)
+  const canViewAll = hasPermission(PERMISSIONS.TICKET_VIEW_ALL)
   const showUnassignedTab =
-    hasPermission(PERMISSIONS.TICKET_ASSIGN) ||
-    user?.role === 'SUPERVISOR' ||
-    user?.role === 'ADMIN'
+    hasPermission(PERMISSIONS.TICKET_ASSIGN) || hasPermission(PERMISSIONS.TICKET_REASSIGN) || canViewAll
 
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-brand-slate/30 pb-2">
-        {(user?.role === 'AGENT' || showUnassignedTab) && (
+        {(canViewOwn || showUnassignedTab) && (
           <div className="flex flex-wrap gap-2">
-            {user?.role === 'AGENT' && (
+            {canViewOwn && (
               <button
                 type="button"
                 onClick={() => {

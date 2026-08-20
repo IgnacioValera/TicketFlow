@@ -41,7 +41,7 @@ test.describe('Cliente del solicitante y centro de notificaciones', () => {
     await page.getByLabel('Correo electrónico').fill(`qa.notif.${stamp}@helpdesk.com`)
     await page.getByLabel('Contraseña inicial').fill('Password1!')
     await page.getByLabel('Confirmar contraseña').fill('Password1!')
-    await chooseSelectOption(page.getByLabel('Rol'), { label: 'Solicitante' })
+    await chooseSelectOption(page.getByLabel('Rol', { exact: true }), { label: 'Solicitante' })
     await expect(page.locator('#clientId')).toBeVisible()
     await page.getByRole('button', { name: 'Crear usuario' }).click()
     await expect(page.getByText('Selecciona el cliente al que pertenece el solicitante.')).toBeVisible()

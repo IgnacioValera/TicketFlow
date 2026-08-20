@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { getNavItemsForRole } from '@/constants/navigation'
+import { PERMISSIONS } from '@/constants/permissions'
 import { ROLE_PERMISSIONS } from '@/constants/roles'
 import { createSubmitLock } from '@/utils/submit-lock'
 import {
@@ -11,33 +12,25 @@ import {
 import { loginInactiveError, userCreateFormError } from '@/utils/user-form'
 import { errorMessage } from '@/utils/validation'
 import { passwordConfirmationError } from '@/utils/password-form'
-import type { UserRole } from '@/types/user.types'
 
 describe('Administración de usuarios en frontend', () => {
-  it('muestra el menú Usuarios solo para ADMIN', () => {
-    const roles: UserRole[] = ['ADMIN', 'SUPERVISOR', 'AGENT', 'REQUESTER']
-    for (const role of roles) {
-      const items = getNavItemsForRole(role, ROLE_PERMISSIONS[role])
-      const hasUsers = items.some((item) => item.path === '/users')
-      expect(hasUsers).toBe(role === 'ADMIN')
-    }
-  })
-
-  it('oculta acciones administrativas para roles distintos de ADMIN', () => {
-    expect(canAdministerUsers('ADMIN')).toBe(true)
-    expect(canAdministerUsers('SUPERVISOR')).toBe(false)
-    expect(canAdministerUsers('AGENT')).toBe(false)
-    expect(canAdministerUsers('REQUESTER')).toBe(false)
+  it('muestra el menú Usuarios solo con USER_MANAGE', () => {
+    expect(canAdministerUsers([PERMISSIONS.USER_MANAGE])).toBe(true)
+    expect(canAdministerUsers([])).toBe(false)
+    expect(canAdministerUsers([PERMISSIONS.TICKET_VIEW_OWN])).toBe(false)
+    expect(getNavItemsForRole('ADMIN', ROLE_PERMISSIONS.ADMIN).some((item) => item.path === '/users')).toBe(true)
+    expect(getNavItemsForRole('AGENT', ROLE_PERMISSIONS.AGENT).some((item) => item.path === '/users')).toBe(false)
+    expect(getNavItemsForRole('SUPERVISOR', [PERMISSIONS.USER_MANAGE]).some((item) => item.path === '/users')).toBe(true)
   })
 
   it('deshabilita el restablecimiento para usuarios inactivos', () => {
-    expect(canResetUserPassword('ADMIN', 'ACTIVE')).toBe(true)
-    expect(canResetUserPassword('ADMIN', 'INACTIVE')).toBe(false)
-    expect(canResetUserPassword('SUPERVISOR', 'ACTIVE')).toBe(false)
+    expect(canResetUserPassword(true, 'ACTIVE')).toBe(true)
+    expect(canResetUserPassword(true, 'INACTIVE')).toBe(false)
+    expect(canResetUserPassword(false, 'ACTIVE')).toBe(false)
   })
 
   it('exige confirmación implícita antes de restablecer: no se restablece sin acción explícita', () => {
-    expect(canResetUserPassword('ADMIN', 'ACTIVE')).toBe(true)
+    expect(canResetUserPassword(true, 'ACTIVE')).toBe(true)
   })
 
   it('el formulario valida nombre, correo, rol y contraseña', () => {

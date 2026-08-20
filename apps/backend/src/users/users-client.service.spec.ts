@@ -42,7 +42,7 @@ describe('UsersService vínculo con cliente', () => {
   })
 
   function role(code: RoleCode): Role {
-    return { id: `role-${code}`, code, name: code, permissions: [] } as Role
+    return { id: `role-${code}`, code, name: code, description: '', permissionsVersion: 1, permissions: [] } as Role
   }
 
   function savedUser(partial: Partial<User> & { role: Role; client?: Client | null }) {

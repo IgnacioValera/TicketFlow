@@ -9,7 +9,6 @@ import { KpiCard } from '@/components/dashboard/KpiCard'
 import { SlaAlertsBanner } from '@/components/dashboard/SlaAlertsBanner'
 import { TicketsChart } from '@/components/dashboard/TicketsChart'
 import { PERMISSIONS } from '@/constants/permissions'
-import { useAuth } from '@/hooks/useAuth'
 import { usePermissions } from '@/hooks/usePermissions'
 import * as dashboardService from '@/services/dashboard.service'
 import type { DashboardSummary, KpiMetric } from '@/types/dashboard.types'
@@ -24,16 +23,15 @@ const KPI_TONE: Record<KpiMetric['key'], 'accent' | 'danger' | 'success' | 'neut
 }
 
 export function DashboardPlaceholderPage() {
-  const { user } = useAuth()
   const { hasPermission } = usePermissions()
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const scope = useMemo<'GLOBAL' | 'OWN'>(() => {
-    if (user?.role === 'AGENT') return 'OWN'
+    if (hasPermission(PERMISSIONS.DASHBOARD_VIEW_LIMITED) && !hasPermission(PERMISSIONS.DASHBOARD_VIEW)) return 'OWN'
     return 'GLOBAL'
-  }, [user?.role])
+  }, [hasPermission])
 
   const loadSummary = async () => {
     setLoading(true)
@@ -52,8 +50,7 @@ export function DashboardPlaceholderPage() {
     void loadSummary()
   }, [scope])
 
-  const showUnassignedLink =
-    hasPermission(PERMISSIONS.TICKET_ASSIGN) || user?.role === 'SUPERVISOR' || user?.role === 'ADMIN'
+  const showUnassignedLink = hasPermission(PERMISSIONS.TICKET_ASSIGN) || hasPermission(PERMISSIONS.TICKET_REASSIGN)
 
   if (error) {
     return <ErrorState message={error} onRetry={() => void loadSummary()} />

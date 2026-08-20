@@ -6,6 +6,7 @@ import { Test } from '@nestjs/testing'
 import request from 'supertest'
 import { ApiExceptionFilter, result } from '../common/api'
 import { ROLE_PERMISSION_CODES } from '../common/permissions'
+import { RequirePermissions } from '../common/security'
 import { RoleCode, UserStatus } from '../database/entities'
 import { AuthService } from './auth.service'
 import { JwtAuthGuard, MustChangePasswordGuard, PermissionsGuard } from './auth.guard'
@@ -14,6 +15,12 @@ import { JwtAuthGuard, MustChangePasswordGuard, PermissionsGuard } from './auth.
 class TicketsProbeController {
   @Get() list() {
     return result(['ok'])
+  }
+
+  @RequirePermissions('TICKET_VIEW_ALL')
+  @Get('all')
+  listAll() {
+    return result(['all'])
   }
 }
 
@@ -117,6 +124,44 @@ describe('Sesiones vigentes tras reset o desactivación', () => {
 
     expect(second.status).toBe(401)
     expect(second.body.message).toBe('Sesión inválida')
+  })
+
+  it('aplica permisos actuales de la base sin exigir un nuevo login', async () => {
+    dbUser = {
+      ...agentRecord(),
+      role: {
+        code: RoleCode.AGENT,
+        permissions: [{ code: 'TICKET_VIEW_ALL', module: { isActive: true } }] as never,
+      },
+    }
+    const first = await request(app.getHttpServer())
+      .get('/api/v1/tickets/all')
+      .set('Authorization', 'Bearer stale-access-token')
+    expect(first.status).toBe(200)
+
+    dbUser = {
+      ...agentRecord(),
+      role: {
+        code: RoleCode.AGENT,
+        permissions: [{ code: 'TICKET_VIEW_OWN', module: { isActive: true } }] as never,
+      },
+    }
+    const second = await request(app.getHttpServer())
+      .get('/api/v1/tickets/all')
+      .set('Authorization', 'Bearer stale-access-token')
+    expect(second.status).toBe(403)
+
+    dbUser = {
+      ...agentRecord(),
+      role: {
+        code: RoleCode.AGENT,
+        permissions: [{ code: 'TICKET_VIEW_ALL', module: { isActive: false } }] as never,
+      },
+    }
+    const inactiveModule = await request(app.getHttpServer())
+      .get('/api/v1/tickets/all')
+      .set('Authorization', 'Bearer stale-access-token')
+    expect(inactiveModule.status).toBe(403)
   })
 })
 

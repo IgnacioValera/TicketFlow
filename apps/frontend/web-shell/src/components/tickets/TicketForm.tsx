@@ -2,7 +2,9 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { EmptyState } from '@/components/common/EmptyState'
 import { SearchableSelect } from '@/components/common/SearchableSelect'
 import { SelectInput } from '@/components/common/UiControls'
+import { PERMISSIONS } from '@/constants/permissions'
 import { useAuth } from '@/hooks/useAuth'
+import { usePermissions } from '@/hooks/usePermissions'
 import type { Category, Priority } from '@/types/catalog.types'
 import type { User } from '@/types/user.types'
 import { LIMITS } from '@/constants/validation'
@@ -46,8 +48,9 @@ export function TicketForm({
   onCancel,
 }: TicketFormProps) {
   const { user } = useAuth()
+  const { hasPermission } = usePermissions()
   const isPortal = Boolean(user && PORTAL_ROLES.has(user.role))
-  const canChooseRequester = user?.role === 'ADMIN' || user?.role === 'SUPERVISOR'
+  const canChooseRequester = hasPermission(PERMISSIONS.TICKET_VIEW_ALL)
   const [values, setValues] = useState<TicketFormValues>({ ...EMPTY, ...initialValues })
   const [error, setError] = useState('')
   const [categories, setCategories] = useState<Category[]>([])

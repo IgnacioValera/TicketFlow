@@ -29,11 +29,32 @@ export enum SurveyStatus { DRAFT = 'DRAFT', PUBLISHED = 'PUBLISHED', CLOSED = 'C
 export enum SurveyTrigger { MANUAL = 'MANUAL', OPPORTUNITY_WON = 'OPPORTUNITY_WON' }
 export enum SurveyQuestionType { TEXT = 'TEXT', SINGLE_CHOICE = 'SINGLE_CHOICE', MULTIPLE_CHOICE = 'MULTIPLE_CHOICE', NPS = 'NPS', RATING = 'RATING', YES_NO = 'YES_NO' }
 
+@Entity('access_modules')
+export class AccessModule {
+  @PrimaryGeneratedColumn('uuid') id: string
+  @Index({ unique: true }) @Column({ length: 80 }) code: string
+  @Column({ length: 120 }) name: string
+  @Column({ length: 400, default: '' }) description: string
+  @Column({ name: 'is_active', default: true }) isActive: boolean
+  @Column({ name: 'is_system', default: false }) isSystem: boolean
+  @Column({ name: 'sort_order', type: 'int', default: 0 }) sortOrder: number
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date
+  @OneToMany(() => Permission, (permission) => permission.module) permissions: Permission[]
+}
+
 @Entity('permissions')
 export class Permission {
   @PrimaryGeneratedColumn('uuid') id: string
   @Index({ unique: true }) @Column({ length: 80 }) code: string
   @Column({ length: 120 }) name: string
+  @Column({ length: 400, default: '' }) description: string
+  @Column({ length: 40, default: 'MANAGE' }) action: string
+  @ManyToOne(() => AccessModule, (module) => module.permissions, { nullable: true, eager: true })
+  @JoinColumn({ name: 'module_id' })
+  module: AccessModule | null
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date
 }
 
 @Entity('roles')
@@ -41,9 +62,25 @@ export class Role {
   @PrimaryGeneratedColumn('uuid') id: string
   @Index({ unique: true }) @Column({ type: 'enum', enum: RoleCode }) code: RoleCode
   @Column({ length: 80 }) name: string
+  @Column({ length: 400, default: '' }) description: string
+  @Column({ name: 'permissions_version', type: 'int', default: 1 }) permissionsVersion: number
   @ManyToMany(() => Permission, { eager: true })
   @JoinTable({ name: 'role_permissions', joinColumn: { name: 'role_id' }, inverseJoinColumn: { name: 'permission_id' } })
   permissions: Permission[]
+}
+
+@Entity('permission_audits')
+export class PermissionAudit {
+  @PrimaryGeneratedColumn('uuid') id: string
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' }) @JoinColumn({ name: 'actor_user_id' }) actor: User | null
+  @ManyToOne(() => Role, { nullable: true, onDelete: 'SET NULL' }) @JoinColumn({ name: 'target_role_id' }) targetRole: Role | null
+  @ManyToOne(() => AccessModule, { nullable: true, onDelete: 'SET NULL' }) @JoinColumn({ name: 'target_module_id' }) targetModule: AccessModule | null
+  @Column({ length: 40 }) action: string
+  @Column({ name: 'previous_permissions', type: 'jsonb', nullable: true }) previousPermissions: string[] | null
+  @Column({ name: 'new_permissions', type: 'jsonb', nullable: true }) newPermissions: string[] | null
+  @Column({ name: 'added_permissions', type: 'jsonb', nullable: true }) addedPermissions: string[] | null
+  @Column({ name: 'removed_permissions', type: 'jsonb', nullable: true }) removedPermissions: string[] | null
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date
 }
 
 @Entity('users')
@@ -357,7 +394,7 @@ export class CrmSurveyAnswer {
 }
 
 export const ENTITIES = [
-  Permission, Role, User, RefreshToken, Category, Priority, SlaPolicy, Client, TicketCounter, Ticket,
+  AccessModule, Permission, Role, PermissionAudit, User, RefreshToken, Category, Priority, SlaPolicy, Client, TicketCounter, Ticket,
   TicketComment, TicketAttachment, TicketHistory, SatisfactionSurvey, Notification, KnowledgeArticle,
   CrmContact, CrmOpportunity, CrmOpportunityStageHistory, CrmActivity, CrmSurvey, CrmSurveyQuestion,
   CrmSurveyQuestionOption, CrmSurveyInvitation, CrmSurveyResponse, CrmSurveyAnswer,
