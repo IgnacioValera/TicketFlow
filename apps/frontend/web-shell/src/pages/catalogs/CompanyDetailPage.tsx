@@ -62,15 +62,7 @@ export function CompanyDetailPage() {
         <Link to="/catalogs/companies" className="text-sm text-brand-teal hover:underline">
           ← Volver al listado
         </Link>
-        <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
-          Empresa cliente
-        </p>
-        <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-brand-navy md:text-3xl">
-          {company.name}
-        </h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Detalle de empresa cliente y métricas operativas.
-        </p>
+        <h1 className="mt-3 text-xl font-semibold tracking-tight text-text">{company.name}</h1>
       </div>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { AppIcon } from '@/components/common/AppIcon'
 import { SurveyStatusBadge } from '@/components/common/CrmBadge'
 import { TablePagination } from '@/components/common/DataTable'
 import { EmptyState } from '@/components/common/EmptyState'
@@ -7,7 +8,7 @@ import { ErrorState } from '@/components/common/ErrorState'
 import { ConfirmToast } from '@/components/common/FeedbackAlert'
 import { FormField } from '@/components/common/FormField'
 import { Modal } from '@/components/common/Modal'
-import { PageHeader } from '@/components/common/PageHeader'
+import { TableActionButton } from '@/components/common/TableActionButton'
 import { PrimaryButton, SecondaryButton, SelectInput, TextArea, TextInput } from '@/components/common/UiControls'
 import { PERMISSIONS } from '@/constants/permissions'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -49,7 +50,7 @@ export function SurveysPage() {
 
   useEffect(() => {
     if (!toast) return
-    const timer = window.setTimeout(() => setToast(null), 5000)
+    const timer = window.setTimeout(() => setToast(null), 6000)
     return () => window.clearTimeout(timer)
   }, [toast])
 
@@ -100,7 +101,9 @@ export function SurveysPage() {
         trigger: form.trigger,
       })
       closeModal()
-      navigate(`/crm/surveys/${created.id}`)
+      navigate(`/crm/surveys/${created.id}`, {
+        state: { created: true, title: created.title },
+      })
     } catch (err: unknown) {
       setFormError(getErrorMessages(err, 'Se produjo un error al guardar.')[0])
     } finally {
@@ -130,42 +133,45 @@ export function SurveysPage() {
   return (
     <div className="space-y-4">
       <ConfirmToast open={Boolean(toast)} title={toast?.title ?? ''} message={toast?.message ?? ''} />
-      <PageHeader
-        kicker="CRM"
-        title="Encuestas"
-        description="Crea, activa y revisa resultados reales de satisfacción."
-        actions={
-          canManage ? <PrimaryButton onClick={() => setOpen(true)}>+ Nueva encuesta</PrimaryButton> : undefined
-        }
-      />
-      <div className="flex flex-wrap gap-2">
-        <TextInput
-          className="max-w-xs"
-          placeholder="Buscar encuestas..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value)
-            setPage(1)
-          }}
-        />
-        <SelectInput
-          className="w-40"
-          value={status}
-          onChange={(e) => {
-            setStatus(e.target.value)
-            setPage(1)
-          }}
-        >
-          <option value="">Todos los estados</option>
-          {(Object.keys(SURVEY_STATUS_LABELS) as SurveyStatus[]).map((item) => (
-            <option key={item} value={item}>
-              {SURVEY_STATUS_LABELS[item]}
-            </option>
-          ))}
-        </SelectInput>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="w-full max-w-xs">
+          <TextInput
+            placeholder="Buscar encuestas..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
+          />
+        </div>
+        <div className="w-44">
+          <SelectInput
+            aria-label="Estado"
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value)
+              setPage(1)
+            }}
+          >
+            <option value="">Todos los estados</option>
+            {(Object.keys(SURVEY_STATUS_LABELS) as SurveyStatus[]).map((item) => (
+              <option key={item} value={item}>
+                {SURVEY_STATUS_LABELS[item]}
+              </option>
+            ))}
+          </SelectInput>
+        </div>
+        {canManage && (
+          <div className="ml-auto">
+            <PrimaryButton onClick={() => setOpen(true)}>
+              <AppIcon name="plus" className="h-4 w-4" />
+              Nueva encuesta
+            </PrimaryButton>
+          </div>
+        )}
       </div>
       {loading ? (
-        <p className="text-sm text-slate-600">Cargando...</p>
+        <p className="text-sm text-muted">Cargando...</p>
       ) : error ? (
         <ErrorState message={error} onRetry={() => void load()} />
       ) : items.length === 0 ? (
@@ -178,7 +184,10 @@ export function SurveysPage() {
           }
           action={
             canManage && !emptyBecauseFilter ? (
-              <PrimaryButton onClick={() => setOpen(true)}>Crear encuesta</PrimaryButton>
+              <PrimaryButton onClick={() => setOpen(true)}>
+                <AppIcon name="plus" className="h-4 w-4" />
+                Crear encuesta
+              </PrimaryButton>
             ) : undefined
           }
         />
@@ -188,35 +197,45 @@ export function SurveysPage() {
             {items.map((item) => (
               <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                 <div>
-                  <p className="font-medium text-brand-navy">{item.title}</p>
-                  <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                  <p className="font-medium text-text">{item.title}</p>
+                  <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
                     <SurveyStatusBadge status={item.status} />
                     {getSurveyTriggerLabel(item.trigger)}
                     {` · ${item.questionCount ?? item.questions?.length ?? 0} preguntas`}
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-3 text-sm">
+                <div className="flex flex-wrap items-center gap-2">
                   {canManage && (
                     <>
-                      <Link className="font-medium text-brand-teal hover:underline" to={`/crm/surveys/${item.id}`}>
-                        Editar
-                      </Link>
+                      <TableActionButton
+                        label={`Editar encuesta ${item.title}`}
+                        icon="edit"
+                        to={`/crm/surveys/${item.id}`}
+                      />
                       {(item.status === 'DRAFT' || item.status === 'CLOSED') && (
-                        <button type="button" className="font-medium text-brand-teal hover:underline" onClick={() => void toggleStatus(item)}>
-                          Activar
-                        </button>
+                        <TableActionButton
+                          label={`Activar encuesta ${item.title}`}
+                          icon="check"
+                          variant="success"
+                          onClick={() => void toggleStatus(item)}
+                        />
                       )}
                       {item.status === 'PUBLISHED' && (
-                        <button type="button" className="font-medium text-brand-teal hover:underline" onClick={() => void toggleStatus(item)}>
-                          Desactivar
-                        </button>
+                        <TableActionButton
+                          label={`Desactivar encuesta ${item.title}`}
+                          icon="pause"
+                          variant="warning"
+                          onClick={() => void toggleStatus(item)}
+                        />
                       )}
                     </>
                   )}
                   {hasPermission(PERMISSIONS.CRM_SURVEY_RESULTS) && (
-                    <Link className="font-medium text-brand-teal hover:underline" to={`/crm/surveys/${item.id}/results`}>
-                      Resultados
-                    </Link>
+                    <TableActionButton
+                      label={`Ver resultados de ${item.title}`}
+                      icon="reports"
+                      to={`/crm/surveys/${item.id}/results`}
+                    />
                   )}
                 </div>
               </li>

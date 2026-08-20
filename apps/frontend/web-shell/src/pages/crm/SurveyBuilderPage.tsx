@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type DragEvent, type FormEvent } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { AppIcon } from '@/components/common/AppIcon'
 import { SurveyStatusBadge } from '@/components/common/CrmBadge'
 import { ConfirmToast } from '@/components/common/FeedbackAlert'
@@ -22,6 +22,8 @@ import { getSurveyQuestionTypeLabel, SURVEY_QUESTION_TYPE_LABELS, SURVEY_TRIGGER
 
 export function SurveyBuilderPage() {
   const { id } = useParams<{ id: string }>()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [survey, setSurvey] = useState<CrmSurvey | null>(null)
   const [questions, setQuestions] = useState<CrmSurveyQuestion[]>([])
   const [open, setOpen] = useState(false)
@@ -49,9 +51,19 @@ export function SurveyBuilderPage() {
 
   useEffect(() => {
     if (!toast) return
-    const timer = window.setTimeout(() => setToast(null), 5000)
+    const timer = window.setTimeout(() => setToast(null), 6000)
     return () => window.clearTimeout(timer)
   }, [toast])
+
+  useEffect(() => {
+    const state = location.state as { created?: boolean; title?: string } | null
+    if (!state?.created) return
+    setToast({
+      title: 'Encuesta creada',
+      message: `${state.title ?? 'La encuesta'} se guardó. Ahora puedes agregar preguntas.`,
+    })
+    navigate(location.pathname, { replace: true, state: null })
+  }, [location.pathname, location.state, navigate])
 
   const closeQuestionModal = () => {
     setOpen(false)
@@ -79,8 +91,13 @@ export function SurveyBuilderPage() {
         required: form.required,
         options: options.length ? options : undefined,
       })
+      const prompt = form.prompt.trim()
       closeQuestionModal()
       await load()
+      setToast({
+        title: 'Pregunta agregada',
+        message: `“${prompt}” se agregó a la encuesta.`,
+      })
     } catch (err: unknown) {
       setFormError(getErrorMessages(err, 'No se pudo agregar la pregunta.')[0])
     } finally {
@@ -186,7 +203,7 @@ export function SurveyBuilderPage() {
   }
 
   if (error && !survey) return <p className="text-sm text-brand-scarlet">{error}</p>
-  if (!survey) return <p className="text-sm text-slate-600">Cargando...</p>
+  if (!survey) return <p className="text-sm text-muted">Cargando...</p>
   const canEdit = survey.status === 'DRAFT'
 
   return (
@@ -195,10 +212,10 @@ export function SurveyBuilderPage() {
       <Link to="/crm/surveys" className="text-sm text-brand-teal hover:underline">
         ← Encuestas
       </Link>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-brand-navy">{survey.title}</h1>
-          <p className="mt-1 text-sm text-slate-500">{survey.description || 'Sin descripción'}</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold tracking-tight text-text">{survey.title}</h1>
+          <p className="mt-1 text-sm text-muted">{survey.description || 'Sin descripción'}</p>
           <div className="mt-2">
             <SurveyStatusBadge status={survey.status} />
           </div>
@@ -249,7 +266,7 @@ export function SurveyBuilderPage() {
       <section>
         <h2 className="mb-2 text-sm font-semibold text-brand-navy">Preguntas</h2>
         {questions.length === 0 ? (
-          <p className="rounded border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500">
+          <p className="rounded border border-dashed border-slate-300 bg-white p-6 text-sm text-muted">
             Aún no hay preguntas. Agrega la primera para poder activar la encuesta.
           </p>
         ) : (
@@ -275,7 +292,7 @@ export function SurveyBuilderPage() {
               >
                 <div className="flex items-start gap-3">
                   {canEdit && (
-                    <span className="mt-0.5 text-slate-400" title="Reordenar">
+                    <span className="mt-0.5 text-muted" title="Reordenar">
                       <AppIcon name="grip" className="h-4 w-4" />
                     </span>
                   )}
@@ -283,12 +300,12 @@ export function SurveyBuilderPage() {
                     <p className="text-sm font-medium text-brand-navy">
                       {index + 1}. {question.prompt}
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-muted">
                       Tipo: {getSurveyQuestionTypeLabel(question.type)}
                       {question.required ? ' · Obligatoria' : ' · Opcional'}
                     </p>
                     {question.options.length > 0 && (
-                      <ul className="mt-2 list-disc space-y-0.5 pl-5 text-sm text-slate-600">
+                      <ul className="mt-2 list-disc space-y-0.5 pl-5 text-sm text-muted">
                         {question.options.map((option) => (
                           <li key={option.id}>{option.label}</li>
                         ))}

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { EmptyState } from '@/components/common/EmptyState'
-import { PageHeader } from '@/components/common/PageHeader'
 import * as crm from '@/services/crm.service'
 import type { SurveyResults } from '@/types/crm.types'
 import { getSurveyQuestionTypeLabel } from '@/utils/labels'
@@ -31,7 +30,7 @@ export function SurveyResultsPage() {
     )
   }
 
-  if (!data) return <p className="text-sm text-slate-600">Cargando...</p>
+  if (!data) return <p className="text-sm text-muted">Cargando...</p>
   const nps = data.nps && data.nps.total > 0 ? data.nps : null
   const npsChart = nps
     ? [
@@ -46,10 +45,10 @@ export function SurveyResultsPage() {
       <Link to="/crm/surveys" className="text-sm text-brand-teal hover:underline">
         ← Encuestas
       </Link>
-      <PageHeader
-        title={data.survey.title}
-        description={`${data.totalResponses} ${data.totalResponses === 1 ? 'respuesta' : 'respuestas'} registradas`}
-      />
+      <h1 className="text-xl font-semibold tracking-tight text-text">{data.survey.title}</h1>
+      <p className="text-sm text-muted">
+        {data.totalResponses} {data.totalResponses === 1 ? 'respuesta' : 'respuestas'} registradas
+      </p>
       {data.totalResponses === 0 ? (
         <EmptyState
           title="Aún no hay respuestas"
@@ -57,7 +56,7 @@ export function SurveyResultsPage() {
         />
       ) : (
         <>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-muted">
             Resumen con los datos almacenados: {data.totalResponses} respuestas.
             {nps ? ` NPS ${nps.nps}.` : ''}
           </p>
@@ -66,7 +65,7 @@ export function SurveyResultsPage() {
               <h2 className="mb-2 text-sm font-semibold text-brand-navy">NPS</h2>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={npsChart}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" />
                   <XAxis dataKey="name" />
                   <YAxis allowDecimals={false} />
                   <Tooltip />
@@ -85,7 +84,7 @@ export function SurveyResultsPage() {
                       {item.opportunityTitle ? `Oportunidad: ${item.opportunityTitle}` : 'Sin oportunidad'}
                       {item.clientName ? ` · Cliente: ${item.clientName}` : ''}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted">
                       Disparador: {item.trigger === 'OPPORTUNITY_WON' ? 'Oportunidad ganada' : 'Manual'}
                       {item.npsScore != null ? ` · NPS ${item.npsScore}` : ''}
                     </p>
@@ -98,7 +97,7 @@ export function SurveyResultsPage() {
             {data.questions.map((question) => (
               <article key={question.id} className="rounded border border-slate-200 bg-white p-4">
                 <h3 className="text-sm font-semibold text-brand-navy">{question.prompt}</h3>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-muted">
                   {getSurveyQuestionTypeLabel(question.type)} · {question.answerCount} respuestas
                 </p>
                 {question.options && (
@@ -107,7 +106,7 @@ export function SurveyResultsPage() {
                       <li key={option.id}>
                         <div className="flex items-center justify-between text-sm">
                           <span>{option.label}</span>
-                          <span className="text-slate-500">{option.count} · {option.percentage}%</span>
+                          <span className="text-muted">{option.count} · {option.percentage}%</span>
                         </div>
                         <div className="mt-1 h-2 overflow-hidden rounded bg-slate-100">
                           <div className="h-full bg-brand-teal" style={{ width: `${option.percentage}%` }} />
@@ -128,11 +127,11 @@ export function SurveyResultsPage() {
                 )}
                 {question.texts && (
                   question.texts.length === 0 ? (
-                    <p className="mt-3 text-sm text-slate-500">Sin comentarios.</p>
+                    <p className="mt-3 text-sm text-muted">Sin comentarios.</p>
                   ) : (
                     <ul className="mt-3 space-y-2">
                       {question.texts.map((text, index) => (
-                        <li key={`${question.id}-${index}`} className="rounded bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                        <li key={`${question.id}-${index}`} className="rounded bg-slate-50 px-3 py-2 text-sm text-text">
                           {text}
                         </li>
                       ))}

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { AppIcon } from '@/components/common/AppIcon'
+import { AppIcon, type AppIconName } from '@/components/common/AppIcon'
 import { BrandMark } from '@/components/common/BrandLogo'
+import { QuickTooltip } from '@/components/common/QuickTooltip'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { TicketSearch } from '@/components/tickets/TicketSearch'
-import { getNavItemsForRole, type NavItem } from '@/constants/navigation'
+import { getNavItemsForRole, resolveActiveNavPath, type NavItem } from '@/constants/navigation'
 import { PERMISSIONS } from '@/constants/permissions'
 import { ROLES } from '@/constants/roles'
 import { useAuth } from '@/hooks/useAuth'
@@ -46,9 +47,11 @@ export function DashboardLayout() {
     group,
     items: navItems.filter((item) => item.group === group),
   })).filter(({ items }) => items.length)
-  const currentItem = [...navItems]
-    .sort((a, b) => b.path.length - a.path.length)
-    .find((item) => location.pathname.startsWith(item.path))
+  const activeNavPath = resolveActiveNavPath(
+    location.pathname,
+    navItems.map((item) => item.path),
+  )
+  const currentItem = navItems.find((item) => item.path === activeNavPath)
   const pageTitle =
     currentItem?.label ??
     (location.pathname.startsWith('/profile')
@@ -56,6 +59,12 @@ export function DashboardLayout() {
       : location.pathname.startsWith('/notifications')
         ? 'Notificaciones'
         : 'TicketFlow')
+  const pageSection =
+    currentItem?.group && currentItem.group !== 'Inicio'
+      ? currentItem.group
+      : location.pathname.startsWith('/profile') || location.pathname.startsWith('/notifications')
+        ? 'Cuenta'
+        : undefined
 
   const canSearchTickets =
     hasPermission(PERMISSIONS.TICKET_VIEW_OWN) || hasPermission(PERMISSIONS.TICKET_VIEW_ALL)
@@ -66,24 +75,34 @@ export function DashboardLayout() {
         hasPermission(PERMISSIONS.CRM_CLIENT_CREATE) && {
           label: 'Nuevo cliente',
           to: '/crm/clients?nuevo=1',
+          icon: 'profile' as const,
         },
         hasPermission(PERMISSIONS.CRM_OPPORTUNITY_CREATE) && {
           label: 'Nueva oportunidad',
           to: '/crm/opportunities?nuevo=1',
+          icon: 'flag' as const,
         },
         hasPermission(PERMISSIONS.CRM_ACTIVITY_CREATE) && {
           label: 'Nueva actividad',
           to: '/crm/activities?nuevo=1',
+          icon: 'calendar' as const,
         },
         hasPermission(PERMISSIONS.CRM_SURVEY_MANAGE) && {
           label: 'Nueva encuesta',
           to: '/crm/surveys?nuevo=1',
+          icon: 'mail' as const,
         },
         hasPermission(PERMISSIONS.TICKET_CREATE) && {
           label: 'Nuevo ticket',
           to: '/tickets/create',
+          icon: 'tickets' as const,
         },
-      ].filter(Boolean) as Array<{ label: string; to: string }>,
+        hasPermission(PERMISSIONS.USER_MANAGE) && {
+          label: 'Nuevo usuario',
+          to: '/users/create',
+          icon: 'users' as const,
+        },
+      ].filter(Boolean) as Array<{ label: string; to: string; icon: AppIconName }>,
     [hasPermission],
   )
 
@@ -117,10 +136,10 @@ export function DashboardLayout() {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex flex-col bg-sidebar text-white transition-[width,transform] duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${collapsed ? 'w-[72px]' : 'w-[232px]'} ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        className={`fixed inset-y-0 left-0 z-40 flex flex-col bg-sidebar text-white transition-[width,transform] duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${collapsed ? 'w-20' : 'w-[232px]'} ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div
-          className={`flex h-14 items-center border-b border-white/10 ${collapsed ? 'justify-center px-2' : 'justify-between px-3'}`}
+          className={`flex h-14 items-center border-b border-white/10 ${collapsed ? 'justify-center gap-0.5 px-1' : 'justify-between px-3'}`}
         >
           <Link
             to="/"
@@ -131,17 +150,19 @@ export function DashboardLayout() {
           >
             <BrandMark collapsed={collapsed} variant="white" />
           </Link>
-          {!collapsed && (
+          <QuickTooltip
+            label={collapsed ? 'Expandir navegación' : 'Contraer navegación'}
+            className="inline-flex"
+          >
             <button
               type="button"
-              className="hidden h-7 w-7 place-items-center rounded text-white/80 hover:bg-sidebar-active lg:grid"
-              aria-label="Contraer navegación"
-              title="Contraer navegación"
-              onClick={() => setCollapsed(true)}
+              className="hidden h-7 w-7 shrink-0 place-items-center rounded text-white/80 hover:bg-sidebar-active lg:grid"
+              aria-label={collapsed ? 'Expandir navegación' : 'Contraer navegación'}
+              onClick={() => setCollapsed((value) => !value)}
             >
-              <AppIcon name="chevron-left" className="h-4 w-4" />
+              <AppIcon name="chevron-left" className={`h-4 w-4 ${collapsed ? 'rotate-180' : ''}`} />
             </button>
-          )}
+          </QuickTooltip>
         </div>
 
         <nav className="flex-1 overflow-y-auto px-2 py-3">
@@ -154,42 +175,28 @@ export function DashboardLayout() {
               )}
               <div className="space-y-0.5">
                 {items.map((item) => (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    title={item.label}
-                    aria-label={item.label}
-                    onClick={() => setSidebarOpen(false)}
-                    className={({ isActive }) =>
-                      `flex items-center rounded text-sm transition-colors ${collapsed ? 'h-9 justify-center px-2' : 'gap-2.5 px-2.5 py-1.5'} ${isActive ? 'bg-sidebar-active font-medium text-white' : 'text-white/75 hover:bg-sidebar-active/70 hover:text-white'}`
-                    }
-                  >
-                    <AppIcon name={item.icon} className="h-4 w-4 shrink-0" />
-                    {!collapsed && <span className="truncate">{item.label}</span>}
-                  </NavLink>
+                  <QuickTooltip key={item.path} label={item.label} enabled={collapsed}>
+                    <NavLink
+                      to={item.path}
+                      aria-label={item.label}
+                      onClick={() => setSidebarOpen(false)}
+                      className={() =>
+                        `flex w-full items-center rounded text-sm transition-colors ${collapsed ? 'h-9 justify-center px-2' : 'gap-2.5 px-2.5 py-1.5'} ${item.path === activeNavPath ? 'bg-sidebar-active font-medium text-white' : 'text-white/75 hover:bg-sidebar-active/70 hover:text-white'}`
+                      }
+                    >
+                      <AppIcon name={item.icon} className="h-4 w-4 shrink-0" />
+                      {!collapsed && <span className="truncate">{item.label}</span>}
+                    </NavLink>
+                  </QuickTooltip>
                 ))}
               </div>
             </div>
           ))}
         </nav>
-
-        {collapsed && (
-          <div className="border-t border-white/10 p-2">
-            <button
-              type="button"
-              className="mx-auto hidden h-9 w-full place-items-center rounded text-white/80 hover:bg-sidebar-active lg:grid"
-              aria-label="Expandir navegación"
-              title="Expandir navegación"
-              onClick={() => setCollapsed(false)}
-            >
-              <AppIcon name="chevron-left" className="h-4 w-4 rotate-180" />
-            </button>
-          </div>
-        )}
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-surface px-3 md:px-5">
+        <header className="sticky top-0 z-20 flex min-h-14 items-center gap-3 border-b border-border bg-surface px-3 py-1.5 md:px-5">
           <button
             type="button"
             className="grid h-9 w-9 place-items-center rounded text-muted hover:bg-page lg:hidden"
@@ -199,7 +206,12 @@ export function DashboardLayout() {
             <AppIcon name="menu" />
           </button>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-text">{pageTitle}</p>
+            {pageSection && (
+              <p className="truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
+                {pageSection}
+              </p>
+            )}
+            <h1 className="truncate text-base font-semibold leading-tight text-text md:text-lg">{pageTitle}</h1>
           </div>
 
           <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-1.5">
@@ -222,14 +234,15 @@ export function DashboardLayout() {
                     <AppIcon name="plus" className="h-4 w-4" />
                   </button>
                   {createOpen && (
-                    <div className="absolute right-0 mt-1 w-52 overflow-hidden rounded border border-border bg-surface shadow-lg">
+                    <div className="absolute right-0 mt-1 w-56 overflow-hidden rounded border border-border bg-surface shadow-lg">
                       {createActions.map((action) => (
                         <Link
                           key={action.to}
                           to={action.to}
                           onClick={() => setCreateOpen(false)}
-                          className="block px-3 py-2 text-sm text-text hover:bg-page"
+                          className="flex items-center gap-2 px-3 py-2 text-sm text-text hover:bg-page"
                         >
+                          <AppIcon name={action.icon} className="h-4 w-4 shrink-0 text-muted" />
                           {action.label}
                         </Link>
                       ))}

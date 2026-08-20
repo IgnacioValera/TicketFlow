@@ -2,11 +2,12 @@ import { Link } from 'react-router-dom'
 
 interface KpiCardProps {
   title: string
-  value: number
+  value: number | string
   suffix?: string
   tone?: 'neutral' | 'danger' | 'success' | 'accent' | 'warning'
   href?: string
   onClick?: () => void
+  cta?: string
 }
 
 const toneStyles: Record<NonNullable<KpiCardProps['tone']>, string> = {
@@ -20,8 +21,8 @@ const toneStyles: Record<NonNullable<KpiCardProps['tone']>, string> = {
 const interactiveStyles =
   'cursor-pointer transition hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-teal'
 
-export function KpiCard({ title, value, suffix, tone = 'neutral', href, onClick }: KpiCardProps) {
-  const display = suffix === '%' ? value.toFixed(1) : String(value)
+export function KpiCard({ title, value, suffix, tone = 'neutral', href, onClick, cta = 'Ver listado filtrado' }: KpiCardProps) {
+  const display = typeof value === 'number' && suffix === '%' ? value.toFixed(1) : String(value)
   const className = `relative block overflow-hidden rounded border bg-white px-4 py-3 before:absolute before:inset-y-0 before:left-0 before:w-1 ${toneStyles[tone]} ${href || onClick ? interactiveStyles : ''}`
 
   const content = (
@@ -31,15 +32,15 @@ export function KpiCard({ title, value, suffix, tone = 'neutral', href, onClick 
         {display}
         {suffix ? <span className="text-lg">{suffix}</span> : null}
       </p>
-      {(href || onClick) && (
-        <p className="mt-2 text-xs font-medium text-brand-teal">Ver listado filtrado</p>
-      )}
+      {(href || onClick) && cta ? (
+        <p className="mt-2 text-xs font-medium text-brand-teal">{cta}</p>
+      ) : null}
     </>
   )
 
   if (href) {
     return (
-      <Link to={href} className={className} aria-label={`${title}: ${display}${suffix ?? ''}. Ver listado filtrado`}>
+      <Link to={href} className={className} aria-label={`${title}: ${display}${suffix ?? ''}${cta ? `. ${cta}` : ''}`}>
         {content}
       </Link>
     )

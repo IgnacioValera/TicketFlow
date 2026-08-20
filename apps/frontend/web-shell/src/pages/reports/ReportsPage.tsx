@@ -15,6 +15,7 @@ import {
 import { DataTable, type Column } from '@/components/common/DataTable'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ErrorState } from '@/components/common/ErrorState'
+import { AppIcon } from '@/components/common/AppIcon'
 import { PERMISSIONS } from '@/constants/permissions'
 import { ROLES } from '@/constants/roles'
 import { useAuth } from '@/hooks/useAuth'
@@ -276,46 +277,14 @@ export function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="ui-card p-5">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
-              Analítica
-            </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-text md:text-3xl">
-              Reportes
-            </h1>
-            <p className="mt-1 text-sm text-muted">
-              Tickets, estados, prioridades, SLA y satisfacción según el periodo elegido.
-            </p>
-            {isLimited && (
-              <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                Vista limitada: solo se incluyen los tickets asignados a ti.
-              </p>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handleExport}
-              disabled={loading || Boolean(error)}
-              className="rounded bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-50"
-            >
-              Exportar CSV
-            </button>
-            <button
-              type="button"
-              onClick={handlePrintPdf}
-              disabled={loading || Boolean(error)}
-              className="rounded-lg border border-brand-slate px-4 py-2 text-sm text-brand-navy hover:bg-brand-cream/50 disabled:opacity-50"
-            >
-              Exportar PDF
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="block text-sm text-slate-600">
+      {isLimited && (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Vista limitada: solo se incluyen los tickets asignados a ti.
+        </p>
+      )}
+      <header className="rounded border border-slate-200 bg-white p-4">
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="block min-w-40 text-sm text-slate-600">
             Periodo
             <select
               value={rangePreset}
@@ -328,7 +297,7 @@ export function ReportsPage() {
               <option value="custom">Personalizado</option>
             </select>
           </label>
-          <label className="block text-sm text-slate-600">
+          <label className="block min-w-40 text-sm text-slate-600">
             Fecha inicial
             <input
               type="date"
@@ -341,7 +310,7 @@ export function ReportsPage() {
               className="mt-1 w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
             />
           </label>
-          <label className="block text-sm text-slate-600">
+          <label className="block min-w-40 text-sm text-slate-600">
             Fecha final
             <input
               type="date"
@@ -354,9 +323,26 @@ export function ReportsPage() {
               className="mt-1 w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
             />
           </label>
-          <p className="self-end text-xs text-slate-500">
-            El último día del rango se incluye en los resultados.
-          </p>
+          <div className="ml-auto flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={loading || Boolean(error)}
+              className="inline-flex items-center gap-2 rounded bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-50"
+            >
+              <AppIcon name="download" className="h-4 w-4" />
+              Exportar CSV
+            </button>
+            <button
+              type="button"
+              onClick={handlePrintPdf}
+              disabled={loading || Boolean(error)}
+              className="inline-flex items-center gap-2 rounded-lg border border-brand-slate px-4 py-2 text-sm text-brand-navy hover:bg-brand-cream/50 disabled:opacity-50"
+            >
+              <AppIcon name="file" className="h-4 w-4" />
+              Exportar PDF
+            </button>
+          </div>
         </div>
         {rangeError && (
           <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">

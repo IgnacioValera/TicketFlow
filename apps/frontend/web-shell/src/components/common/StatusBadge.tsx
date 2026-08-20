@@ -26,7 +26,7 @@ export function StatusBadge({ status, className = '' }: StatusBadgeProps) {
   const config = STATUS_CONFIG[status]
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${config.className} ${className}`}
+      className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${config.className} ${className}`}
     >
       <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />
       {config.label}

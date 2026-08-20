@@ -6,7 +6,6 @@ import { ConfirmToast, FeedbackAlert } from '@/components/common/FeedbackAlert'
 import { ErrorState } from '@/components/common/ErrorState'
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
 import { Modal } from '@/components/common/Modal'
-import { PageHeader } from '@/components/common/PageHeader'
 import { SurfaceCard } from '@/components/common/SurfaceCard'
 import { PrimaryButton, SecondaryButton, TextInput } from '@/components/common/UiControls'
 import { ROLES } from '@/constants/roles'
@@ -121,11 +120,6 @@ export function ProfilePage() {
         title={toast?.title ?? ''}
         message={toast?.message ?? ''}
       />
-      <PageHeader
-        kicker="Cuenta"
-        title="Mi perfil"
-        description="Consulta y actualiza los datos permitidos de tu cuenta en TicketFlow."
-      />
 
       {error && (
         <FeedbackAlert variant="danger" title="No se pudo completar el cambio" message={error} />
@@ -168,7 +162,7 @@ export function ProfilePage() {
         </div>
       </SurfaceCard>
 
-      <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)]">
         <SurfaceCard className="p-5 md:p-6">
           <div className="flex items-center gap-3">
             <span className="grid h-10 w-10 place-items-center rounded bg-primary/10 text-primary">
@@ -189,15 +183,23 @@ export function ProfilePage() {
               >
                 Nombre completo
               </label>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <TextInput
-                  id="profileFullName"
-                  value={fullName}
-                  onChange={(event) => setFullName(event.target.value)}
-                  autoComplete="name"
-                  maxLength={160}
-                />
-                <PrimaryButton type="submit" disabled={savingName} loading={savingName} loadingText="Guardando…">
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <TextInput
+                    id="profileFullName"
+                    value={fullName}
+                    onChange={(event) => setFullName(event.target.value)}
+                    autoComplete="name"
+                    maxLength={160}
+                  />
+                </div>
+                <PrimaryButton
+                  type="submit"
+                  className="shrink-0 whitespace-nowrap"
+                  disabled={savingName}
+                  loading={savingName}
+                  loadingText="Guardando…"
+                >
                   Guardar nombre
                 </PrimaryButton>
               </div>

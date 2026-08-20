@@ -52,7 +52,7 @@ export function UserCreatePage() {
           role,
           clientId: isRequester ? clientId : undefined,
         })
-        navigate('/users')
+        navigate('/users', { state: { createdName: fullName.trim() } })
       } catch (err: unknown) {
         setError(errorMessage(err, 'Error al crear usuario'))
       } finally {
@@ -67,15 +67,7 @@ export function UserCreatePage() {
         <Link to="/users" className="text-sm text-brand-teal hover:underline">
           ← Volver al listado
         </Link>
-        <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
-          Administración
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-text md:text-3xl">
-          Nuevo usuario
-        </h1>
-        <p className="mt-2 text-sm text-muted">
-          Crea una identidad y asigna su alcance inicial.
-        </p>
+        <h1 className="mt-3 text-xl font-semibold tracking-tight text-text">Nuevo usuario</h1>
       </div>
 
       {error && <ErrorState message={error} />}
