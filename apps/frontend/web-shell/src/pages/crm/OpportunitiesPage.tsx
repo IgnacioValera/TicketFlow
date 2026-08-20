@@ -52,6 +52,9 @@ export function OpportunitiesPage() {
   const [clients, setClients] = useState<CrmClient[]>([])
   const [contacts, setContacts] = useState<CrmContact[]>([])
   const [view, setView] = useState<'kanban' | 'list'>('kanban')
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(10)
+  const [meta, setMeta] = useState({ page: 1, perPage: 10, total: 0, totalPages: 1 })
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [stageFilter, setStageFilter] = useState('')
@@ -97,8 +100,8 @@ export function OpportunitiesPage() {
   const load = useCallback(async () => {
     try {
       const response = await crm.getOpportunities({
-        page: 1,
-        perPage: 100,
+        page: view === 'kanban' ? 1 : page,
+        perPage: view === 'kanban' ? 100 : perPage,
         search: search || undefined,
         stage: stageFilter || undefined,
         status: statusFilter || undefined,
@@ -106,11 +109,12 @@ export function OpportunitiesPage() {
         ownerId: ownerFilter || undefined,
       })
       setItems(response.data)
+      if (response.meta) setMeta(response.meta)
       setError('')
     } catch (err: unknown) {
       setError(getErrorMessages(err, 'No se pudo cargar la información.')[0])
     }
-  }, [search, stageFilter, statusFilter, clientFilter, ownerFilter])
+  }, [view, page, perPage, search, stageFilter, statusFilter, clientFilter, ownerFilter])
 
   useEffect(() => {
     void load()
@@ -152,7 +156,7 @@ export function OpportunitiesPage() {
   const openDetail = async (item: CrmOpportunity) => {
     const fresh = await crm.getOpportunity(item.id)
     setDetail(fresh)
-    const surveys = await crm.getSurveys({ status: 'PUBLISHED' })
+    const surveys = await crm.getSurveys({ status: 'PUBLISHED', perPage: 100 })
     setManualSurveys(surveys.data.filter((survey) => survey.trigger === 'MANUAL'))
     setSelectedManualId('')
   }
@@ -233,6 +237,7 @@ export function OpportunitiesPage() {
   }, [clients, items, user])
 
   const totals = useMemo(() => summarizeOpportunities(items), [items])
+  const listedCount = view === 'list' ? meta.total : totals.count
   const hasFilters = Boolean(searchInput || stageFilter || statusFilter || clientFilter || ownerFilter)
 
   const clearFilters = () => {
@@ -242,6 +247,7 @@ export function OpportunitiesPage() {
     setStatusFilter('')
     setClientFilter('')
     setOwnerFilter('')
+    setPage(1)
   }
 
   const move = async (
@@ -435,12 +441,18 @@ export function OpportunitiesPage() {
           className="max-w-xs"
           placeholder="Buscar oportunidades..."
           value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
+          onChange={(e) => {
+            setSearchInput(e.target.value)
+            setPage(1)
+          }}
         />
         <select
           aria-label="Etapa"
           value={stageFilter}
-          onChange={(e) => setStageFilter(e.target.value)}
+          onChange={(e) => {
+            setStageFilter(e.target.value)
+            setPage(1)
+          }}
           className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
         >
           <option value="">Todas las etapas</option>
@@ -453,7 +465,10 @@ export function OpportunitiesPage() {
         <select
           aria-label="Estado"
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => {
+            setStatusFilter(e.target.value)
+            setPage(1)
+          }}
           className="w-40 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
         >
           <option value="">Todos los estados</option>
@@ -466,7 +481,10 @@ export function OpportunitiesPage() {
         <select
           aria-label="Cliente"
           value={clientFilter}
-          onChange={(e) => setClientFilter(e.target.value)}
+          onChange={(e) => {
+            setClientFilter(e.target.value)
+            setPage(1)
+          }}
           className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
         >
           <option value="">Todos los clientes</option>
@@ -479,7 +497,10 @@ export function OpportunitiesPage() {
         <select
           aria-label="Responsable"
           value={ownerFilter}
-          onChange={(e) => setOwnerFilter(e.target.value)}
+          onChange={(e) => {
+            setOwnerFilter(e.target.value)
+            setPage(1)
+          }}
           className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
         >
           <option value="">Todos los responsables</option>
@@ -494,21 +515,27 @@ export function OpportunitiesPage() {
           <button
             type="button"
             className={`rounded px-3 py-1.5 text-sm ${view === 'list' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
-            onClick={() => setView('list')}
+            onClick={() => {
+              setView('list')
+              setPage(1)
+            }}
           >
             Lista
           </button>
           <button
             type="button"
             className={`rounded px-3 py-1.5 text-sm ${view === 'kanban' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
-            onClick={() => setView('kanban')}
+            onClick={() => {
+              setView('kanban')
+              setPage(1)
+            }}
           >
             Kanban
           </button>
         </div>
       </div>
       <p className="text-sm text-slate-500">
-        {totals.count} oportunidades · {formatMoney(totals.amount)} · ponderado {formatMoney(totals.weighted)}
+        {listedCount} oportunidades · {formatMoney(totals.amount)} · ponderado {formatMoney(totals.weighted)}
       </p>
       {error && <ErrorState message={error} onRetry={() => void load()} />}
 
@@ -516,6 +543,12 @@ export function OpportunitiesPage() {
         <DataTable
           columns={columns}
           data={items}
+          pagination={{ ...meta, page, perPage }}
+          onPageChange={setPage}
+          onPerPageChange={(value) => {
+            setPerPage(value)
+            setPage(1)
+          }}
           rowKey={(row) => row.id}
           onRowClick={canEdit ? openEdit : undefined}
           emptyMessage="No hay oportunidades"

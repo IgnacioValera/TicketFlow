@@ -34,6 +34,7 @@ export function UsersListPage() {
   const [statusFilter, setStatusFilter] = useState<UserStatus | ''>('')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(10)
   const [meta, setMeta] = useState({ page: 1, perPage: 10, total: 0, totalPages: 1 })
   const [statusModal, setStatusModal] = useState<{ user: User; status: UserStatus } | null>(null)
   const [statusLoading, setStatusLoading] = useState(false)
@@ -60,7 +61,7 @@ export function UsersListPage() {
     try {
       const response = await usersService.getUsers({
         page,
-        perPage: 10,
+        perPage,
         role: roleFilter || undefined,
         status: statusFilter || undefined,
         search: search || undefined,
@@ -74,7 +75,7 @@ export function UsersListPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, roleFilter, statusFilter, search])
+  }, [page, perPage, roleFilter, statusFilter, search])
 
   useEffect(() => {
     void loadUsers()
@@ -315,8 +316,12 @@ export function UsersListPage() {
           data={users}
           loading={resolveContentStatus({ loading, error, itemCount: users.length }) === 'loading'}
           loadingLabel="Cargando usuarios…"
-          pagination={meta}
+          pagination={{ ...meta, page, perPage }}
           onPageChange={setPage}
+          onPerPageChange={(value) => {
+            setPerPage(value)
+            setPage(1)
+          }}
           rowKey={(row) => row.id}
           emptyMessage={
             search || roleFilter || statusFilter
