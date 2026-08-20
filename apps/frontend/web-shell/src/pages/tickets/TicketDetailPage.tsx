@@ -344,10 +344,15 @@ export function TicketDetailPage() {
                   )}
                 </dd>
               </div>
-              {ticket.companyName && (
+              {ticket.clientName || ticket.companyName ? (
                 <div className="flex justify-between gap-2">
-                  <dt className="text-slate-500">Empresa</dt>
-                  <dd className="font-medium text-brand-navy">{ticket.companyName}</dd>
+                  <dt className="text-slate-500">Cliente</dt>
+                  <dd className="font-medium text-brand-navy">{ticket.clientName || ticket.companyName}</dd>
+                </div>
+              ) : (
+                <div className="flex justify-between gap-2">
+                  <dt className="text-slate-500">Cliente</dt>
+                  <dd className="font-medium text-brand-navy">Sin cliente asignado</dd>
                 </div>
               )}
               <div className="flex justify-between gap-2">

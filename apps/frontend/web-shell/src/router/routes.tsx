@@ -8,6 +8,7 @@ import { LoginPage } from '@/pages/login/LoginPage'
 import { CategoriesPage } from '@/pages/catalogs/CategoriesPage'
 import { PrioritiesPage } from '@/pages/catalogs/PrioritiesPage'
 import { SlaPoliciesPage } from '@/pages/catalogs/SlaPoliciesPage'
+import { NotificationsPage } from '@/pages/notifications/NotificationsPage'
 import { ProfilePage } from '@/pages/profile/ProfilePage'
 import { ReportsPage } from '@/pages/reports/ReportsPage'
 import { TicketCreatePage } from '@/pages/tickets/TicketCreatePage'
@@ -112,6 +113,7 @@ export const routes: RouteObject[] = [
             ],
           },
           { path: 'reports', element: <RoleRoute path="/reports"><ReportsPage /></RoleRoute> },
+          { path: 'notifications', element: <NotificationsPage /> },
           { path: 'profile', element: <ProfilePage /> },
           { path: 'forbidden', element: <ForbiddenPage /> },
         ],

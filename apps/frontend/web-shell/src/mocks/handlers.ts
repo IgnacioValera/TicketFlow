@@ -4,6 +4,12 @@ import type { Category, Company, Priority, SlaPolicy } from '@/types/catalog.typ
 import type { User, UserRole, UserStatus } from '@/types/user.types'
 import { createCrmHandlers } from '@/mocks/crm.handlers'
 import { createTicketHandlers } from '@/mocks/ticket.handlers'
+import {
+  listNotifications,
+  markAllRead,
+  markNotificationRead,
+  unreadCount,
+} from '@/mocks/notifications-store'
 import { mockKnowledgeArticles, findMockKnowledgeArticle, findMockKnowledgeArticleIncludingInactive, isKnowledgeUuid } from '@/mocks/knowledge-data'
 import { validatePasswordPolicy } from '@/utils/validation'
 
@@ -53,9 +59,11 @@ const mockUsers: User[] = [
     id: '4',
     fullName: 'Usuario Solicitante',
     email: 'requester@helpdesk.com',
-    role: 'CLIENT',
+    role: 'REQUESTER',
     status: 'ACTIVE',
-    permissions: ROLE_PERMISSIONS.CLIENT,
+    clientId: 'c1',
+    clientName: 'Acme Corp',
+    permissions: ROLE_PERMISSIONS.REQUESTER,
     mustChangePassword: false,
     lastLoginAt: '2026-08-18T08:00:00.000Z',
     createdAt: '2026-03-20T09:00:00.000Z',
@@ -71,6 +79,12 @@ const mockUsers: User[] = [
     lastLoginAt: null,
     createdAt: '2026-04-01T09:00:00.000Z',
   },
+]
+
+const mockClientOptions = [
+  { id: 'c1', name: 'Acme Corp' },
+  { id: 'c2', name: 'Globex' },
+  { id: 'c3', name: 'Initech' },
 ]
 
 const mockCategories: Category[] = [
@@ -426,6 +440,71 @@ export const handlers = [
     })
   }),
 
+  http.get('*/users/client-options', async ({ request }) => {
+    const url = new URL(request.url)
+    const search = url.searchParams.get('search')?.toLowerCase() ?? ''
+    const filtered = mockClientOptions.filter((item) => item.name.toLowerCase().includes(search))
+    const page = Number(url.searchParams.get('page')) || 1
+    const perPage = Number(url.searchParams.get('perPage')) || 20
+    const result = paginate(filtered, page, perPage)
+    return HttpResponse.json({
+      success: true,
+      message: 'OK',
+      data: result.data,
+      meta: result.meta,
+    })
+  }),
+
+  http.get('*/users/requesters', async () => {
+    const requesters = mockUsers.filter(
+      (user) => (user.role === 'REQUESTER' || user.role === 'CLIENT') && user.status === 'ACTIVE',
+    )
+    return HttpResponse.json({ success: true, message: 'OK', data: requesters, meta: null })
+  }),
+
+  http.get('*/notifications/unread-count', async ({ request }) => {
+    const actor = findUserByToken(request.headers.get('Authorization'))
+    if (!actor) {
+      return HttpResponse.json({ success: false, message: 'No autenticado', data: null, meta: null }, { status: 401 })
+    }
+    return HttpResponse.json({ success: true, message: 'OK', data: { count: unreadCount(actor.id) }, meta: null })
+  }),
+
+  http.patch('*/notifications/read-all', async ({ request }) => {
+    const actor = findUserByToken(request.headers.get('Authorization'))
+    if (!actor) {
+      return HttpResponse.json({ success: false, message: 'No autenticado', data: null, meta: null }, { status: 401 })
+    }
+    markAllRead(actor.id)
+    return HttpResponse.json({ success: true, message: 'Notificaciones actualizadas', data: { updated: true }, meta: null })
+  }),
+
+  http.patch('*/notifications/:id/read', async ({ params, request }) => {
+    const actor = findUserByToken(request.headers.get('Authorization'))
+    if (!actor) {
+      return HttpResponse.json({ success: false, message: 'No autenticado', data: null, meta: null }, { status: 401 })
+    }
+    const item = markNotificationRead(String(params.id), actor.id)
+    if (!item) {
+      return HttpResponse.json({ success: false, message: 'Notificación no encontrada', data: null, meta: null }, { status: 404 })
+    }
+    return HttpResponse.json({ success: true, message: 'Notificación leída', data: item, meta: null })
+  }),
+
+  http.get('*/notifications', async ({ request }) => {
+    const actor = findUserByToken(request.headers.get('Authorization'))
+    if (!actor) {
+      return HttpResponse.json({ success: false, message: 'No autenticado', data: null, meta: null }, { status: 401 })
+    }
+    const url = new URL(request.url)
+    const result = listNotifications(actor.id, {
+      page: Number(url.searchParams.get('page')) || 1,
+      perPage: Number(url.searchParams.get('perPage')) || 20,
+      unread: url.searchParams.get('unread') === 'true',
+    })
+    return HttpResponse.json({ success: true, message: 'OK', data: result.items, meta: result.meta })
+  }),
+
   http.get('*/users/:id', async ({ params, request }) => {
     const user = mockUsers.find((u) => u.id === params.id)
     if (!user) {
@@ -444,7 +523,20 @@ export const handlers = [
       email: string
       password: string
       role: UserRole
+      clientId?: string
     }
+    if (body.role === 'REQUESTER' && !body.clientId) {
+      return HttpResponse.json(
+        {
+          success: false,
+          message: 'Selecciona el cliente al que pertenece el solicitante.',
+          data: null,
+          meta: null,
+        },
+        { status: 400 },
+      )
+    }
+    const client = mockClientOptions.find((item) => item.id === body.clientId)
     if (mockUsers.some((u) => u.email.toLowerCase() === body.email.trim().toLowerCase())) {
       return HttpResponse.json(
         {
@@ -462,6 +554,8 @@ export const handlers = [
       email: body.email.trim().toLowerCase(),
       role: body.role,
       status: 'ACTIVE',
+      clientId: body.role === 'REQUESTER' ? client?.id ?? null : null,
+      clientName: body.role === 'REQUESTER' ? client?.name ?? null : null,
       permissions: ROLE_PERMISSIONS[body.role],
       mustChangePassword: false,
     }

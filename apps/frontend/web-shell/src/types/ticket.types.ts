@@ -100,6 +100,7 @@ export interface CreateTicketPayload {
   priorityId: string
   companyId?: string
   clientId?: string
+  requesterId?: string
 }
 
 export interface UpdateTicketPayload {

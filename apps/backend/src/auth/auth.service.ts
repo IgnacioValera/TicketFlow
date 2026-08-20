@@ -32,6 +32,7 @@ export class AuthService {
       .addSelect('user.passwordHash')
       .leftJoinAndSelect('user.role', 'role')
       .leftJoinAndSelect('role.permissions', 'permission')
+      .leftJoinAndSelect('user.client', 'client')
       .where('LOWER(user.email) = LOWER(:email)', { email: dto.email.trim() })
       .getOne()
 
@@ -72,7 +73,7 @@ export class AuthService {
   }
 
   async validateUser(id: string) {
-    const user = await this.users.findOne({ where: { id }, relations: { role: { permissions: true } } })
+    const user = await this.users.findOne({ where: { id }, relations: { role: { permissions: true }, client: true } })
     if (!user || user.status !== UserStatus.ACTIVE) throw new UnauthorizedException('Sesión inválida')
     return user
   }
@@ -84,6 +85,8 @@ export class AuthService {
       email: user.email,
       role: user.role.code,
       status: user.status,
+      clientId: user.client?.id ?? null,
+      clientName: user.client?.name ?? null,
       permissions: (user.role.permissions ?? []).map((permission) => permission.code),
       mustChangePassword: Boolean(user.mustChangePassword),
       lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
@@ -122,7 +125,7 @@ export class AuthService {
   }
 
   async updateOwnProfile(userId: string, dto: UpdateOwnProfileDto) {
-    const user = await this.users.findOne({ where: { id: userId }, relations: { role: { permissions: true } } })
+    const user = await this.users.findOne({ where: { id: userId }, relations: { role: { permissions: true }, client: true } })
     if (!user) throw new UnauthorizedException('Sesión inválida')
     user.fullName = dto.fullName.trim()
     return this.serializeUser(await this.users.save(user))

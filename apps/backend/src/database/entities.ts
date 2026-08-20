@@ -54,6 +54,7 @@ export class User {
   @Column({ type: 'enum', enum: UserStatus, default: UserStatus.ACTIVE }) status: UserStatus
   @Column({ name: 'must_change_password', default: false }) mustChangePassword: boolean
   @ManyToOne(() => Role, { eager: true, nullable: false }) @JoinColumn({ name: 'role_id' }) role: Role
+  @ManyToOne(() => Client, { nullable: true, onDelete: 'SET NULL' }) @JoinColumn({ name: 'client_id' }) client: Client | null
   @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true }) lastLoginAt: Date | null
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date
@@ -191,6 +192,22 @@ export class SatisfactionSurvey {
   @Column({ type: 'smallint' }) rating: number
   @Column({ type: 'text', nullable: true }) comment: string | null
   @CreateDateColumn({ name: 'submitted_at', type: 'timestamptz' }) submittedAt: Date
+}
+
+@Entity('notifications')
+@Index('idx_notifications_recipient_created', ['recipient', 'createdAt'])
+@Index('uq_notifications_recipient_dedupe', ['recipient', 'dedupeKey'], { unique: true })
+export class Notification {
+  @PrimaryGeneratedColumn('uuid') id: string
+  @ManyToOne(() => User, { nullable: false, onDelete: 'CASCADE' }) @JoinColumn({ name: 'recipient_user_id' }) recipient: User
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' }) @JoinColumn({ name: 'actor_user_id' }) actor: User | null
+  @ManyToOne(() => Ticket, { nullable: true, onDelete: 'CASCADE' }) @JoinColumn({ name: 'ticket_id' }) ticket: Ticket | null
+  @Column({ name: 'dedupe_key', length: 120 }) dedupeKey: string
+  @Column({ length: 40 }) type: string
+  @Column({ length: 160 }) title: string
+  @Column({ length: 280 }) message: string
+  @Column({ name: 'read_at', type: 'timestamptz', nullable: true }) readAt: Date | null
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date
 }
 
 @Entity('knowledge_articles')
@@ -338,7 +355,7 @@ export class CrmSurveyAnswer {
 
 export const ENTITIES = [
   Permission, Role, User, RefreshToken, Category, Priority, SlaPolicy, Client, TicketCounter, Ticket,
-  TicketComment, TicketAttachment, TicketHistory, SatisfactionSurvey, KnowledgeArticle,
+  TicketComment, TicketAttachment, TicketHistory, SatisfactionSurvey, Notification, KnowledgeArticle,
   CrmContact, CrmOpportunity, CrmOpportunityStageHistory, CrmActivity, CrmSurvey, CrmSurveyQuestion,
   CrmSurveyQuestionOption, CrmSurveyInvitation, CrmSurveyResponse, CrmSurveyAnswer,
 ]
