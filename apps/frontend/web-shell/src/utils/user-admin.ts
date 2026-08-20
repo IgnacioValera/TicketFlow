@@ -1,15 +1,16 @@
+import { PERMISSIONS } from '@/constants/permissions'
 import type { UserRole, UserStatus } from '@/types/user.types'
 
 export const MANAGED_USER_ROLES: UserRole[] = ['ADMIN', 'SUPERVISOR', 'AGENT', 'REQUESTER']
 
 export const USER_SENSITIVE_KEYS = ['password', 'passwordHash', 'password_hash', 'temporaryPassword'] as const
 
-export function canAdministerUsers(role: UserRole) {
-  return role === 'ADMIN'
+export function canAdministerUsers(permissions: string[]) {
+  return permissions.includes(PERMISSIONS.USER_MANAGE)
 }
 
-export function canResetUserPassword(actorRole: UserRole, status: UserStatus) {
-  return actorRole === 'ADMIN' && status === 'ACTIVE'
+export function canResetUserPassword(canManageUsers: boolean, status: UserStatus) {
+  return canManageUsers && status === 'ACTIVE'
 }
 
 export function roleOptionsForUser(currentRole: UserRole) {

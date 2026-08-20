@@ -4,15 +4,18 @@ import { tokenStorage } from '@/utils/storage'
 
 type RefreshHandler = () => Promise<string | null>
 type LogoutHandler = () => void
+type ForbiddenHandler = () => Promise<void> | void
 
 let refreshHandler: RefreshHandler | null = null
 let logoutHandler: LogoutHandler | null = null
+let forbiddenHandler: ForbiddenHandler | null = null
 let isRefreshing = false
 let refreshQueue: Array<(token: string | null) => void> = []
 
-export function setAuthHandlers(onRefresh: RefreshHandler, onLogout: LogoutHandler) {
+export function setAuthHandlers(onRefresh: RefreshHandler, onLogout: LogoutHandler, onForbidden?: ForbiddenHandler) {
   refreshHandler = onRefresh
   logoutHandler = onLogout
+  forbiddenHandler = onForbidden ?? null
 }
 
 const apiClient = axios.create({
@@ -43,7 +46,10 @@ apiClient.interceptors.response.use(
     return response
   },
   async (error: AxiosError<ApiResponse<unknown>>) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
+    const originalRequest = error.config as InternalAxiosRequestConfig & {
+      _retry?: boolean
+      _sessionRefresh?: boolean
+    }
     const status = error.response?.status
 
     if (status === 401 && originalRequest && !originalRequest._retry) {
@@ -103,6 +109,17 @@ apiClient.interceptors.response.use(
       if (path !== '/change-password' && !path.endsWith('/change-password')) {
         window.location.assign('/change-password')
       }
+    }
+
+    if (
+      status === 403 &&
+      code !== 'PASSWORD_CHANGE_REQUIRED' &&
+      originalRequest &&
+      !originalRequest._sessionRefresh &&
+      !originalRequest.url?.includes('/auth/')
+    ) {
+      originalRequest._sessionRefresh = true
+      void forbiddenHandler?.()
     }
 
     return Promise.reject({

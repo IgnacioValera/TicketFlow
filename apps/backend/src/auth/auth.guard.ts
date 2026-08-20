@@ -11,6 +11,7 @@ import {
   REQUIRED_ROLES_KEY,
 } from '../common/security'
 import { User } from '../database/entities'
+import { userPermissionCodes } from '../common/effective-permissions'
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -42,7 +43,7 @@ export class PermissionsGuard implements CanActivate {
     const roles = this.reflector.getAllAndOverride<string[]>(REQUIRED_ROLES_KEY, [context.getHandler(), context.getClass()]) ?? []
     if (!required.length && !any.length && !roles.length) return true
     const user = context.switchToHttp().getRequest<{ user: User }>().user
-    const owned = new Set((user.role.permissions ?? []).map((permission) => permission.code))
+    const owned = new Set(userPermissionCodes(user))
     if (roles.length && !roles.includes(user.role.code)) {
       throw new ForbiddenException('No tienes permisos para realizar esta acción')
     }

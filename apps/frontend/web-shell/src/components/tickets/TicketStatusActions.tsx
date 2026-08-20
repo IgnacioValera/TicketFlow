@@ -62,7 +62,7 @@ export function TicketStatusActions({
   const canClose =
     (ctx.isRequester && ticket.status === 'RESOLVED') ||
     (hasPermission(PERMISSIONS.TICKET_STATUS_CHANGE) &&
-      (user.role === 'SUPERVISOR' || user.role === 'ADMIN') &&
+      hasPermission(PERMISSIONS.TICKET_VIEW_ALL) &&
       ticket.status === 'RESOLVED')
 
   const handleStatusClick = async (status: TicketStatus) => {

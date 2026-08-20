@@ -212,16 +212,16 @@ export function UsersListPage() {
               onClick={() => navigate(`/users/${row.id}/edit`)}
               disabled={isBusy}
             />
-            {currentUser?.role === 'ADMIN' && (
+            {canManage && (
               <TableActionButton
                 label={
-                  canResetUserPassword('ADMIN', row.status)
+                  canResetUserPassword(canManage, row.status)
                     ? `Restablecer contraseña de ${row.fullName}`
                     : 'No se puede restablecer la contraseña de un usuario inactivo'
                 }
                 icon="key"
                 onClick={() => {
-                  if (!canResetUserPassword('ADMIN', row.status)) return
+                  if (!canResetUserPassword(canManage, row.status)) return
                   setResetConfirmUser(row)
                   setResetUser(null)
                   setTemporaryPassword('')
@@ -229,7 +229,7 @@ export function UsersListPage() {
                   setPasswordCopied(false)
                   setResetError('')
                 }}
-                disabled={isBusy || resetLoading || !canResetUserPassword('ADMIN', row.status)}
+                disabled={isBusy || resetLoading || !canResetUserPassword(canManage, row.status)}
               />
             )}
             {canManage && (

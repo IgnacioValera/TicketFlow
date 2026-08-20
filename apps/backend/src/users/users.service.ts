@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm'
 import bcrypt from 'bcryptjs'
 import { Brackets, DataSource, QueryFailedError, Repository } from 'typeorm'
 import { parsePagination, pagination } from '../common/api'
+import { effectivePermissionCodes } from '../common/effective-permissions'
 import { generateTemporaryPassword } from '../common/password'
 import { Client, ClientStatus, RefreshToken, Role, RoleCode, User, UserStatus } from '../database/entities'
 import { CreateUserDto, DUPLICATE_EMAIL_MESSAGE, UpdateUserDto, UsersQueryDto } from './dto'
@@ -29,6 +30,7 @@ export class UsersService {
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.role', 'role')
       .leftJoinAndSelect('role.permissions', 'permission')
+      .leftJoinAndSelect('permission.module', 'permissionModule')
       .leftJoinAndSelect('user.client', 'client')
     if (query.role) qb.andWhere('role.code = :role', { role: query.role })
     if (query.status) qb.andWhere('user.status = :status', { status: query.status })
@@ -77,7 +79,7 @@ export class UsersService {
   }
 
   async find(id: string) {
-    const user = await this.users.findOne({ where: { id }, relations: { role: { permissions: true }, client: true } })
+    const user = await this.users.findOne({ where: { id }, relations: { role: { permissions: { module: true } }, client: true } })
     if (!user) throw new NotFoundException('Usuario no encontrado')
     return user
   }
@@ -175,7 +177,8 @@ export class UsersService {
       status: user.status,
       clientId: user.client?.id ?? null,
       clientName: user.client?.name ?? null,
-      permissions: (user.role.permissions ?? []).map((p) => p.code),
+      permissions: effectivePermissionCodes(user.role.permissions),
+      permissionsVersion: user.role.permissionsVersion ?? 1,
       mustChangePassword: Boolean(user.mustChangePassword),
       lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
       createdAt: user.createdAt?.toISOString(),

@@ -5,8 +5,7 @@ import type { AppIconName } from '@/components/common/AppIcon'
 export interface NavItem {
   label: string
   path: string
-  permission?: string
-  roles?: UserRole[]
+  permission: string
   icon: AppIconName
   group: 'Inicio' | 'CRM' | 'Mesa de ayuda' | 'Administración'
 }
@@ -18,30 +17,33 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Oportunidades', path: '/crm/opportunities', permission: PERMISSIONS.CRM_OPPORTUNITY_VIEW, icon: 'flag', group: 'CRM' },
   { label: 'Actividades', path: '/crm/activities', permission: PERMISSIONS.CRM_ACTIVITY_VIEW, icon: 'calendar', group: 'CRM' },
   { label: 'Encuestas', path: '/crm/surveys', permission: PERMISSIONS.CRM_SURVEY_VIEW, icon: 'mail', group: 'CRM' },
-  { label: 'Panel', path: '/dashboard', permission: PERMISSIONS.DASHBOARD_VIEW, roles: ['ADMIN', 'SUPERVISOR', 'AGENT'], icon: 'dashboard', group: 'Mesa de ayuda' },
+  { label: 'Panel', path: '/dashboard', permission: PERMISSIONS.DASHBOARD_VIEW, icon: 'dashboard', group: 'Mesa de ayuda' },
   { label: 'Tickets', path: '/tickets', permission: PERMISSIONS.TICKET_VIEW_OWN, icon: 'tickets', group: 'Mesa de ayuda' },
-  { label: 'Flujo visual', path: '/ticket-flow', icon: 'flow', group: 'Mesa de ayuda' },
-  { label: 'Crear ticket', path: '/tickets/create', permission: PERMISSIONS.TICKET_CREATE, roles: ['CLIENT', 'REQUESTER', 'AGENT', 'SUPERVISOR', 'ADMIN'], icon: 'plus', group: 'Mesa de ayuda' },
-  { label: 'SLA', path: '/catalogs/sla-policies', permission: PERMISSIONS.SLA_MANAGE, roles: ['ADMIN', 'SUPERVISOR'], icon: 'clock', group: 'Mesa de ayuda' },
-  { label: 'Categorías', path: '/catalogs/categories', permission: PERMISSIONS.CATEGORY_MANAGE, roles: ['ADMIN'], icon: 'categories', group: 'Mesa de ayuda' },
-  { label: 'Prioridades', path: '/catalogs/priorities', permission: PERMISSIONS.PRIORITY_MANAGE, roles: ['ADMIN'], icon: 'priority', group: 'Mesa de ayuda' },
+  { label: 'Flujo visual', path: '/ticket-flow', permission: PERMISSIONS.TICKET_VIEW_OWN, icon: 'flow', group: 'Mesa de ayuda' },
+  { label: 'Crear ticket', path: '/tickets/create', permission: PERMISSIONS.TICKET_CREATE, icon: 'plus', group: 'Mesa de ayuda' },
+  { label: 'SLA', path: '/catalogs/sla-policies', permission: PERMISSIONS.SLA_MANAGE, icon: 'clock', group: 'Mesa de ayuda' },
+  { label: 'Categorías', path: '/catalogs/categories', permission: PERMISSIONS.CATEGORY_MANAGE, icon: 'categories', group: 'Mesa de ayuda' },
+  { label: 'Prioridades', path: '/catalogs/priorities', permission: PERMISSIONS.PRIORITY_MANAGE, icon: 'priority', group: 'Mesa de ayuda' },
   { label: 'Base de conocimiento', path: '/knowledge', permission: PERMISSIONS.KNOWLEDGE_MANAGE, icon: 'inbox', group: 'Mesa de ayuda' },
-  { label: 'Usuarios', path: '/users', permission: PERMISSIONS.USER_MANAGE, roles: ['ADMIN'], icon: 'users', group: 'Administración' },
-  { label: 'Reportes', path: '/reports', permission: PERMISSIONS.REPORT_VIEW, roles: ['ADMIN', 'SUPERVISOR'], icon: 'reports', group: 'Administración' },
+  { label: 'Usuarios', path: '/users', permission: PERMISSIONS.USER_MANAGE, icon: 'users', group: 'Administración' },
+  { label: 'Roles y privilegios', path: '/administration/roles-permissions', permission: PERMISSIONS.ROLE_PERMISSION_MANAGE, icon: 'shield', group: 'Administración' },
+  { label: 'Reportes', path: '/reports', permission: PERMISSIONS.REPORT_VIEW, icon: 'reports', group: 'Administración' },
 ]
 
-export function getNavItemsForRole(role: UserRole, permissions: string[]): NavItem[] {
-  return NAV_ITEMS.filter((item) => {
-    if (item.roles && !item.roles.includes(role)) return false
-    if (item.permission && !permissions.includes(item.permission)) {
-      if (item.path === '/dashboard' && permissions.includes(PERMISSIONS.DASHBOARD_VIEW_LIMITED)) return true
-      if (item.path === '/reports' && permissions.includes(PERMISSIONS.REPORT_VIEW_LIMITED)) return true
-      if (item.path === '/tickets' && permissions.includes(PERMISSIONS.TICKET_VIEW_ALL)) return true
-      if (!item.roles) return false
-      return false
-    }
-    return true
-  })
+/** Permisos que también abren el mismo ítem de menú. */
+export const NAV_PERMISSION_ALIASES: Record<string, string[]> = {
+  [PERMISSIONS.DASHBOARD_VIEW]: [PERMISSIONS.DASHBOARD_VIEW_LIMITED],
+  [PERMISSIONS.REPORT_VIEW]: [PERMISSIONS.REPORT_VIEW_LIMITED],
+  [PERMISSIONS.TICKET_VIEW_OWN]: [PERMISSIONS.TICKET_VIEW_ALL],
+}
+
+export function permissionsGrantAccess(owned: string[], required: string) {
+  if (owned.includes(required)) return true
+  return (NAV_PERMISSION_ALIASES[required] ?? []).some((code) => owned.includes(code))
+}
+
+export function getNavItemsForRole(_role: UserRole, permissions: string[]): NavItem[] {
+  return NAV_ITEMS.filter((item) => permissionsGrantAccess(permissions, item.permission))
 }
 
 export function resolveActiveNavPath(pathname: string, paths: string[]) {
@@ -49,4 +51,3 @@ export function resolveActiveNavPath(pathname: string, paths: string[]) {
     .sort((a, b) => b.length - a.length)
     .find((path) => pathname === path || pathname.startsWith(`${path}/`))
 }
-

@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs'
 import { createHash, randomUUID } from 'crypto'
 import { DataSource, IsNull, MoreThan, Repository } from 'typeorm'
 import { RefreshToken, User, UserStatus } from '../database/entities'
+import { effectivePermissionCodes } from '../common/effective-permissions'
 import { validatePasswordPolicy } from '../common/validation'
 import { ChangePasswordDto, LoginDto, UpdateOwnProfileDto } from './dto'
 
@@ -32,6 +33,7 @@ export class AuthService {
       .addSelect('user.passwordHash')
       .leftJoinAndSelect('user.role', 'role')
       .leftJoinAndSelect('role.permissions', 'permission')
+      .leftJoinAndSelect('permission.module', 'module')
       .leftJoinAndSelect('user.client', 'client')
       .where('LOWER(user.email) = LOWER(:email)', { email: dto.email.trim() })
       .getOne()
@@ -56,7 +58,7 @@ export class AuthService {
     const tokenHash = this.hashToken(rawToken)
     const stored = await this.refreshTokens.findOne({
       where: { tokenHash, revokedAt: IsNull(), expiresAt: MoreThan(new Date()) },
-      relations: { user: { role: { permissions: true } } },
+      relations: { user: { role: { permissions: { module: true } } } },
     })
     if (!stored || stored.user.id !== payload.sub || stored.user.status !== UserStatus.ACTIVE) {
       throw new UnauthorizedException('Refresh token revocado')
@@ -73,7 +75,7 @@ export class AuthService {
   }
 
   async validateUser(id: string) {
-    const user = await this.users.findOne({ where: { id }, relations: { role: { permissions: true }, client: true } })
+    const user = await this.users.findOne({ where: { id }, relations: { role: { permissions: { module: true } }, client: true } })
     if (!user || user.status !== UserStatus.ACTIVE) throw new UnauthorizedException('Sesión inválida')
     return user
   }
@@ -87,7 +89,8 @@ export class AuthService {
       status: user.status,
       clientId: user.client?.id ?? null,
       clientName: user.client?.name ?? null,
-      permissions: (user.role.permissions ?? []).map((permission) => permission.code),
+      permissions: effectivePermissionCodes(user.role.permissions),
+      permissionsVersion: user.role.permissionsVersion ?? 1,
       mustChangePassword: Boolean(user.mustChangePassword),
       lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
       createdAt: user.createdAt?.toISOString(),
@@ -125,7 +128,7 @@ export class AuthService {
   }
 
   async updateOwnProfile(userId: string, dto: UpdateOwnProfileDto) {
-    const user = await this.users.findOne({ where: { id: userId }, relations: { role: { permissions: true }, client: true } })
+    const user = await this.users.findOne({ where: { id: userId }, relations: { role: { permissions: { module: true } }, client: true } })
     if (!user) throw new UnauthorizedException('Sesión inválida')
     user.fullName = dto.fullName.trim()
     return this.serializeUser(await this.users.save(user))
