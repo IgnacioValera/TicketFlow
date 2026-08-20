@@ -3,6 +3,7 @@ import AppDataSource, * as dataSourceExports from './data-source'
 import { User } from './entities'
 import { MustChangePasswordAndKnowledge1763000000000 } from './migrations/1763000000000-MustChangePasswordAndKnowledge'
 import { CrmSurveyInvitationAutomation1765000000000 } from './migrations/1765000000000-CrmSurveyInvitationAutomation'
+import { TicketHistorySystemActor1767000000000 } from './migrations/1767000000000-TicketHistorySystemActor'
 
 describe('TypeORM CLI data source', () => {
   it('expone exactamente una instancia de DataSource', () => {
@@ -23,6 +24,12 @@ describe('TypeORM CLI data source', () => {
   it('registra la migración de automatización de encuestas CRM', () => {
     const migrations = (AppDataSource.options.migrations ?? []) as unknown[]
     const matches = migrations.filter((migration) => migration === CrmSurveyInvitationAutomation1765000000000)
+    expect(matches).toHaveLength(1)
+  })
+
+  it('registra la migración de actor de sistema en el historial', () => {
+    const migrations = (AppDataSource.options.migrations ?? []) as unknown[]
+    const matches = migrations.filter((migration) => migration === TicketHistorySystemActor1767000000000)
     expect(matches).toHaveLength(1)
   })
 

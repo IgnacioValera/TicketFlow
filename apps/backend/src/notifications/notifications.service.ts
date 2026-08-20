@@ -12,7 +12,7 @@ import {
 
 export interface DispatchNotificationInput {
   type: NotificationType
-  actor: User
+  actor: User | null
   ticket: Ticket
   dedupeKey: string
   previousAssigneeId?: string | null
@@ -69,7 +69,7 @@ export class NotificationsService {
       input.type === NotificationType.ESCALATED ? await this.supervisorIds(manager) : []
     const recipientIds = notificationRecipients({
       type: input.type,
-      actorId: input.actor.id,
+      actorId: input.actor?.id ?? '',
       requesterId: ticket.requester.id,
       assigneeId: ticket.assignee?.id ?? null,
       previousAssigneeId: input.previousAssigneeId,
@@ -83,7 +83,7 @@ export class NotificationsService {
         await manager.save(
           manager.create(Notification, {
             recipient: { id: recipientId } as User,
-            actor: { id: input.actor.id } as User,
+            actor: input.actor ? ({ id: input.actor.id } as User) : null,
             ticket,
             dedupeKey: input.dedupeKey,
             type: input.type,

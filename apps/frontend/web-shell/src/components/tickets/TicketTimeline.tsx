@@ -25,7 +25,7 @@ export function TicketTimeline({ history }: TicketTimelineProps) {
             <StatusBadge status={item.newStatus} />
           </div>
           <p className="mt-1 text-xs text-slate-600">
-            {item.changedByName} · {new Date(item.createdAt).toLocaleString('es-MX')}
+            {item.changedByName || 'Sistema'} · {new Date(item.createdAt).toLocaleString('es-MX')}
           </p>
           {item.reason && <p className="mt-0.5 text-xs text-slate-500">{item.reason}</p>}
         </li>

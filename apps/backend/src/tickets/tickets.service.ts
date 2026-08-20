@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common'
+import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { randomUUID } from 'crypto'
@@ -8,9 +8,11 @@ import { join } from 'path'
 import { Brackets, DataSource, EntityManager, Repository } from 'typeorm'
 import { pagination, parsePagination } from '../common/api'
 import { isPortalRole } from '../common/roles'
-import { CatalogStatus, Category, Client, Priority, RoleCode, SatisfactionSurvey, SlaPolicy, Ticket, TicketAttachment, TicketComment, TicketCounter, TicketHistory, TicketStatus, User, UserStatus } from '../database/entities'
+import { CatalogStatus, Category, Client, HistoryActorType, Priority, RoleCode, SatisfactionSurvey, SlaPolicy, Ticket, TicketAttachment, TicketComment, TicketCounter, TicketHistory, TicketStatus, User, UserStatus } from '../database/entities'
 import { NotificationType, statusNotificationType } from '../notifications/notification-rules'
 import { NotificationsService } from '../notifications/notifications.service'
+import { enqueueTicketCreatedWebhook } from '../integrations/n8n/n8n-assignment-rules'
+import { N8nIntegrationService } from '../integrations/n8n/n8n-integration.service'
 import { AssignTicketDto, ChangeStatusDto, CreateCommentDto, CreateTicketDto, EscalateTicketDto, SubmitSurveyDto, TicketsQueryDto, UpdateTicketDto } from './dto'
 import { removeTempUpload, validateUploadedFile } from './file-validation'
 import { statusesForPreset } from '../analytics/dashboard-rules'
@@ -21,6 +23,8 @@ import { assertStatusReason, assertTicketMutable, assertTicketSurvey, assertTran
 
 @Injectable()
 export class TicketsService {
+  private readonly logger = new Logger(TicketsService.name)
+
   constructor(
     @InjectRepository(Ticket) private readonly tickets: Repository<Ticket>,
     @InjectRepository(Category) private readonly categories: Repository<Category>,
@@ -35,6 +39,7 @@ export class TicketsService {
     private readonly dataSource: DataSource,
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
+    private readonly n8n: N8nIntegrationService,
   ) {}
 
   async list(query: TicketsQueryDto, user: User) {
@@ -109,20 +114,20 @@ export class TicketsService {
     if (!priority) throw new UnprocessableEntityException('Prioridad no encontrada o inactiva')
     if (!policy) throw new UnprocessableEntityException('La prioridad no tiene una política SLA activa')
 
-    return this.dataSource.transaction(async (manager) => {
+    const created = await this.dataSource.transaction(async (manager) => {
       const year = new Date().getFullYear()
       let counter = await manager.getRepository(TicketCounter).createQueryBuilder('counter').setLock('pessimistic_write').where('counter.year = :year', { year }).getOne()
       if (!counter) counter = await manager.getRepository(TicketCounter).save(manager.getRepository(TicketCounter).create({ year, value: 0 }))
       counter.value += 1
       await manager.getRepository(TicketCounter).save(counter)
-      const created = new Date()
+      const createdAt = new Date()
       const ticket = await manager.getRepository(Ticket).save(manager.getRepository(Ticket).create({
         folio: `HD-${year}-${String(counter.value).padStart(4, '0')}`, title: dto.title.trim(), description: dto.description.trim(),
         status: TicketStatus.OPEN, category, priority, requester, assignee: null, client,
-        slaCreatedAt: created, slaDueAt: new Date(created.getTime() + policy.resolutionHours * 3600000), resolutionHours: policy.resolutionHours, closedAt: null,
+        slaCreatedAt: createdAt, slaDueAt: new Date(createdAt.getTime() + policy.resolutionHours * 3600000), resolutionHours: policy.resolutionHours, closedAt: null,
       }))
       const history = await manager.getRepository(TicketHistory).save(manager.getRepository(TicketHistory).create({
-        ticket, changedBy: actor, eventType: 'CREATED', oldStatus: null, newStatus: TicketStatus.OPEN, reason: null, details: null,
+        ticket, changedBy: actor, actorType: HistoryActorType.USER, actorName: actor.fullName, eventType: 'CREATED', oldStatus: null, newStatus: TicketStatus.OPEN, reason: null, details: null,
       }))
       await this.notifications.dispatch(manager, {
         type: NotificationType.TICKET_CREATED,
@@ -132,6 +137,17 @@ export class TicketsService {
       })
       return this.serialize(ticket)
     })
+    enqueueTicketCreatedWebhook(
+      (ticketId) => this.n8n.notifyTicketCreated(ticketId),
+      String(created.id),
+      (error) => {
+        this.logger.error(
+          `No se pudo notificar a n8n el ticket ${String(created.id)}`,
+          error instanceof Error ? error.stack : undefined,
+        )
+      },
+    )
+    return created
   }
 
   async detail(id: string, user: User) { return this.serialize(await this.findVisible(id, user, true), true) }
@@ -155,7 +171,7 @@ export class TicketsService {
       await this.dataSource.transaction(async (manager) => {
         await manager.getRepository(Ticket).save(ticket)
         const history = await manager.getRepository(TicketHistory).save(manager.getRepository(TicketHistory).create({
-          ticket, changedBy: user, eventType: 'PRIORITY_CHANGED', oldStatus: ticket.status, newStatus: ticket.status, reason: null, details: { from: previousPriority, to: priority.name },
+          ticket, changedBy: user, actorType: HistoryActorType.USER, actorName: user.fullName, eventType: 'PRIORITY_CHANGED', oldStatus: ticket.status, newStatus: ticket.status, reason: null, details: { from: previousPriority, to: priority.name },
         }))
         await this.notifications.dispatch(manager, {
           type: NotificationType.PRIORITY_CHANGED,
@@ -199,7 +215,7 @@ export class TicketsService {
       await manager.getRepository(Ticket).save(ticket)
       const eventType = previousName ? 'REASSIGNED' : 'ASSIGNED'
       const history = await manager.getRepository(TicketHistory).save(manager.getRepository(TicketHistory).create({
-        ticket, changedBy: user, eventType, oldStatus, newStatus: ticket.status, reason: 'Asignación de responsable', details: { from: previousName, to: agent.fullName },
+        ticket, changedBy: user, actorType: HistoryActorType.USER, actorName: user.fullName, eventType, oldStatus, newStatus: ticket.status, reason: 'Asignación de responsable', details: { from: previousName, to: agent.fullName },
       }))
       await this.notifications.dispatch(manager, {
         type: previousName ? NotificationType.TICKET_REASSIGNED : NotificationType.TICKET_ASSIGNED,
@@ -324,7 +340,7 @@ export class TicketsService {
   private isElevated(user: User) { return user.role.code === RoleCode.ADMIN || user.role.code === RoleCode.SUPERVISOR }
   private async recordStatusChange(manager: EntityManager, ticket: Ticket, user: User, oldStatus: TicketStatus | null, newStatus: TicketStatus, reason?: string) {
     const history = await manager.getRepository(TicketHistory).save(manager.getRepository(TicketHistory).create({
-      ticket, changedBy: user, eventType: 'STATUS_CHANGED', oldStatus, newStatus, reason: reason ?? null, details: null,
+      ticket, changedBy: user, actorType: HistoryActorType.USER, actorName: user.fullName, eventType: 'STATUS_CHANGED', oldStatus, newStatus, reason: reason ?? null, details: null,
     }))
     const type = oldStatus ? statusNotificationType(oldStatus, newStatus) : null
     if (!type) return

@@ -35,6 +35,12 @@ services:
         value: uploads
       - key: MAX_FILE_SIZE_MB
         value: "5"
+      - key: N8N_TICKET_CREATED_WEBHOOK_URL
+        sync: false
+      - key: N8N_WEBHOOK_SECRET
+        generateValue: true
+      - key: N8N_INTEGRATION_API_KEY
+        generateValue: true
       - key: APP_URL
         fromService:
           name: ticketflow-api

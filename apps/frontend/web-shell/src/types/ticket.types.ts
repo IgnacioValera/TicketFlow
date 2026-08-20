@@ -40,7 +40,8 @@ export interface TicketStatusHistory {
   eventType?: string
   oldStatus: TicketStatus | null
   newStatus: TicketStatus
-  changedBy: string
+  actorType?: 'USER' | 'SYSTEM'
+  changedBy: string | null
   changedByName: string
   reason?: string
   details?: Record<string, unknown> | null

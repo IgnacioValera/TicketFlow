@@ -21,6 +21,7 @@ export enum CompanyTier { BRONZE = 'BRONZE', SILVER = 'SILVER', GOLD = 'GOLD', P
 export enum ClientStatus { ACTIVE = 'ACTIVE', INACTIVE = 'INACTIVE', PROSPECT = 'PROSPECT' }
 export enum ClientSegment { ENTERPRISE = 'ENTERPRISE', MID_MARKET = 'MID_MARKET', SMB = 'SMB' }
 export enum TicketStatus { OPEN = 'OPEN', ASSIGNED = 'ASSIGNED', IN_PROGRESS = 'IN_PROGRESS', WAITING_USER = 'WAITING_USER', ESCALATED = 'ESCALATED', RESOLVED = 'RESOLVED', CLOSED = 'CLOSED', CANCELLED = 'CANCELLED' }
+export enum HistoryActorType { USER = 'USER', SYSTEM = 'SYSTEM' }
 export enum OpportunityStage { NEW = 'NEW', QUALIFICATION = 'QUALIFICATION', PROPOSAL = 'PROPOSAL', NEGOTIATION = 'NEGOTIATION', WON = 'WON', LOST = 'LOST' }
 export enum ActivityType { CALL = 'CALL', MEETING = 'MEETING', TASK = 'TASK', NOTE = 'NOTE' }
 export enum ActivityStatus { PENDING = 'PENDING', COMPLETED = 'COMPLETED', CANCELLED = 'CANCELLED' }
@@ -175,7 +176,9 @@ export class TicketAttachment {
 export class TicketHistory {
   @PrimaryGeneratedColumn('uuid') id: string
   @ManyToOne(() => Ticket, (ticket) => ticket.histories, { onDelete: 'CASCADE', nullable: false }) @JoinColumn({ name: 'ticket_id' }) ticket: Ticket
-  @ManyToOne(() => User, { eager: true, nullable: false }) @JoinColumn({ name: 'changed_by' }) changedBy: User
+  @ManyToOne(() => User, { eager: true, nullable: true }) @JoinColumn({ name: 'changed_by' }) changedBy: User | null
+  @Column({ name: 'actor_type', type: 'enum', enum: HistoryActorType, enumName: 'ticket_history_actor_type_enum', default: HistoryActorType.USER }) actorType: HistoryActorType
+  @Column({ name: 'actor_name', type: 'varchar', length: 160, nullable: true }) actorName: string | null
   @Column({ name: 'event_type', length: 40, default: 'STATUS_CHANGED' }) eventType: string
   @Column({ name: 'old_status', type: 'enum', enum: TicketStatus, nullable: true }) oldStatus: TicketStatus | null
   @Column({ name: 'new_status', type: 'enum', enum: TicketStatus }) newStatus: TicketStatus

@@ -17,7 +17,16 @@ async function bootstrap() {
   app.useGlobalInterceptors(new ApiResponseInterceptor())
   app.useGlobalFilters(new ApiExceptionFilter())
   const uploadDir = join(process.cwd(), process.env.UPLOAD_DIR || 'uploads'); mkdirSync(uploadDir, { recursive: true }); app.useStaticAssets(uploadDir, { prefix: '/uploads/' })
-  const swaggerConfig = new DocumentBuilder().setTitle('TicketFlow API').setDescription('API REST del Sistema de Tickets / Mesa de Ayuda').setVersion('1.0').addBearerAuth().build()
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('TicketFlow API')
+    .setDescription('API REST del Sistema de Tickets / Mesa de Ayuda')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .addApiKey(
+      { type: 'apiKey', name: 'x-ticketflow-integration-key', in: 'header', description: 'Clave de integración para n8n' },
+      'n8n-api-key',
+    )
+    .build()
   SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, swaggerConfig), { swaggerOptions: { persistAuthorization: true } })
   await app.listen(Number(process.env.PORT || 8000), '0.0.0.0')
 }
