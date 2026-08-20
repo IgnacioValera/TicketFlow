@@ -39,4 +39,26 @@ describe('Categoría de artículos', () => {
     )
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ category: null }))
   })
+
+  it('permite limpiar la categoría al actualizar', async () => {
+    const article = {
+      id: 'article-1',
+      title: 'Guía de VPN',
+      content: 'Contenido suficientemente largo para el artículo de conocimiento',
+      tags: 'vpn',
+      category: { id: 'cat-1', name: 'Accesos' },
+      author: { id: 'user-1' },
+      status: 'ACTIVE',
+    }
+    const save = jest.fn(async (value) => value)
+    const service = new KnowledgeService(
+      {
+        findOne: jest.fn().mockResolvedValue(article),
+        save,
+      } as never,
+      { findOneBy: jest.fn() } as never,
+    )
+    await service.update('article-1', { categoryId: null })
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ category: null }))
+  })
 })
