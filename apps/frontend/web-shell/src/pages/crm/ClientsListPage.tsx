@@ -54,6 +54,7 @@ export function ClientsListPage() {
   const [segment, setSegment] = useState('')
   const [status, setStatus] = useState('')
   const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(10)
   const [meta, setMeta] = useState({ page: 1, perPage: 10, total: 0, totalPages: 1 })
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<CrmClient | null>(null)
@@ -100,7 +101,7 @@ export function ClientsListPage() {
     try {
       const response = await crm.getClients({
         page,
-        perPage: 10,
+        perPage,
         search: search || undefined,
         segment: segment || undefined,
         status: status || undefined,
@@ -113,7 +114,7 @@ export function ClientsListPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, search, segment, status])
+  }, [page, perPage, search, segment, status])
 
   useEffect(() => {
     void load()
@@ -324,8 +325,12 @@ export function ClientsListPage() {
         columns={columns}
         data={items}
         loading={loading}
-        pagination={meta}
+        pagination={{ ...meta, page, perPage }}
         onPageChange={setPage}
+        onPerPageChange={(value) => {
+          setPerPage(value)
+          setPage(1)
+        }}
         rowKey={(row) => row.id}
         onRowClick={(row) => navigate(`/crm/clients/${row.id}`)}
         emptyMessage="No hay clientes"

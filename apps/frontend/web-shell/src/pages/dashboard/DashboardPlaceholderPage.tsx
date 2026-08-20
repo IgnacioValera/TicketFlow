@@ -17,8 +17,8 @@ import { kpiFilterHref } from '@/utils/dashboard.utils'
 const KPI_TONE: Record<KpiMetric['key'], 'accent' | 'danger' | 'success' | 'neutral'> = {
   open: 'accent',
   overdue: 'danger',
-  resolved: 'success',
   inProgress: 'neutral',
+  resolved: 'success',
   closed: 'neutral',
 }
 
