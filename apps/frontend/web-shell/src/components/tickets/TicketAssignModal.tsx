@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Modal } from '@/components/common/Modal'
+import { SelectInput } from '@/components/common/UiControls'
 import * as usersService from '@/services/users.service'
 import type { User } from '@/types/user.types'
 
@@ -79,11 +80,10 @@ export function TicketAssignModal({
       <label htmlFor="assignee" className="mb-1 block text-sm font-medium text-brand-navy">
         Agente
       </label>
-      <select
+      <SelectInput
         id="assignee"
         value={assigneeId}
         onChange={(e) => setAssigneeId(e.target.value)}
-        className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
       >
         <option value="">Seleccionar agente...</option>
         {agents.map((a) => (
@@ -91,7 +91,7 @@ export function TicketAssignModal({
             {a.fullName}
           </option>
         ))}
-      </select>
+      </SelectInput>
     </Modal>
   )
 }

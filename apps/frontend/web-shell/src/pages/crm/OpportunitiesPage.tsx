@@ -458,14 +458,14 @@ export function OpportunitiesPage() {
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <select
+        <SelectInput
           aria-label="Etapa"
           value={stageFilter}
           onChange={(e) => {
             setStageFilter(e.target.value)
             setPage(1)
           }}
-          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
+          className="w-44"
         >
           <option value="">Todas las etapas</option>
           {ALL_STAGES.map((stage) => (
@@ -473,15 +473,15 @@ export function OpportunitiesPage() {
               {OPPORTUNITY_STAGE_LABELS[stage]}
             </option>
           ))}
-        </select>
-        <select
+        </SelectInput>
+        <SelectInput
           aria-label="Estado"
           value={statusFilter}
           onChange={(e) => {
             setStatusFilter(e.target.value)
             setPage(1)
           }}
-          className="w-40 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
+          className="w-40"
         >
           <option value="">Todos los estados</option>
           {(Object.keys(OPPORTUNITY_STATUS_LABELS) as Array<keyof typeof OPPORTUNITY_STATUS_LABELS>).map((status) => (
@@ -489,15 +489,15 @@ export function OpportunitiesPage() {
               {OPPORTUNITY_STATUS_LABELS[status]}
             </option>
           ))}
-        </select>
-        <select
+        </SelectInput>
+        <SelectInput
           aria-label="Cliente"
           value={clientFilter}
           onChange={(e) => {
             setClientFilter(e.target.value)
             setPage(1)
           }}
-          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
+          className="w-44"
         >
           <option value="">Todos los clientes</option>
           {clients.map((client) => (
@@ -505,15 +505,15 @@ export function OpportunitiesPage() {
               {client.name}
             </option>
           ))}
-        </select>
-        <select
+        </SelectInput>
+        <SelectInput
           aria-label="Responsable"
           value={ownerFilter}
           onChange={(e) => {
             setOwnerFilter(e.target.value)
             setPage(1)
           }}
-          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
+          className="w-44"
         >
           <option value="">Todos los responsables</option>
           {owners.map((owner) => (
@@ -521,7 +521,7 @@ export function OpportunitiesPage() {
               {owner.name}
             </option>
           ))}
-        </select>
+        </SelectInput>
         {hasFilters && <SecondaryButton onClick={clearFilters}>Limpiar filtros</SecondaryButton>}
       </div>
       <p className="text-sm text-muted">

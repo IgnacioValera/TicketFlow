@@ -18,3 +18,9 @@ export function moveSelectIndex(current: number, direction: 1 | -1, count: numbe
   if (current < 0) return direction === 1 ? 0 : count - 1
   return (current + direction + count) % count
 }
+
+export function optionLabelFromChildren(children: unknown): string {
+  if (typeof children === 'string' || typeof children === 'number') return String(children)
+  if (Array.isArray(children)) return children.map(optionLabelFromChildren).join('')
+  return ''
+}

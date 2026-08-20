@@ -5,7 +5,7 @@ import { DataTable, type Column } from '@/components/common/DataTable'
 import { ErrorState } from '@/components/common/ErrorState'
 import { FormAlert } from '@/components/common/FormAlert'
 import { TableActionButton } from '@/components/common/TableActionButton'
-import { PrimaryButton, SecondaryButton } from '@/components/common/UiControls'
+import { PrimaryButton, SecondaryButton, SelectInput } from '@/components/common/UiControls'
 import { PERMISSIONS } from '@/constants/permissions'
 import { LIMITS } from '@/constants/validation'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -270,11 +270,10 @@ export function SlaPoliciesPage() {
             <label htmlFor="sla-priority" className="mb-1 block text-sm font-medium">
               Prioridad
             </label>
-            <select
+            <SelectInput
               id="sla-priority"
               value={formState.priorityId}
               onChange={(e) => setFormState((prev) => ({ ...prev, priorityId: e.target.value }))}
-              className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
             >
               <option value="">Seleccionar prioridad</option>
               {formPriorities.map((priority) => (
@@ -282,7 +281,7 @@ export function SlaPoliciesPage() {
                   {priority.name}
                 </option>
               ))}
-            </select>
+            </SelectInput>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

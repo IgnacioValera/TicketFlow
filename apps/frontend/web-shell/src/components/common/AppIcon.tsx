@@ -38,6 +38,7 @@ export type AppIconName =
   | 'grip'
   | 'download'
   | 'file'
+  | 'x'
 
 const paths: Record<AppIconName, string[]> = {
   dashboard: ['M4 13h6V4H4z', 'M14 20h6v-9h-6z', 'M14 4h6v3h-6z', 'M4 17h6v3H4z'],
@@ -95,6 +96,7 @@ const paths: Record<AppIconName, string[]> = {
   grip: ['M8 6h.01', 'M8 12h.01', 'M8 18h.01', 'M16 6h.01', 'M16 12h.01', 'M16 18h.01'],
   download: ['M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4', 'M7 10l5 5 5-5', 'M12 15V3'],
   file: ['M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z', 'M14 3v5h5', 'M8 13h8', 'M8 17h5'],
+  x: ['M18 6 6 18', 'M6 6l12 12'],
 }
 
 export function AppIcon({

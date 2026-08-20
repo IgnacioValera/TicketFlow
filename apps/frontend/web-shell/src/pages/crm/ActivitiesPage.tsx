@@ -7,6 +7,7 @@ import { ConfirmToast } from '@/components/common/FeedbackAlert'
 import { FormField } from '@/components/common/FormField'
 import { Modal } from '@/components/common/Modal'
 import { TableActionButton } from '@/components/common/TableActionButton'
+import { SearchableSelect } from '@/components/common/SearchableSelect'
 import { PrimaryButton, SecondaryButton, SelectInput, TextArea, TextInput } from '@/components/common/UiControls'
 import { PERMISSIONS } from '@/constants/permissions'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -26,6 +27,7 @@ export function ActivitiesPage() {
   const [status, setStatus] = useState('')
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ clientId: '', type: 'CALL' as ActivityType, subject: '', body: '', dueAt: '' })
+  const [clientError, setClientError] = useState('')
   const [toast, setToast] = useState<{ title: string; message: string } | null>(null)
 
   useEffect(() => {
@@ -87,6 +89,10 @@ export function ActivitiesPage() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
+    if (!form.clientId) {
+      setClientError('Selecciona un cliente')
+      return
+    }
     const created = await crm.createActivity({ ...form, dueAt: form.dueAt || undefined })
     setOpen(false)
     setForm({ clientId: '', type: 'CALL', subject: '', body: '', dueAt: '' })
@@ -164,17 +170,29 @@ export function ActivitiesPage() {
           ) : undefined
         }
       />
-      <Modal open={open} onClose={() => setOpen(false)} title="Nueva actividad">
+      <Modal
+        open={open}
+        onClose={() => {
+          setOpen(false)
+          setClientError('')
+        }}
+        title="Nueva actividad"
+      >
         <form onSubmit={(e) => void submit(e)} className="space-y-3">
-          <FormField label="Cliente" required>
-            <SelectInput required value={form.clientId} onChange={(e) => setForm((c) => ({ ...c, clientId: e.target.value }))}>
-              <option value="">Seleccionar cliente</option>
-              {clients.map((client) => (
-                <option key={client.id} value={client.id}>
-                  {client.name}
-                </option>
-              ))}
-            </SelectInput>
+          <FormField label="Cliente" htmlFor="activity-client" required error={clientError}>
+            <SearchableSelect
+              id="activity-client"
+              value={form.clientId}
+              onChange={(clientId) => {
+                setForm((c) => ({ ...c, clientId }))
+                setClientError('')
+              }}
+              options={clients.map((client) => ({ value: client.id, label: client.name }))}
+              placeholder="Seleccionar cliente"
+              searchPlaceholder="Buscar cliente..."
+              emptyMessage="No hay clientes disponibles"
+              noResultsMessage="Ningún cliente coincide con la búsqueda"
+            />
           </FormField>
           <FormField label="Tipo">
             <SelectInput

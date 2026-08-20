@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '@/components/common/AppIcon'
+import { SearchableSelect } from '@/components/common/SearchableSelect'
+import { SelectInput } from '@/components/common/UiControls'
 import { DataTable, type Column } from '@/components/common/DataTable'
 import { ErrorState } from '@/components/common/ErrorState'
 import { StatusBadge } from '@/components/common/StatusBadge'
@@ -301,14 +303,14 @@ export function TicketsListPage() {
           />
         </div>
         {viewMode === 'table' && (
-          <select
+          <SelectInput
             value={statusFilter}
             onChange={(e) => {
               setStatusFilter(e.target.value as TicketStatus | '')
               setPresetFilter('')
               setPage(1)
             }}
-            className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
+            className="w-44"
           >
             <option value="">Todos los estados</option>
             <option value="OPEN">Abierto</option>
@@ -319,15 +321,15 @@ export function TicketsListPage() {
             <option value="RESOLVED">Resuelto</option>
             <option value="CLOSED">Cerrado</option>
             <option value="CANCELLED">Cancelado</option>
-          </select>
+          </SelectInput>
         )}
-        <select
+        <SelectInput
           value={priorityFilter}
           onChange={(e) => {
             setPriorityFilter(e.target.value)
             setPage(1)
           }}
-          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
+          className="w-44"
         >
           <option value="">Todas las prioridades</option>
           {priorities.map((p) => (
@@ -335,35 +337,38 @@ export function TicketsListPage() {
               {p.name}
             </option>
           ))}
-        </select>
-        <select
-          value={categoryFilter}
-          onChange={(e) => {
-            setCategoryFilter(e.target.value)
-            setPage(1)
-          }}
-          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
-        >
-          <option value="">Todas las categorías</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <select
+        </SelectInput>
+        <div className="w-44">
+          <SearchableSelect
+            id="tickets-category-filter"
+            value={categoryFilter}
+            onChange={(value) => {
+              setCategoryFilter(value)
+              setPage(1)
+            }}
+            options={categories.map((c) => ({ value: c.id, label: c.name }))}
+            placeholder="Todas las categorías"
+            searchPlaceholder="Buscar categoría..."
+            emptyMessage="No hay categorías"
+            noResultsMessage="Ninguna categoría coincide con la búsqueda"
+            allowEmpty
+            emptyLabel="Todas las categorías"
+          />
+        </div>
+        <SelectInput
+          aria-label="SLA"
           value={slaFilter}
           onChange={(e) => {
             setSlaFilter(e.target.value as SlaFilterStatus | '')
             setPage(1)
           }}
-          className="w-40 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
+          className="w-40"
         >
           <option value="">SLA: todos</option>
           <option value="overdue">Vencidos</option>
           <option value="warning">Próximos a vencer</option>
           <option value="on_time">En tiempo</option>
-        </select>
+        </SelectInput>
       </div>
 
       {error && tickets.length === 0 && !loading ? (

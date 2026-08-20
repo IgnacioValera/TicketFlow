@@ -4,7 +4,8 @@ import { DataTable, type Column } from '@/components/common/DataTable'
 import { ConfirmToast } from '@/components/common/FeedbackAlert'
 import { FormField } from '@/components/common/FormField'
 import { Modal } from '@/components/common/Modal'
-import { PrimaryButton, SecondaryButton, SelectInput, TextInput } from '@/components/common/UiControls'
+import { SearchableSelect } from '@/components/common/SearchableSelect'
+import { PrimaryButton, SecondaryButton, TextInput } from '@/components/common/UiControls'
 import { PERMISSIONS } from '@/constants/permissions'
 import { usePermissions } from '@/hooks/usePermissions'
 import * as crm from '@/services/crm.service'
@@ -20,6 +21,7 @@ export function ContactsPage() {
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ clientId: '', firstName: '', lastName: '', email: '', phone: '', jobTitle: '' })
+  const [clientError, setClientError] = useState('')
   const [toast, setToast] = useState<{ title: string; message: string } | null>(null)
 
   useEffect(() => {
@@ -58,6 +60,10 @@ export function ContactsPage() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
+    if (!form.clientId) {
+      setClientError('Selecciona un cliente')
+      return
+    }
     const created = await crm.createContact(form)
     setOpen(false)
     setForm({ clientId: '', firstName: '', lastName: '', email: '', phone: '', jobTitle: '' })
@@ -112,17 +118,25 @@ export function ContactsPage() {
           ) : undefined
         }
       />
-      <Modal open={open} onClose={() => setOpen(false)} title="Nuevo contacto">
+      <Modal open={open} onClose={() => {
+        setOpen(false)
+        setClientError('')
+      }} title="Nuevo contacto">
         <form onSubmit={(e) => void submit(e)} className="space-y-3">
-          <FormField label="Cliente" required>
-            <SelectInput required value={form.clientId} onChange={(e) => setForm((c) => ({ ...c, clientId: e.target.value }))}>
-              <option value="">Seleccionar cliente</option>
-              {clients.map((client) => (
-                <option key={client.id} value={client.id}>
-                  {client.name}
-                </option>
-              ))}
-            </SelectInput>
+          <FormField label="Cliente" htmlFor="contact-client" required error={clientError}>
+            <SearchableSelect
+              id="contact-client"
+              value={form.clientId}
+              onChange={(clientId) => {
+                setForm((c) => ({ ...c, clientId }))
+                setClientError('')
+              }}
+              options={clients.map((client) => ({ value: client.id, label: client.name }))}
+              placeholder="Seleccionar cliente"
+              searchPlaceholder="Buscar cliente..."
+              emptyMessage="No hay clientes disponibles"
+              noResultsMessage="Ningún cliente coincide con la búsqueda"
+            />
           </FormField>
           <div className="grid gap-3 sm:grid-cols-2">
             <FormField label="Nombre" required>

@@ -50,7 +50,8 @@ test.describe('Base de conocimiento', () => {
   test('filtra por categoría o tema', async ({ page }) => {
     await login(page)
     await openKnowledge(page)
-    await page.locator('select').filter({ has: page.locator('option', { hasText: 'SLA' }) }).selectOption('SLA')
+    await page.locator('#knowledge-topic-filter').click()
+    await page.getByRole('option', { name: 'SLA' }).click()
     await expect(page.getByRole('link', { name: 'Qué significa el SLA' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Cómo crear un ticket' })).toHaveCount(0)
   })

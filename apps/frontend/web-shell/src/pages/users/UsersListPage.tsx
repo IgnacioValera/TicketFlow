@@ -4,9 +4,9 @@ import { AppIcon } from '@/components/common/AppIcon'
 import { ConfirmModal, Modal } from '@/components/common/Modal'
 import { DataTable, type Column } from '@/components/common/DataTable'
 import { ErrorState } from '@/components/common/ErrorState'
-import { ConfirmToast } from '@/components/common/FeedbackAlert'
+import { ConfirmToast, FeedbackAlert } from '@/components/common/FeedbackAlert'
 import { TableActionButton } from '@/components/common/TableActionButton'
-import { PrimaryButton, SecondaryButton } from '@/components/common/UiControls'
+import { PrimaryButton, SecondaryButton, SelectInput } from '@/components/common/UiControls'
 import { ROLES } from '@/constants/roles'
 import { PERMISSIONS } from '@/constants/permissions'
 import { useAuth } from '@/hooks/useAuth'
@@ -31,7 +31,6 @@ export function UsersListPage() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
   const [toast, setToast] = useState<{ title: string; message: string } | null>(null)
   const [roleFilter, setRoleFilter] = useState<UserRole | ''>('')
   const [statusFilter, setStatusFilter] = useState<UserStatus | ''>('')
@@ -49,6 +48,7 @@ export function UsersListPage() {
   const [passwordCopied, setPasswordCopied] = useState(false)
   const [resetLoading, setResetLoading] = useState(false)
   const [resetError, setResetError] = useState('')
+  const [discardUncopied, setDiscardUncopied] = useState(false)
   const [statusLock] = useState(() => createSubmitLock())
   const [resetLock] = useState(() => createSubmitLock())
 
@@ -65,12 +65,20 @@ export function UsersListPage() {
   }, [toast])
 
   useEffect(() => {
-    const state = location.state as { createdName?: string } | null
-    if (!state?.createdName) return
-    setToast({
-      title: 'Usuario creado',
-      message: `${state.createdName} se agregó al directorio.`,
-    })
+    const state = location.state as { createdName?: string; updatedName?: string } | null
+    if (state?.createdName) {
+      setToast({
+        title: 'Usuario creado',
+        message: `${state.createdName} se agregó al directorio.`,
+      })
+    } else if (state?.updatedName) {
+      setToast({
+        title: 'Usuario actualizado',
+        message: `${state.updatedName} se actualizó correctamente.`,
+      })
+    } else {
+      return
+    }
     navigate(location.pathname, { replace: true, state: null })
   }, [location.pathname, location.state, navigate])
 
@@ -106,13 +114,13 @@ export function UsersListPage() {
       setStatusLoading(true)
       setProcessingUserId(statusModal.user.id)
       setError('')
-      setSuccess('')
       try {
         const updated = await usersService.updateUserStatus(statusModal.user.id, statusModal.status)
         setUsers((current) => current.map((item) => (item.id === updated.id ? updated : item)))
-        setSuccess(
-          `Estado de ${statusModal.user.fullName} actualizado a ${STATUS_LABELS[statusModal.status]}.`,
-        )
+        setToast({
+          title: 'Estado actualizado',
+          message: `Estado de ${statusModal.user.fullName} actualizado a ${STATUS_LABELS[statusModal.status]}.`,
+        })
         setStatusModal(null)
         await loadUsers()
       } catch (err: unknown) {
@@ -124,20 +132,23 @@ export function UsersListPage() {
     })
   }
 
-  const closeResetModal = () => {
-    if (resetLoading) return
-    if (temporaryPassword && !passwordCopied) {
-      const confirmed = window.confirm(
-        'La contraseña temporal no se copió y no volverá a mostrarse. ¿Deseas cerrar de todos modos?',
-      )
-      if (!confirmed) return
-    }
+  const finishResetModal = () => {
+    setDiscardUncopied(false)
     setResetUser(null)
     setResetConfirmUser(null)
     setTemporaryPassword('')
     setPasswordVisible(false)
     setPasswordCopied(false)
     setResetError('')
+  }
+
+  const closeResetModal = () => {
+    if (resetLoading || discardUncopied) return
+    if (temporaryPassword && !passwordCopied) {
+      setDiscardUncopied(true)
+      return
+    }
+    finishResetModal()
   }
 
   const handleResetPassword = async () => {
@@ -153,7 +164,6 @@ export function UsersListPage() {
         setTemporaryPassword(response.temporaryPassword)
         setPasswordVisible(false)
         setPasswordCopied(false)
-        setSuccess(response.message)
       } catch (err: unknown) {
         setResetError((err as { message?: string }).message || 'No se pudo restablecer la contraseña')
       } finally {
@@ -275,13 +285,13 @@ export function UsersListPage() {
             className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-teal focus:outline-none"
           />
         </div>
-        <select
+        <SelectInput
           value={roleFilter}
           onChange={(e) => {
             setRoleFilter(e.target.value as UserRole | '')
             setPage(1)
           }}
-          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
+          className="w-44"
         >
           <option value="">Todos los roles</option>
           {(Object.keys(ROLES) as UserRole[]).map((role) => (
@@ -289,20 +299,20 @@ export function UsersListPage() {
               {ROLES[role]}
             </option>
           ))}
-        </select>
-        <select
+        </SelectInput>
+        <SelectInput
           value={statusFilter}
           onChange={(e) => {
             setStatusFilter(e.target.value as UserStatus | '')
             setPage(1)
           }}
-          className="w-40 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
+          className="w-40"
         >
           <option value="">Todos los estados</option>
           <option value="ACTIVE">Activo</option>
           <option value="INACTIVE">Inactivo</option>
           <option value="LOCKED">Bloqueado</option>
-        </select>
+        </SelectInput>
         <div className="ml-auto">
           <PrimaryButton type="button" onClick={() => navigate('/users/create')}>
             <AppIcon name="plus" className="h-4 w-4" />
@@ -311,12 +321,9 @@ export function UsersListPage() {
         </div>
       </div>
 
-      {success && (
-        <div
-          role="status"
-          className="mb-4 rounded-xl border border-green-200 bg-green-50 px-3 py-2.5 text-sm text-green-800"
-        >
-          {success}
+      {error && users.length > 0 && (
+        <div className="mb-4">
+          <FeedbackAlert variant="danger" title="No se pudo completar la acción" message={error} />
         </div>
       )}
 
@@ -453,6 +460,16 @@ export function UsersListPage() {
           </div>
         )}
       </Modal>
+      <ConfirmModal
+        open={discardUncopied}
+        onClose={() => setDiscardUncopied(false)}
+        title="Contraseña sin copiar"
+        message="La contraseña temporal no se copió y no volverá a mostrarse. ¿Deseas cerrar de todos modos?"
+        confirmLabel="Cerrar de todos modos"
+        cancelLabel="Seguir aquí"
+        variant="danger"
+        onConfirm={finishResetModal}
+      />
     </div>
   )
 }

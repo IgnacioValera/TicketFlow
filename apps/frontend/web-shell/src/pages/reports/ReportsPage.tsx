@@ -16,6 +16,7 @@ import { DataTable, type Column } from '@/components/common/DataTable'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ErrorState } from '@/components/common/ErrorState'
 import { AppIcon } from '@/components/common/AppIcon'
+import { SelectInput } from '@/components/common/UiControls'
 import { PERMISSIONS } from '@/constants/permissions'
 import { ROLES } from '@/constants/roles'
 import { useAuth } from '@/hooks/useAuth'
@@ -286,16 +287,16 @@ export function ReportsPage() {
         <div className="flex flex-wrap items-end gap-2">
           <label className="block min-w-40 text-sm text-slate-600">
             Periodo
-            <select
+            <SelectInput
               value={rangePreset}
               onChange={(event) => handlePresetChange(event.target.value as RangePreset)}
-              className="mt-1 w-full rounded-lg border border-brand-slate px-3 py-2 text-sm text-brand-navy"
+              className="mt-1 w-full"
             >
               <option value="7d">Últimos 7 días</option>
               <option value="30d">Últimos 30 días</option>
               <option value="90d">Últimos 90 días</option>
               <option value="custom">Personalizado</option>
-            </select>
+            </SelectInput>
           </label>
           <label className="block min-w-40 text-sm text-slate-600">
             Fecha inicial
