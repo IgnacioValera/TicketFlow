@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AppIcon } from '@/components/common/AppIcon'
+import { SearchableSelect } from '@/components/common/SearchableSelect'
 import { DataTable, type Column } from '@/components/common/DataTable'
 import { ErrorState } from '@/components/common/ErrorState'
 import { StatusBadge } from '@/components/common/StatusBadge'
@@ -336,21 +337,23 @@ export function TicketsListPage() {
             </option>
           ))}
         </select>
-        <select
-          value={categoryFilter}
-          onChange={(e) => {
-            setCategoryFilter(e.target.value)
-            setPage(1)
-          }}
-          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
-        >
-          <option value="">Todas las categorías</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        <div className="w-44">
+          <SearchableSelect
+            id="tickets-category-filter"
+            value={categoryFilter}
+            onChange={(value) => {
+              setCategoryFilter(value)
+              setPage(1)
+            }}
+            options={categories.map((c) => ({ value: c.id, label: c.name }))}
+            placeholder="Todas las categorías"
+            searchPlaceholder="Buscar categoría..."
+            emptyMessage="No hay categorías"
+            noResultsMessage="Ninguna categoría coincide con la búsqueda"
+            allowEmpty
+            emptyLabel="Todas las categorías"
+          />
+        </div>
         <select
           value={slaFilter}
           onChange={(e) => {

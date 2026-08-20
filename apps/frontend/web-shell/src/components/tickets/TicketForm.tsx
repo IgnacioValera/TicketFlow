@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { EmptyState } from '@/components/common/EmptyState'
+import { SearchableSelect } from '@/components/common/SearchableSelect'
 import { useAuth } from '@/hooks/useAuth'
 import type { Category, Priority } from '@/types/catalog.types'
 import type { User } from '@/types/user.types'
@@ -204,20 +205,16 @@ export function TicketForm({
           <label htmlFor="categoryId" className="mb-1 block text-sm font-medium text-brand-navy">
             Categoría
           </label>
-          <select
+          <SearchableSelect
             id="categoryId"
             value={values.categoryId}
-            onChange={(e) => setValues((v) => ({ ...v, categoryId: e.target.value }))}
-            className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
-            required
-          >
-            <option value="">Seleccionar...</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            onChange={(categoryId) => setValues((v) => ({ ...v, categoryId }))}
+            options={categories.map((c) => ({ value: c.id, label: c.name }))}
+            placeholder="Seleccionar..."
+            searchPlaceholder="Buscar categoría..."
+            emptyMessage="No hay categorías disponibles"
+            noResultsMessage="Ninguna categoría coincide con la búsqueda"
+          />
         </div>
         <div>
           <label htmlFor="priorityId" className="mb-1 block text-sm font-medium text-brand-navy">
@@ -258,19 +255,18 @@ export function TicketForm({
             <label htmlFor="requesterId" className="mb-1 block text-sm font-medium text-brand-navy">
               Solicitante
             </label>
-            <select
+            <SearchableSelect
               id="requesterId"
               value={values.requesterId ?? ''}
-              onChange={(e) => setValues((v) => ({ ...v, requesterId: e.target.value }))}
-              className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
-            >
-              <option value="">Crear a mi nombre</option>
-              {requesters.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.fullName}
-                </option>
-              ))}
-            </select>
+              onChange={(requesterId) => setValues((v) => ({ ...v, requesterId }))}
+              options={requesters.map((item) => ({ value: item.id, label: item.fullName }))}
+              placeholder="Crear a mi nombre"
+              searchPlaceholder="Buscar solicitante..."
+              emptyMessage="No hay solicitantes disponibles"
+              noResultsMessage="Ningún solicitante coincide con la búsqueda"
+              allowEmpty
+              emptyLabel="Crear a mi nombre"
+            />
           </div>
           <div>
             <p className="mb-1 text-sm font-medium text-brand-navy">Cliente</p>

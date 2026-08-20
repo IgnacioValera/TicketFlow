@@ -22,7 +22,7 @@ test.describe('Panel de mesa de ayuda', () => {
     await overdueCard.click()
     await expect(page).toHaveURL(/\/tickets\?slaStatus=overdue/)
     await expect(page.getByRole('heading', { name: 'Tickets' })).toBeVisible()
-    await expect(page.locator('select').nth(3)).toHaveValue('overdue')
+    await expect(page.locator('select').filter({ has: page.locator('option[value="overdue"]') })).toHaveValue('overdue')
   })
 
   test('limita indicadores del agente a sus tickets', async ({ page }) => {

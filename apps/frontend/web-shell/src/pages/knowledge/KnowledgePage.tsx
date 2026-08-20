@@ -7,7 +7,8 @@ import { ConfirmToast } from '@/components/common/FeedbackAlert'
 import { EmptyState } from '@/components/common/EmptyState'
 import { FormField } from '@/components/common/FormField'
 import { SurfaceCard } from '@/components/common/SurfaceCard'
-import { PrimaryButton, SecondaryButton, SelectInput, TextArea, TextInput } from '@/components/common/UiControls'
+import { SearchableSelect } from '@/components/common/SearchableSelect'
+import { PrimaryButton, SecondaryButton, TextArea, TextInput } from '@/components/common/UiControls'
 import { TableActionButton } from '@/components/common/TableActionButton'
 import { PERMISSIONS } from '@/constants/permissions'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -174,21 +175,23 @@ export function KnowledgePage() {
             className="w-full rounded border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm focus:border-brand-teal focus:outline-none"
           />
         </div>
-        <select
-          value={topicFilter}
-          onChange={(event) => {
-            setTopicFilter(event.target.value)
-            setPage(1)
-          }}
-          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
-        >
-          <option value="">Todas las categorías</option>
-          {topics.map((topic) => (
-            <option key={topic} value={topic}>
-              {topic}
-            </option>
-          ))}
-        </select>
+        <div className="w-44">
+          <SearchableSelect
+            id="knowledge-topic-filter"
+            value={topicFilter}
+            onChange={(value) => {
+              setTopicFilter(value)
+              setPage(1)
+            }}
+            options={topics.map((topic) => ({ value: topic, label: topic }))}
+            placeholder="Todas las categorías"
+            searchPlaceholder="Buscar categoría..."
+            emptyMessage="No hay categorías"
+            noResultsMessage="Ninguna categoría coincide con la búsqueda"
+            allowEmpty
+            emptyLabel="Todas las categorías"
+          />
+        </div>
         {canManage && (
           <div className="ml-auto">
             <PrimaryButton onClick={openCreate}>
@@ -316,18 +319,18 @@ export function KnowledgePage() {
             />
           </FormField>
           <FormField label="Categoría" htmlFor="knowledge-category">
-            <SelectInput
+            <SearchableSelect
               id="knowledge-category"
               value={form.categoryId}
-              onChange={(event) => setForm((current) => ({ ...current, categoryId: event.target.value }))}
-            >
-              <option value="">Sin categoría de ticket</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </SelectInput>
+              onChange={(categoryId) => setForm((current) => ({ ...current, categoryId }))}
+              options={categories.map((category) => ({ value: category.id, label: category.name }))}
+              placeholder="Sin categoría de ticket"
+              searchPlaceholder="Buscar categoría..."
+              emptyMessage="No hay categorías disponibles"
+              noResultsMessage="Ninguna categoría coincide con la búsqueda"
+              allowEmpty
+              emptyLabel="Sin categoría de ticket"
+            />
           </FormField>
           <div className="flex justify-end gap-2">
             <SecondaryButton onClick={() => setOpen(false)}>Cancelar</SecondaryButton>

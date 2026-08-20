@@ -37,7 +37,8 @@ test.describe('Flujo completo de ticket', () => {
     await page.getByRole('link', { name: 'Nuevo ticket' }).click()
     await page.getByLabel('Título').fill(ticketTitle)
     await page.getByLabel('Descripción').fill('Descripción de prueba E2E')
-    await page.getByLabel('Categoría').selectOption({ index: 1 })
+    await page.getByLabel('Categoría').click()
+    await page.getByRole('option').first().click()
     await page.getByLabel('Prioridad').selectOption({ index: 1 })
     await page.getByRole('button', { name: 'Crear ticket' }).click()
 
