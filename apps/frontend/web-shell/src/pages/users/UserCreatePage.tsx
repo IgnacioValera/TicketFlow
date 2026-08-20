@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ErrorState } from '@/components/common/ErrorState'
+import { FeedbackAlert } from '@/components/common/FeedbackAlert'
 import { PasswordRequirements } from '@/components/common/PasswordRequirements'
-import { PrimaryButton } from '@/components/common/UiControls'
+import { PrimaryButton, SelectInput } from '@/components/common/UiControls'
 import { ClientSelectField } from '@/components/users/ClientSelectField'
 import { ASSIGNABLE_ROLES, ROLES } from '@/constants/roles'
 import { LIMITS } from '@/constants/validation'
@@ -70,7 +70,11 @@ export function UserCreatePage() {
         <h1 className="mt-3 text-xl font-semibold tracking-tight text-text">Nuevo usuario</h1>
       </div>
 
-      {error && <ErrorState message={error} />}
+      {error && (
+        <div className="mb-4">
+          <FeedbackAlert variant="danger" title="No se pudo crear el usuario" message={error} />
+        </div>
+      )}
 
       <form
         onSubmit={(e) => void handleSubmit(e)}
@@ -136,7 +140,7 @@ export function UserCreatePage() {
           <label htmlFor="role" className="mb-1 block text-sm font-medium">
             Rol
           </label>
-          <select
+          <SelectInput
             id="role"
             value={role}
             onChange={(e) => {
@@ -144,7 +148,6 @@ export function UserCreatePage() {
               setRole(next)
               if (next !== 'REQUESTER') setClientId('')
             }}
-            className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
             disabled={submitting}
           >
             {ASSIGNABLE_ROLES.map((r) => (
@@ -152,7 +155,7 @@ export function UserCreatePage() {
                 {ROLES[r]}
               </option>
             ))}
-          </select>
+          </SelectInput>
         </div>
         {isRequester && (
           <ClientSelectField value={clientId} onChange={setClientId} disabled={submitting} required />

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { DataTable, type Column } from '@/components/common/DataTable'
 import { ErrorState } from '@/components/common/ErrorState'
 import { TableActionButton } from '@/components/common/TableActionButton'
+import { SelectInput } from '@/components/common/UiControls'
 import * as companiesService from '@/services/companies.service'
 import type { Company, CompanyTier } from '@/types/catalog.types'
 
@@ -98,13 +99,13 @@ export function CompaniesListPage() {
             className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-teal focus:outline-none"
           />
         </div>
-        <select
+        <SelectInput
           value={industryFilter}
           onChange={(e) => {
             setIndustryFilter(e.target.value)
             setPage(1)
           }}
-          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
+          className="w-44"
         >
           <option value="">Todas las industrias</option>
           {INDUSTRIES.map((industry) => (
@@ -112,14 +113,14 @@ export function CompaniesListPage() {
               {industry}
             </option>
           ))}
-        </select>
-        <select
+        </SelectInput>
+        <SelectInput
           value={regionFilter}
           onChange={(e) => {
             setRegionFilter(e.target.value)
             setPage(1)
           }}
-          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
+          className="w-44"
         >
           <option value="">Todas las regiones</option>
           {REGIONS.map((region) => (
@@ -127,14 +128,14 @@ export function CompaniesListPage() {
               {region}
             </option>
           ))}
-        </select>
-        <select
+        </SelectInput>
+        <SelectInput
           value={tierFilter}
           onChange={(e) => {
             setTierFilter(e.target.value as CompanyTier | '')
             setPage(1)
           }}
-          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
+          className="w-44"
         >
           <option value="">Todos los tiers</option>
           {(Object.keys(TIER_LABELS) as CompanyTier[]).map((tier) => (
@@ -142,7 +143,7 @@ export function CompaniesListPage() {
               {TIER_LABELS[tier]}
             </option>
           ))}
-        </select>
+        </SelectInput>
       </div>
 
       {error ? (

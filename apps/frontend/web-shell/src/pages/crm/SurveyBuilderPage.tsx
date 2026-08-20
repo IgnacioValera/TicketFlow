@@ -221,15 +221,30 @@ export function SurveyBuilderPage() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link className="rounded-lg border border-brand-slate px-4 py-2 text-sm text-brand-navy hover:bg-brand-cream/50" to={`/crm/surveys/${survey.id}/results`}>
+          <Link
+            className="inline-flex items-center justify-center gap-2 rounded border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-brand-navy hover:bg-slate-50"
+            to={`/crm/surveys/${survey.id}/results`}
+          >
+            <AppIcon name="reports" className="h-4 w-4" />
             Ver resultados
           </Link>
-          {canEdit && <SecondaryButton onClick={() => setOpen(true)}>Agregar pregunta</SecondaryButton>}
+          {canEdit && (
+            <SecondaryButton onClick={() => setOpen(true)}>
+              <AppIcon name="plus" className="h-4 w-4" />
+              Agregar pregunta
+            </SecondaryButton>
+          )}
           {(survey.status === 'DRAFT' || survey.status === 'CLOSED') && (
-            <PrimaryButton onClick={() => void activate()}>Activar</PrimaryButton>
+            <PrimaryButton onClick={() => void activate()}>
+              <AppIcon name="check" className="h-4 w-4" />
+              Activar
+            </PrimaryButton>
           )}
           {survey.status === 'PUBLISHED' && (
-            <SecondaryButton onClick={() => void deactivate()}>Desactivar</SecondaryButton>
+            <SecondaryButton onClick={() => void deactivate()}>
+              <AppIcon name="pause" className="h-4 w-4" />
+              Desactivar
+            </SecondaryButton>
           )}
         </div>
       </div>

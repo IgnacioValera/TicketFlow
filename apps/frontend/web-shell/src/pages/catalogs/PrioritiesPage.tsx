@@ -6,7 +6,7 @@ import { ErrorState } from '@/components/common/ErrorState'
 import { FormAlert } from '@/components/common/FormAlert'
 import { Modal } from '@/components/common/Modal'
 import { TableActionButton } from '@/components/common/TableActionButton'
-import { PrimaryButton, SecondaryButton } from '@/components/common/UiControls'
+import { PrimaryButton, SecondaryButton, SelectInput } from '@/components/common/UiControls'
 import { PERMISSIONS } from '@/constants/permissions'
 import { LIMITS } from '@/constants/validation'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -286,18 +286,18 @@ export function PrioritiesPage() {
             className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-teal focus:outline-none"
           />
         </div>
-        <select
+        <SelectInput
           value={statusFilter}
           onChange={(e) => {
             setStatusFilter(e.target.value as CatalogStatus | '')
             setPage(1)
           }}
-          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
+          className="w-44"
         >
           <option value="">Todos los estados</option>
           <option value="ACTIVE">Activa</option>
           <option value="INACTIVE">Inactiva</option>
-        </select>
+        </SelectInput>
         <div className="ml-auto">
           <PrimaryButton onClick={openCreateModal} disabled={!canManage}>
             <AppIcon name="plus" className="h-4 w-4" />
@@ -359,18 +359,17 @@ export function PrioritiesPage() {
             <label htmlFor="priority-level" className="mb-1 block text-sm font-medium">
               Nivel
             </label>
-            <select
+            <SelectInput
               id="priority-level"
               value={formState.level}
               onChange={(e) => handleLevelChange(e.target.value as PriorityLevel)}
-              className="w-full rounded border border-border px-3 py-2 text-sm"
             >
               {(Object.keys(LEVEL_LABELS) as PriorityLevel[]).map((level) => (
                 <option key={level} value={level}>
                   {LEVEL_LABELS[level]}
                 </option>
               ))}
-            </select>
+            </SelectInput>
           </div>
 
           <ColorField

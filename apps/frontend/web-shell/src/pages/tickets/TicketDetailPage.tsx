@@ -11,7 +11,7 @@ import { TicketForm } from '@/components/tickets/TicketForm'
 import { TicketStatusActions } from '@/components/tickets/TicketStatusActions'
 import { TicketSurveyModal } from '@/components/tickets/TicketSurveyModal'
 import { TicketTimeline } from '@/components/tickets/TicketTimeline'
-import { PrimaryButton } from '@/components/common/UiControls'
+import { PrimaryButton, SelectInput } from '@/components/common/UiControls'
 import { PERMISSIONS } from '@/constants/permissions'
 import { useAuth } from '@/hooks/useAuth'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -326,11 +326,11 @@ export function TicketDetailPage() {
                 <dt className="text-slate-500">Prioridad</dt>
                 <dd>
                   {canChangePriority ? (
-                    <select
+                    <SelectInput
                       value={ticket.priorityId}
                       disabled={priorityLoading}
                       onChange={(e) => void handlePriorityChange(e.target.value)}
-                      className="rounded border border-brand-slate px-2 py-1 text-sm"
+                      className="w-36"
                       style={{ color: ticket.priorityColor }}
                     >
                       {priorities.map((p) => (
@@ -338,7 +338,7 @@ export function TicketDetailPage() {
                           {p.name}
                         </option>
                       ))}
-                    </select>
+                    </SelectInput>
                   ) : (
                     <span style={{ color: ticket.priorityColor }}>{ticket.priorityName}</span>
                   )}

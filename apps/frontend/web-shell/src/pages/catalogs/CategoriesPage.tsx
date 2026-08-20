@@ -6,7 +6,7 @@ import { ErrorState } from '@/components/common/ErrorState'
 import { ConfirmToast } from '@/components/common/FeedbackAlert'
 import { FormAlert } from '@/components/common/FormAlert'
 import { TableActionButton } from '@/components/common/TableActionButton'
-import { PrimaryButton, SecondaryButton } from '@/components/common/UiControls'
+import { PrimaryButton, SecondaryButton, SelectInput } from '@/components/common/UiControls'
 import { PERMISSIONS } from '@/constants/permissions'
 import { LIMITS } from '@/constants/validation'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -245,18 +245,18 @@ export function CategoriesPage() {
             className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-teal focus:outline-none"
           />
         </div>
-        <select
+        <SelectInput
           value={statusFilter}
           onChange={(e) => {
             setStatusFilter(e.target.value as CatalogStatus | '')
             setPage(1)
           }}
-          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
+          className="w-44"
         >
           <option value="">Todos los estados</option>
           <option value="ACTIVE">Activa</option>
           <option value="INACTIVE">Inactiva</option>
-        </select>
+        </SelectInput>
         <div className="ml-auto">
           <PrimaryButton onClick={openCreateModal} disabled={!canManage}>
             <AppIcon name="plus" className="h-4 w-4" />

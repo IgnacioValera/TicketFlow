@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { chooseSelectOption } from './select'
 
 async function login(page: import('@playwright/test').Page, email: string) {
   await page.goto('/login', { waitUntil: 'domcontentloaded' })
@@ -25,7 +26,7 @@ test.describe('Encuestas CRM y ticket cerrado', () => {
     await expect(page.getByRole('button', { name: 'Agregar pregunta' })).toBeVisible()
     await page.getByRole('button', { name: 'Agregar pregunta' }).click()
     await page.getByRole('textbox', { name: 'Pregunta' }).fill('¿Cómo calificarías la atención?')
-    await page.getByLabel('Tipo').selectOption('RATING')
+    await chooseSelectOption(page.getByLabel('Tipo'), 'RATING')
     await page.getByRole('dialog', { name: 'Pregunta' }).getByRole('button', { name: 'Agregar', exact: true }).click()
     await expect(page.getByText('¿Cómo calificarías la atención?')).toBeVisible()
     await expect(page.getByText(/Obligatoria/)).toBeVisible()

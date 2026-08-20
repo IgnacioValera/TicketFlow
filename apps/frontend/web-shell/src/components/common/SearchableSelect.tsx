@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import { AppIcon } from '@/components/common/AppIcon'
 import {
   filterSelectOptions,
@@ -18,6 +18,9 @@ interface SearchableSelectProps {
   disabled?: boolean
   allowEmpty?: boolean
   emptyLabel?: string
+  searchable?: boolean
+  ariaLabel?: string
+  style?: CSSProperties
 }
 
 export function SearchableSelect({
@@ -32,6 +35,9 @@ export function SearchableSelect({
   disabled = false,
   allowEmpty = false,
   emptyLabel = 'Ninguno',
+  searchable = true,
+  ariaLabel,
+  style,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -41,10 +47,10 @@ export function SearchableSelect({
   const listId = useId()
   const selected = options.find((item) => item.value === value)
   const visibleOptions = useMemo(() => {
-    const filtered = filterSelectOptions(options, query)
+    const filtered = searchable ? filterSelectOptions(options, query) : options
     if (!allowEmpty || query.trim()) return filtered
     return [{ value: '', label: emptyLabel }, ...filtered]
-  }, [allowEmpty, emptyLabel, options, query])
+  }, [allowEmpty, emptyLabel, options, query, searchable])
 
   useEffect(() => {
     const close = (event: MouseEvent) => {
@@ -60,8 +66,10 @@ export function SearchableSelect({
       return
     }
     setActiveIndex(0)
-    window.requestAnimationFrame(() => searchRef.current?.focus())
-  }, [open])
+    if (searchable) {
+      window.requestAnimationFrame(() => searchRef.current?.focus())
+    }
+  }, [open, searchable])
 
   const choose = (nextValue: string) => {
     onChange(nextValue)
@@ -69,7 +77,7 @@ export function SearchableSelect({
     setQuery('')
   }
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+  const handleListKeys = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key === 'Escape') {
       event.preventDefault()
       event.stopPropagation()
@@ -89,18 +97,34 @@ export function SearchableSelect({
     }
   }
 
+  const handleTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      if (!open) {
+        setOpen(true)
+        return
+      }
+      handleListKeys(event)
+    } else if (open) {
+      handleListKeys(event)
+    }
+  }
+
   return (
     <div ref={containerRef} className="relative w-full">
       <button
         id={id}
         type="button"
         disabled={disabled}
+        aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
+        style={style}
         onClick={() => {
           if (!disabled) setOpen((current) => !current)
         }}
+        onKeyDown={handleTriggerKeyDown}
         className="flex w-full cursor-pointer items-center justify-between gap-2 rounded border border-slate-300 bg-white px-3 py-2 text-left text-sm text-brand-navy disabled:cursor-not-allowed disabled:opacity-50"
       >
         <span className={`min-w-0 truncate ${selected ? 'text-brand-navy' : 'text-slate-400'}`}>
@@ -113,22 +137,24 @@ export function SearchableSelect({
       </button>
       {open && (
         <div className="absolute z-40 mt-1 w-full overflow-hidden rounded border border-slate-300 bg-white shadow-lg">
-          <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-2">
-            <AppIcon name="search" className="h-4 w-4 shrink-0 text-muted" />
-            <input
-              ref={searchRef}
-              type="search"
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value)
-                setActiveIndex(0)
-              }}
-              onKeyDown={handleKeyDown}
-              placeholder={searchPlaceholder}
-              aria-label={searchPlaceholder}
-              className="h-8 min-w-0 flex-1 bg-transparent text-sm text-brand-navy outline-none placeholder:text-slate-400"
-            />
-          </div>
+          {searchable ? (
+            <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-2">
+              <AppIcon name="search" className="h-4 w-4 shrink-0 text-muted" />
+              <input
+                ref={searchRef}
+                type="search"
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value)
+                  setActiveIndex(0)
+                }}
+                onKeyDown={handleListKeys}
+                placeholder={searchPlaceholder}
+                aria-label={searchPlaceholder}
+                className="h-8 min-w-0 flex-1 bg-transparent text-sm text-brand-navy outline-none placeholder:text-slate-400"
+              />
+            </div>
+          ) : null}
           <div id={listId} role="listbox" className="max-h-64 overflow-y-auto">
             {visibleOptions.length === 0 ? (
               <p className="px-3 py-2.5 text-sm text-muted" role="status">
@@ -143,6 +169,7 @@ export function SearchableSelect({
                     key={item.value || 'empty'}
                     type="button"
                     role="option"
+                    data-value={item.value}
                     aria-selected={isSelected}
                     onMouseEnter={() => setActiveIndex(index)}
                     onClick={() => choose(item.value)}

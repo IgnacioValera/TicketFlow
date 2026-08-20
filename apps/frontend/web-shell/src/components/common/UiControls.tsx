@@ -1,5 +1,17 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react'
+import type {
+  ButtonHTMLAttributes,
+  ChangeEvent,
+  CSSProperties,
+  InputHTMLAttributes,
+  ReactElement,
+  ReactNode,
+  SelectHTMLAttributes,
+  TextareaHTMLAttributes,
+} from 'react'
+import { Children, isValidElement } from 'react'
 import { InlineSpinner } from '@/components/common/InlineSpinner'
+import { SearchableSelect } from '@/components/common/SearchableSelect'
+import { optionLabelFromChildren, type SearchableSelectOption } from '@/utils/searchable-select'
 
 const fieldClass =
   'w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy placeholder:text-slate-400'
@@ -8,15 +20,60 @@ export function TextInput({ className = '', ...props }: InputHTMLAttributes<HTML
   return <input className={`${fieldClass} ${className}`} {...props} />
 }
 
+function parseSelectOptions(children: ReactNode): {
+  options: SearchableSelectOption[]
+  emptyLabel?: string
+} {
+  const options: SearchableSelectOption[] = []
+  let emptyLabel: string | undefined
+  Children.forEach(children, (child) => {
+    if (!isValidElement(child) || child.type !== 'option') return
+    const props = (child as ReactElement<{ value?: string | number; children?: ReactNode }>).props
+    const value = props.value == null ? '' : String(props.value)
+    const label = optionLabelFromChildren(props.children)
+    if (value === '') {
+      emptyLabel = label
+      return
+    }
+    options.push({ value, label })
+  })
+  return { options, emptyLabel }
+}
+
 export function SelectInput({
   className = '',
   children,
-  ...props
+  value,
+  onChange,
+  disabled,
+  id,
+  name,
+  'aria-label': ariaLabel,
+  style,
 }: SelectHTMLAttributes<HTMLSelectElement>) {
+  const stringValue = value == null ? '' : String(Array.isArray(value) ? value[0] : value)
+  const { options, emptyLabel } = parseSelectOptions(children)
+
   return (
-    <select className={`${fieldClass} cursor-pointer ${className}`} {...props}>
-      {children}
-    </select>
+    <div className={className || 'w-full'}>
+      <SearchableSelect
+        id={id}
+        value={stringValue}
+        onChange={(next) => {
+          onChange?.({
+            target: { value: next, name: name ?? '' },
+          } as ChangeEvent<HTMLSelectElement>)
+        }}
+        options={options}
+        placeholder={emptyLabel || 'Seleccionar...'}
+        allowEmpty={emptyLabel !== undefined}
+        emptyLabel={emptyLabel}
+        searchable={false}
+        disabled={disabled}
+        ariaLabel={typeof ariaLabel === 'string' ? ariaLabel : undefined}
+        style={style as CSSProperties | undefined}
+      />
+    </div>
   )
 }
 

@@ -252,14 +252,14 @@ export function ClientsListPage() {
             onChange={(e) => setSearchInput(e.target.value)}
           />
         </div>
-        <select
+        <SelectInput
           aria-label="Segmento"
           value={segment}
           onChange={(e) => {
             setSegment(e.target.value)
             setPage(1)
           }}
-          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
+          className="w-44"
         >
           <option value="">Todos los segmentos</option>
           {(Object.keys(CLIENT_SEGMENT_LABELS) as ClientSegment[]).map((item) => (
@@ -267,15 +267,15 @@ export function ClientsListPage() {
               {CLIENT_SEGMENT_LABELS[item]}
             </option>
           ))}
-        </select>
-        <select
+        </SelectInput>
+        <SelectInput
           aria-label="Estado"
           value={status}
           onChange={(e) => {
             setStatus(e.target.value)
             setPage(1)
           }}
-          className="w-40 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
+          className="w-40"
         >
           <option value="">Todos los estados</option>
           {(Object.keys(CLIENT_STATUS_LABELS) as ClientStatus[]).map((item) => (
@@ -283,7 +283,7 @@ export function ClientsListPage() {
               {CLIENT_STATUS_LABELS[item]}
             </option>
           ))}
-        </select>
+        </SelectInput>
         {hasFilters && <SecondaryButton onClick={clearFilters}>Limpiar filtros</SecondaryButton>}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {hasPermission(PERMISSIONS.CRM_EXPORT) && (

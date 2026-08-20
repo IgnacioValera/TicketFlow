@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { chooseSelectOption } from './select'
 
 async function login(page: Page, email: string) {
   const currentUrl = page.url()
@@ -40,12 +41,13 @@ test.describe('Cliente del solicitante y centro de notificaciones', () => {
     await page.getByLabel('Correo electrónico').fill(`qa.notif.${stamp}@helpdesk.com`)
     await page.getByLabel('Contraseña inicial').fill('Password1!')
     await page.getByLabel('Confirmar contraseña').fill('Password1!')
-    await page.getByLabel('Rol').selectOption({ label: 'Solicitante' })
+    await chooseSelectOption(page.getByLabel('Rol'), { label: 'Solicitante' })
     await expect(page.locator('#clientId')).toBeVisible()
     await page.getByRole('button', { name: 'Crear usuario' }).click()
     await expect(page.getByText('Selecciona el cliente al que pertenece el solicitante.')).toBeVisible()
-    await expect(page.locator('#clientId option').nth(1)).toBeAttached({ timeout: 10000 })
-    await page.locator('#clientId').selectOption({ index: 1 })
+    await page.locator('#clientId').click()
+    await expect(page.getByRole('option').nth(1)).toBeVisible({ timeout: 10000 })
+    await page.getByRole('option').nth(1).click()
     await page.getByRole('button', { name: 'Crear usuario' }).click()
     await expect(page).toHaveURL(/\/users$/)
 
@@ -55,8 +57,9 @@ test.describe('Cliente del solicitante y centro de notificaciones', () => {
     await expect(page.locator('#clientId')).toHaveCount(0)
     await page.getByLabel('Título').fill(ticketTitle)
     await page.getByLabel('Descripción').fill('Descripción válida para notificaciones internas.')
-    await page.locator('#categoryId').selectOption({ index: 1 })
-    await page.locator('#priorityId').selectOption({ index: 1 })
+    await page.locator('#categoryId').click()
+    await page.getByRole('option').first().click()
+    await chooseSelectOption(page.locator('#priorityId'), { index: 1 })
     await page.getByRole('button', { name: 'Crear ticket' }).click()
     await expect(page).toHaveURL(/\/tickets\/[^/]+$/)
     const folio = (await page.locator('span.font-mono.text-sm.text-slate-600').textContent())?.trim() ?? ''
@@ -75,7 +78,7 @@ test.describe('Cliente del solicitante y centro de notificaciones', () => {
     await page.getByRole('link', { name: folio }).click()
     await page.getByRole('button', { name: 'Asignar agente' }).click()
     await expect(page.locator('#assignee option').nth(1)).toBeAttached()
-    await page.locator('#assignee').selectOption({ index: 1 })
+    await chooseSelectOption(page.locator('#assignee'), { index: 1 })
     await page.getByRole('dialog', { name: 'Asignar agente' }).getByRole('button', { name: 'Asignar', exact: true }).click()
     await expect(page.getByRole('definition').filter({ hasText: 'Agente Soporte' })).toBeVisible()
 

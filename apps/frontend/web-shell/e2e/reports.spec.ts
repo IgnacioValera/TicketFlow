@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { chooseSelectOption } from './select'
 
 async function loginAsAdmin(page: import('@playwright/test').Page) {
   await page.goto('/login')
@@ -22,7 +23,7 @@ test.describe('Reportes', () => {
     await expect(page.getByText('Calificación de 1 a 5')).toBeVisible()
 
     await page.getByRole('button', { name: 'Por estado' }).click()
-    await page.getByLabel('Periodo').selectOption('7d')
+    await chooseSelectOption(page.getByLabel('Periodo'), '7d')
     await expect(page.getByRole('heading', { name: 'Tickets por estado' })).toBeVisible()
   })
 

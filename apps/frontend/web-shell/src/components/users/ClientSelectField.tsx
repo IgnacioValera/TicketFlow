@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { SelectInput } from '@/components/common/UiControls'
 import type { ClientOption } from '@/types/user.types'
 import * as usersService from '@/services/users.service'
 import { errorMessage } from '@/utils/validation'
@@ -74,11 +75,10 @@ export function ClientSelectField({
           {error}
         </p>
       )}
-      <select
+      <SelectInput
         id="clientId"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
         disabled={disabled || loading}
         required={required}
       >
@@ -88,7 +88,7 @@ export function ClientSelectField({
             {client.name}
           </option>
         ))}
-      </select>
+      </SelectInput>
     </div>
   )
 }

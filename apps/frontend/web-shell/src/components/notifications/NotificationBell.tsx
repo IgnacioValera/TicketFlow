@@ -84,16 +84,29 @@ export function NotificationBell() {
           aria-label="Notificaciones recientes"
           className="absolute right-0 z-50 mt-1 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded border border-border bg-surface shadow-lg"
         >
-          <div className="flex items-center justify-between border-b border-border px-3 py-2">
+          <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
             <p className="text-sm font-semibold">Notificaciones</p>
-            <button
-              type="button"
-              className="text-xs font-medium text-primary hover:underline disabled:text-muted"
-              disabled={unreadCount === 0}
-              onClick={() => void markAllRead()}
-            >
-              Marcar todas como leídas
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                className="text-xs font-medium text-primary hover:underline disabled:text-muted"
+                disabled={unreadCount === 0}
+                onClick={() => void markAllRead()}
+              >
+                Marcar todas como leídas
+              </button>
+              <button
+                type="button"
+                aria-label="Cerrar"
+                className="rounded p-1 text-muted hover:bg-page hover:text-text"
+                onClick={() => {
+                  setOpen(false)
+                  buttonRef.current?.focus()
+                }}
+              >
+                <AppIcon name="x" className="h-4 w-4" />
+              </button>
+            </div>
           </div>
           <div className="max-h-80 overflow-y-auto">
             {loading && items.length === 0 && <p className="px-3 py-6 text-sm text-muted">Cargando notificaciones…</p>}
