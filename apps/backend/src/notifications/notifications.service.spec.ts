@@ -84,4 +84,14 @@ describe('NotificationsService', () => {
       }),
     ).not.toContain('req')
   })
+
+  it('la asignación automática notifica al agente y al solicitante', () => {
+    const recipients = notificationRecipients({
+      type: NotificationType.TICKET_ASSIGNED,
+      actorId: '',
+      requesterId: 'req',
+      assigneeId: 'agent',
+    })
+    expect(recipients).toEqual(expect.arrayContaining(['req', 'agent']))
+  })
 })

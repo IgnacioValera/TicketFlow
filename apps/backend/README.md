@@ -35,5 +35,18 @@ se exporta simultáneamente como exportación nombrada y como `default`.
 - Validación y limpieza de todos los DTO con `class-validator`.
 - Helmet, CORS configurable y límite de 5 MB para adjuntos.
 - Detección de tipo real de adjuntos con `file-type@16` (CommonJS, compatible con el backend Nest) y verificación de estructura DOCX con `jszip`.
+- Integración opcional con n8n para asignación automática. El webhook se envía *después* de confirmar la creación del ticket; un fallo de n8n no impide el alta.
+
+## n8n
+
+Variables (ver `.env.example`):
+
+- `N8N_TICKET_CREATED_WEBHOOK_URL`: webhook que recibe `TICKET_CREATED`.
+- `N8N_WEBHOOK_SECRET`: header `x-ticketflow-webhook-secret` hacia n8n.
+- `N8N_INTEGRATION_API_KEY`: header `x-ticketflow-integration-key` desde n8n hacia TicketFlow.
+
+Si n8n y TicketFlow están en contenedores distintos, no uses `localhost`. Usa el nombre del servicio o `host.docker.internal`.
+
+El workflow debe: recibir el evento → `GET /api/v1/integrations/n8n/tickets/:ticketId/assignment-context` → decidir un `assigneeId` → `POST /api/v1/integrations/n8n/tickets/:ticketId/assign`. Si la IA falla, llamar a `.../assignment-failed`. La asignación manual `PATCH /tickets/:id/assign` sigue disponible.
 
 Para producción, cambia ambos secretos JWT, la contraseña de PostgreSQL y `FRONTEND_URL`.
