@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
+import { chooseSelectOption } from './select'
 
 const AUTHORIZED_ROLES = [
   'admin@helpdesk.com',
@@ -20,7 +21,7 @@ async function fillValidTicketForm(page: Page, title: string) {
   await page.getByLabel('Descripción').fill('Descripción válida para prueba de creación de ticket.')
   await page.locator('#categoryId').click()
   await page.getByRole('option').first().click()
-  await page.locator('#priorityId').selectOption({ index: 1 })
+  await chooseSelectOption(page.locator('#priorityId'), { index: 1 })
 }
 
 test.describe('Crear ticket', () => {
@@ -41,7 +42,7 @@ test.describe('Crear ticket', () => {
     await page.getByLabel('Descripción').fill('Descripción válida para prueba de creación de ticket.')
     await page.locator('#categoryId').click()
     await page.getByRole('option').first().click()
-    await page.locator('#priorityId').selectOption({ index: 1 })
+    await chooseSelectOption(page.locator('#priorityId'), { index: 1 })
     await page.getByRole('button', { name: 'Crear ticket' }).click()
     await expect(page.getByText(/título es obligatorio/i)).toBeVisible()
     await expect(page).toHaveURL(/\/tickets\/create/)
@@ -134,7 +135,7 @@ test.describe('Crear ticket', () => {
     await page.getByLabel('Descripción').fill(description)
     await page.locator('#categoryId').click()
     await page.getByRole('option').first().click()
-    await page.locator('#priorityId').selectOption({ index: 1 })
+    await chooseSelectOption(page.locator('#priorityId'), { index: 1 })
     await page.getByRole('button', { name: 'Crear ticket' }).click()
     await expect(page.getByRole('alert')).toContainText(/error simulado/i)
     await expect(page.getByLabel('Título')).toHaveValue(title)

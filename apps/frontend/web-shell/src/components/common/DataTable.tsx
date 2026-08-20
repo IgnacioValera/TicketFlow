@@ -1,6 +1,7 @@
 import type { KeyboardEvent, MouseEvent, ReactNode } from 'react'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
+import { SelectInput } from '@/components/common/UiControls'
 
 export interface Column<T> {
   key: string
@@ -42,18 +43,18 @@ export function TablePagination({
         {onPerPageChange && (
           <label className="flex items-center gap-2 text-sm text-slate-600">
             Mostrar
-            <select
+            <SelectInput
               value={pagination.perPage}
               onChange={(event) => onPerPageChange(Number(event.target.value))}
               aria-label="Registros por página"
-              className="rounded border border-slate-300 bg-white px-2 py-1.5 text-sm font-medium hover:border-brand-teal focus:border-brand-teal focus:outline-none"
+              className="w-20"
             >
               {perPageOptions.map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>
               ))}
-            </select>
+            </SelectInput>
             por página
           </label>
         )}

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { EmptyState } from '@/components/common/EmptyState'
 import { SearchableSelect } from '@/components/common/SearchableSelect'
+import { SelectInput } from '@/components/common/UiControls'
 import { useAuth } from '@/hooks/useAuth'
 import type { Category, Priority } from '@/types/catalog.types'
 import type { User } from '@/types/user.types'
@@ -220,11 +221,10 @@ export function TicketForm({
           <label htmlFor="priorityId" className="mb-1 block text-sm font-medium text-brand-navy">
             Prioridad
           </label>
-          <select
+          <SelectInput
             id="priorityId"
             value={values.priorityId}
             onChange={(e) => setValues((v) => ({ ...v, priorityId: e.target.value }))}
-            className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
             required
           >
             <option value="">Seleccionar...</option>
@@ -233,7 +233,7 @@ export function TicketForm({
                 {p.name}
               </option>
             ))}
-          </select>
+          </SelectInput>
         </div>
       </div>
       {isPortal && (

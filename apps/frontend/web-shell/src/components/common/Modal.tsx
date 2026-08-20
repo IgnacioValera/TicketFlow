@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { AppIcon } from '@/components/common/AppIcon'
 
 interface ModalProps {
   open: boolean
@@ -8,6 +9,7 @@ interface ModalProps {
   children: ReactNode
   footer?: ReactNode
   size?: 'sm' | 'md' | 'lg'
+  overlayClassName?: string
 }
 
 const sizeClasses = {
@@ -16,7 +18,16 @@ const sizeClasses = {
   lg: 'max-w-2xl',
 }
 
-export function Modal({ open, onClose, title, description, children, footer, size = 'md' }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+  footer,
+  size = 'md',
+  overlayClassName = 'z-50',
+}: ModalProps) {
   useEffect(() => {
     if (!open) return
     const handleEscape = (e: KeyboardEvent) => {
@@ -33,7 +44,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className={`fixed inset-0 flex items-center justify-center p-4 ${overlayClassName}`}>
       <button
         type="button"
         className="absolute inset-0 bg-brand-navy/50"
@@ -46,11 +57,21 @@ export function Modal({ open, onClose, title, description, children, footer, siz
         aria-labelledby="modal-title"
         className={`relative w-full ${sizeClasses[size]} rounded border border-slate-200 bg-white shadow-xl`}
       >
-        <div className="border-b border-slate-200 px-5 py-3">
-          <h2 id="modal-title" className="text-base font-semibold text-brand-navy">
-            {title}
-          </h2>
-          {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
+        <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-3">
+          <div className="min-w-0">
+            <h2 id="modal-title" className="text-base font-semibold text-brand-navy">
+              {title}
+            </h2>
+            {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar"
+            className="-mr-1 rounded p-1 text-muted hover:bg-slate-100 hover:text-brand-navy"
+          >
+            <AppIcon name="x" className="h-4 w-4" />
+          </button>
         </div>
         <div className="px-5 py-4">{children}</div>
         {footer && (
@@ -97,6 +118,7 @@ export function ConfirmModal({
     <Modal
       open={open}
       onClose={onClose}
+      overlayClassName="z-[60]"
       title={title}
       footer={
         <>

@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { FeedbackAlert } from '@/components/common/FeedbackAlert'
 import { ErrorState } from '@/components/common/ErrorState'
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
 import { ConfirmModal } from '@/components/common/Modal'
-import { PrimaryButton } from '@/components/common/UiControls'
+import { PrimaryButton, SelectInput } from '@/components/common/UiControls'
 import { ClientSelectField } from '@/components/users/ClientSelectField'
 import { ROLES } from '@/constants/roles'
 import { LIMITS } from '@/constants/validation'
@@ -62,7 +63,7 @@ export function UserEditPage() {
           role,
           clientId: isRequester ? clientId : undefined,
         })
-        navigate('/users')
+        navigate('/users', { state: { updatedName: fullName.trim() } })
       } catch (err: unknown) {
         setError(errorMessage(err, 'Error al actualizar usuario'))
       } finally {
@@ -102,7 +103,7 @@ export function UserEditPage() {
 
       {error && fullName && (
         <div className="mb-4">
-          <ErrorState message={error} />
+          <FeedbackAlert variant="danger" title="No se pudo guardar" message={error} />
         </div>
       )}
 
@@ -141,11 +142,10 @@ export function UserEditPage() {
           <label htmlFor="role" className="mb-1 block text-sm font-medium">
             Rol
           </label>
-          <select
+          <SelectInput
             id="role"
             value={role}
             onChange={(e) => setRole(e.target.value as UserRole)}
-            className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
             disabled={submitting}
           >
             {roleOptionsForUser(role).map((r) => (
@@ -153,7 +153,7 @@ export function UserEditPage() {
                 {ROLES[r]}
               </option>
             ))}
-          </select>
+          </SelectInput>
         </div>
         {isRequester && (
           <ClientSelectField

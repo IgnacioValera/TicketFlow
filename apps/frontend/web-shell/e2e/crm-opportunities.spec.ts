@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { chooseSelectOption } from './select'
 
 async function login(page: import('@playwright/test').Page) {
   await page.goto('/login', { waitUntil: 'domcontentloaded' })
@@ -16,14 +17,14 @@ test.describe('Oportunidades CRM', () => {
     await expect(page.getByText('Renovación')).toBeVisible()
     await expect(page.getByText('4 oportunidades')).toBeVisible()
 
-    await page.getByLabel('Cliente', { exact: true }).selectOption({ label: 'Acme Corp' })
+    await chooseSelectOption(page.getByLabel('Cliente', { exact: true }), { label: 'Acme Corp' })
     await expect(page.getByText('Renovación')).toBeVisible()
     await expect(page.getByText('Licencias')).toHaveCount(0)
     await expect(page.getByText('2 oportunidades')).toBeVisible()
     await expect(page.getByText('$130,000')).toBeVisible()
 
     await page.getByRole('button', { name: 'Limpiar filtros' }).click()
-    await page.getByLabel('Estado', { exact: true }).selectOption('OPEN')
+    await chooseSelectOption(page.getByLabel('Estado', { exact: true }), 'OPEN')
     await expect(page.getByText('Soporte anual')).toHaveCount(0)
     await expect(page.getByText('Pilot')).toHaveCount(0)
   })
