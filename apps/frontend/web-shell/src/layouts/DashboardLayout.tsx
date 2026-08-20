@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AppIcon } from '@/components/common/AppIcon'
 import { BrandMark } from '@/components/common/BrandLogo'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { TicketSearch } from '@/components/tickets/TicketSearch'
 import { getNavItemsForRole, type NavItem } from '@/constants/navigation'
 import { PERMISSIONS } from '@/constants/permissions'
@@ -49,7 +50,12 @@ export function DashboardLayout() {
     .sort((a, b) => b.path.length - a.path.length)
     .find((item) => location.pathname.startsWith(item.path))
   const pageTitle =
-    currentItem?.label ?? (location.pathname.startsWith('/profile') ? 'Mi perfil' : 'TicketFlow')
+    currentItem?.label ??
+    (location.pathname.startsWith('/profile')
+      ? 'Mi perfil'
+      : location.pathname.startsWith('/notifications')
+        ? 'Notificaciones'
+        : 'TicketFlow')
 
   const canSearchTickets =
     hasPermission(PERMISSIONS.TICKET_VIEW_OWN) || hasPermission(PERMISSIONS.TICKET_VIEW_ALL)
@@ -203,6 +209,7 @@ export function DashboardLayout() {
               </div>
             )}
             <div className="flex items-center gap-1.5">
+              <NotificationBell />
               {createActions.length > 0 && (
                 <div className="relative" ref={createMenuRef}>
                   <button
@@ -235,6 +242,7 @@ export function DashboardLayout() {
                   type="button"
                   onClick={() => setProfileOpen((open) => !open)}
                   className="flex items-center gap-2 rounded border border-border bg-surface p-1 pr-2 hover:bg-page"
+                  aria-label="Perfil"
                   aria-expanded={profileOpen}
                 >
                   <span className="grid h-7 w-7 place-items-center rounded bg-primary text-[10px] font-bold text-white">

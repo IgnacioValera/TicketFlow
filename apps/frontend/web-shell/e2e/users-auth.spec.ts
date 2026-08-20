@@ -24,7 +24,7 @@ async function navigateSpa(page: Page, path: string) {
 }
 
 async function logout(page: Page) {
-  await page.locator('header button[aria-expanded]:not([aria-label="Creación rápida"])').click()
+  await page.locator('header button[aria-label="Perfil"]').click()
   await page.getByRole('button', { name: 'Cerrar sesión' }).click()
   await expect(page).toHaveURL(/login/)
 }
@@ -40,6 +40,10 @@ async function createManagedUser(page: Page, fullName: string, email: string, ro
   await page.getByLabel('Contraseña inicial').fill('Password1!')
   await page.getByLabel('Confirmar contraseña').fill('Password1!')
   await page.getByLabel('Rol').selectOption({ label: roleLabel })
+  if (roleLabel === 'Solicitante') {
+    await expect(page.locator('#clientId option').nth(1)).toBeAttached({ timeout: 10000 })
+    await page.locator('#clientId').selectOption({ index: 1 })
+  }
   await page.getByRole('button', { name: 'Crear usuario' }).click()
   await expect(page).toHaveURL(/\/users$/)
   await expect(page.getByRole('button', { name: `Editar usuario ${fullName}` })).toBeVisible({

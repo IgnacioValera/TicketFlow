@@ -16,6 +16,8 @@ describe('HTTP administración de usuarios', () => {
   const usersService = {
     list: jest.fn().mockResolvedValue({ items: [{ id: 'user-1', email: 'agent@helpdesk.com' }], meta: { page: 1, perPage: 10, total: 1, totalPages: 1 } }),
     listAssignable: jest.fn().mockResolvedValue([{ id: 'agent-1', role: 'AGENT' }]),
+    listClientOptions: jest.fn().mockResolvedValue({ items: [{ id: '11111111-1111-4111-8111-111111111111', name: 'Acme Corp' }], meta: { page: 1, perPage: 20, total: 1, totalPages: 1 } }),
+    listRequesters: jest.fn().mockResolvedValue([{ id: 'req-1', role: 'REQUESTER', clientId: 'c1', clientName: 'Acme Corp' }]),
     find: jest.fn(),
     serialize: jest.fn((user) => user),
     create: jest.fn().mockResolvedValue({ id: 'new-user', email: 'nuevo@helpdesk.com' }),

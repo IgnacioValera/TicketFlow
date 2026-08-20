@@ -80,7 +80,7 @@ test.describe('Páginas de error y carga', () => {
     await page.getByRole('button', { name: 'Copiar contraseña' }).click()
     await page.getByRole('button', { name: 'Finalizar' }).click()
     await expect(page.getByRole('heading', { name: 'Contraseña temporal generada' })).toHaveCount(0)
-    await page.locator('header button[aria-expanded]:not([aria-label="Creación rápida"])').click()
+    await page.locator('header button[aria-label="Perfil"]').click()
     await page.getByRole('button', { name: 'Cerrar sesión' }).click()
     await page.getByLabel('Correo electrónico').fill('agent@helpdesk.com')
     await page.getByLabel('Contraseña').fill(temporaryPassword)

@@ -46,6 +46,7 @@ export class CreateTicketDto {
   @ApiProperty() @IsUUID('4', { message: 'El identificador de prioridad no es un UUID válido' }) priorityId: string
   @ApiPropertyOptional() @IsOptional() @IsUUID('4', { message: 'El identificador de cliente no es un UUID válido' }) clientId?: string
   @ApiPropertyOptional() @IsOptional() @IsUUID('4', { message: 'El identificador de cliente no es un UUID válido' }) companyId?: string
+  @ApiPropertyOptional() @IsOptional() @IsUUID('4', { message: 'El identificador de solicitante no es un UUID válido' }) requesterId?: string
 }
 
 function IsNotEmptyString(field: string) {
