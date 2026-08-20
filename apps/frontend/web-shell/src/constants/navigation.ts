@@ -43,3 +43,10 @@ export function getNavItemsForRole(role: UserRole, permissions: string[]): NavIt
     return true
   })
 }
+
+export function resolveActiveNavPath(pathname: string, paths: string[]) {
+  return [...paths]
+    .sort((a, b) => b.length - a.length)
+    .find((path) => pathname === path || pathname.startsWith(`${path}/`))
+}
+

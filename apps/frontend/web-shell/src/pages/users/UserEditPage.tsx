@@ -97,15 +97,7 @@ export function UserEditPage() {
         <Link to="/users" className="text-sm text-brand-teal hover:underline">
           ← Volver al listado
         </Link>
-        <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
-          Administración
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-text md:text-3xl">
-          Editar usuario
-        </h1>
-        <p className="mt-2 text-sm text-muted">
-          Actualiza identidad y rol. El restablecimiento de contraseña se realiza desde el listado.
-        </p>
+        <h1 className="mt-3 text-xl font-semibold tracking-tight text-text">Editar usuario</h1>
       </div>
 
       {error && fullName && (

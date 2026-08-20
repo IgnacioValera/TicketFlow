@@ -106,6 +106,14 @@ export function filterTicketsByStatus<T extends Pick<Ticket, 'status'>>(
   return tickets.filter((ticket) => matchesTicketStatusFilter(ticket, selectedFilter))
 }
 
+export function filterTicketsByQuery<T extends Pick<Ticket, 'folio' | 'title'>>(tickets: T[], query: string) {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return tickets
+  return tickets.filter(
+    (ticket) => ticket.folio.toLowerCase().includes(needle) || ticket.title.toLowerCase().includes(needle),
+  )
+}
+
 export function countTicketsByStatusFilter(tickets: Array<Pick<Ticket, 'status'>>) {
   return Object.fromEntries(
     TICKET_FLOW_STATUS_FILTERS.map((filter) => [

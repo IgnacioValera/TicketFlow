@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { AppIcon } from '@/components/common/AppIcon'
 import { ColorField } from '@/components/common/ColorField'
 import { DataTable, type Column } from '@/components/common/DataTable'
 import { ErrorState } from '@/components/common/ErrorState'
 import { FormAlert } from '@/components/common/FormAlert'
 import { Modal } from '@/components/common/Modal'
-import { PageHeader } from '@/components/common/PageHeader'
 import { TableActionButton } from '@/components/common/TableActionButton'
 import { PrimaryButton, SecondaryButton } from '@/components/common/UiControls'
 import { PERMISSIONS } from '@/constants/permissions'
@@ -273,42 +273,37 @@ export function PrioritiesPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <PageHeader
-          kicker="Catálogos"
-          title="Prioridades"
-          description="Define impacto, severidad y orden de atención."
-          actions={
-            <PrimaryButton onClick={openCreateModal} disabled={!canManage}>
-              Nueva prioridad
-            </PrimaryButton>
-          }
-        />
-      </div>
-
-      <div className="ui-card mb-5 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
-        <input
-          type="search"
-          placeholder="Buscar por nombre..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value)
-            setPage(1)
-          }}
-          className="rounded border border-border px-3 py-2 text-sm"
-        />
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        <div className="w-full max-w-xs">
+          <input
+            type="search"
+            placeholder="Buscar por nombre..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
+            className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-teal focus:outline-none"
+          />
+        </div>
         <select
           value={statusFilter}
           onChange={(e) => {
             setStatusFilter(e.target.value as CatalogStatus | '')
             setPage(1)
           }}
-          className="rounded border border-border px-3 py-2 text-sm"
+          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
         >
           <option value="">Todos los estados</option>
           <option value="ACTIVE">Activa</option>
           <option value="INACTIVE">Inactiva</option>
         </select>
+        <div className="ml-auto">
+          <PrimaryButton onClick={openCreateModal} disabled={!canManage}>
+            <AppIcon name="plus" className="h-4 w-4" />
+            Nueva prioridad
+          </PrimaryButton>
+        </div>
       </div>
 
       {error ? (

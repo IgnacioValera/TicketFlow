@@ -6,7 +6,6 @@ import { ConfirmModal, Modal } from '@/components/common/Modal'
 import { ConfirmToast } from '@/components/common/FeedbackAlert'
 import { EmptyState } from '@/components/common/EmptyState'
 import { FormField } from '@/components/common/FormField'
-import { PageHeader } from '@/components/common/PageHeader'
 import { SurfaceCard } from '@/components/common/SurfaceCard'
 import { PrimaryButton, SecondaryButton, SelectInput, TextArea, TextInput } from '@/components/common/UiControls'
 import { TableActionButton } from '@/components/common/TableActionButton'
@@ -125,6 +124,12 @@ export function KnowledgePage() {
       }
       setOpen(false)
       await load()
+      setToast({
+        title: editing ? 'Artículo actualizado' : 'Artículo publicado',
+        message: editing
+          ? `“${base.title}” se actualizó correctamente.`
+          : `“${base.title}” se agregó a la base de conocimiento.`,
+      })
     } catch (err: unknown) {
       setError(errorMessage(err, 'No se pudo guardar el artículo'))
     } finally {
@@ -152,19 +157,9 @@ export function KnowledgePage() {
   return (
     <div className="space-y-5">
       <ConfirmToast open={Boolean(toast)} title={toast?.title ?? ''} message={toast?.message ?? ''} />
-      <PageHeader
-        kicker="Mesa de ayuda"
-        title="Base de conocimiento"
-        description="Artículos de apoyo para resolver tickets con mayor rapidez."
-        actions={
-          canManage ? (
-            <PrimaryButton onClick={openCreate}>Nuevo artículo</PrimaryButton>
-          ) : undefined
-        }
-      />
 
-      <SurfaceCard className="grid gap-3 p-4 sm:grid-cols-[1fr_220px]">
-        <div className="relative">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative w-full max-w-xs">
           <AppIcon name="search" className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted" />
           <input
             type="search"
@@ -185,7 +180,7 @@ export function KnowledgePage() {
             setTopicFilter(event.target.value)
             setPage(1)
           }}
-          className="rounded border border-slate-300 bg-white px-3 py-2 text-sm"
+          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
         >
           <option value="">Todas las categorías</option>
           {topics.map((topic) => (
@@ -194,7 +189,15 @@ export function KnowledgePage() {
             </option>
           ))}
         </select>
-      </SurfaceCard>
+        {canManage && (
+          <div className="ml-auto">
+            <PrimaryButton onClick={openCreate}>
+              <AppIcon name="plus" className="h-4 w-4" />
+              Nuevo artículo
+            </PrimaryButton>
+          </div>
+        )}
+      </div>
 
       {visible.length === 0 ? (
         <EmptyState

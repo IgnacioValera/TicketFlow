@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ErrorState } from '@/components/common/ErrorState'
-import { PageHeader } from '@/components/common/PageHeader'
 import { SecondaryButton } from '@/components/common/UiControls'
 import * as notificationsService from '@/services/notifications.service'
 import { createSubmitLock } from '@/utils/submit-lock'
@@ -64,7 +63,6 @@ export function NotificationsPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="Notificaciones" description="Eventos relevantes de tus tickets." />
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -86,7 +84,7 @@ export function NotificationsPage() {
         >
           No leídas
         </button>
-        <SecondaryButton type="button" onClick={() => void markAll()}>
+        <SecondaryButton type="button" className="ml-auto" onClick={() => void markAll()}>
           Marcar todas como leídas
         </SecondaryButton>
       </div>

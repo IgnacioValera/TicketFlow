@@ -41,17 +41,17 @@ export function OpportunitySurveyCard({
     <section className="rounded border border-slate-200 bg-white p-4">
       <h3 className="text-sm font-semibold text-brand-navy">Encuesta de satisfacción</h3>
       {status === 'UNCONFIGURED' ? (
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-muted">
           No hay una encuesta activa de Oportunidad ganada. Esa se envía sola al marcar la oportunidad como Ganada.
         </p>
       ) : null}
       {status === 'NOT_GENERATED' && stage !== 'WON' ? (
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-muted">
           Al marcar esta oportunidad como Ganada se enviará “{card?.surveyTitle ?? 'la encuesta de postventa'}”.
         </p>
       ) : null}
       {status === 'NOT_GENERATED' && stage === 'WON' ? (
-        <p className="mt-2 text-sm text-slate-600">No se ha generado una invitación para esta oportunidad.</p>
+        <p className="mt-2 text-sm text-muted">No se ha generado una invitación para esta oportunidad.</p>
       ) : null}
       {status === 'PENDING' && card ? (
         <dl className="mt-2 space-y-1 text-sm">
@@ -69,10 +69,10 @@ export function OpportunitySurveyCard({
         </dl>
       ) : null}
       {status === 'EXPIRED' ? (
-        <p className="mt-2 text-sm text-slate-600">Estado: {INVITATION_STATUS_LABELS.EXPIRED}</p>
+        <p className="mt-2 text-sm text-muted">Estado: {INVITATION_STATUS_LABELS.EXPIRED}</p>
       ) : null}
       {status === 'REVOKED' ? (
-        <p className="mt-2 text-sm text-slate-600">Estado: {INVITATION_STATUS_LABELS.REVOKED}</p>
+        <p className="mt-2 text-sm text-muted">Estado: {INVITATION_STATUS_LABELS.REVOKED}</p>
       ) : null}
 
       {retryAutomatic ? (
@@ -84,7 +84,7 @@ export function OpportunitySurveyCard({
       {showManual ? (
         <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
           <p className="text-sm font-medium text-brand-navy">Enviar ahora (manual)</p>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-muted">
             Las encuestas con disparador Manual no esperan a Ganada: eliges una activa y generas el enlace.
           </p>
           {manualSurveys.length > 0 ? (
@@ -108,7 +108,7 @@ export function OpportunitySurveyCard({
               ) : null}
             </>
           ) : (
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-muted">
               Crea una encuesta con disparador Manual, agrégale preguntas y actívala para enviarla desde aquí.
             </p>
           )}

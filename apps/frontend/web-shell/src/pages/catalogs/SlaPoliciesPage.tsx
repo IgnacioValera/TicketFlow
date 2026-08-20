@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { AppIcon } from '@/components/common/AppIcon'
 import { Modal } from '@/components/common/Modal'
 import { DataTable, type Column } from '@/components/common/DataTable'
 import { ErrorState } from '@/components/common/ErrorState'
 import { FormAlert } from '@/components/common/FormAlert'
-import { PageHeader } from '@/components/common/PageHeader'
 import { TableActionButton } from '@/components/common/TableActionButton'
 import { PrimaryButton, SecondaryButton } from '@/components/common/UiControls'
 import { PERMISSIONS } from '@/constants/permissions'
@@ -201,16 +201,14 @@ export function SlaPoliciesPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <PageHeader
-          kicker="Catálogos"
-          title="Políticas SLA"
-          description="Tiempos de respuesta y resolución por prioridad."
-          actions={
-            canCreate ? <PrimaryButton onClick={openCreateModal}>Nueva política</PrimaryButton> : undefined
-          }
-        />
-      </div>
+      {canCreate && (
+        <div className="mb-5 flex justify-end">
+          <PrimaryButton onClick={openCreateModal}>
+            <AppIcon name="plus" className="h-4 w-4" />
+            Nueva política
+          </PrimaryButton>
+        </div>
+      )}
 
       {error ? (
         <ErrorState message={error} onRetry={() => void loadPolicies()} />
@@ -223,7 +221,12 @@ export function SlaPoliciesPage() {
           emptyMessage="No hay políticas SLA"
           emptyDescription="Crea una política por cada prioridad activa."
           emptyAction={
-            canCreate ? <PrimaryButton onClick={openCreateModal}>Nueva política</PrimaryButton> : undefined
+            canCreate ? (
+              <PrimaryButton onClick={openCreateModal}>
+                <AppIcon name="plus" className="h-4 w-4" />
+                Nueva política
+              </PrimaryButton>
+            ) : undefined
           }
         />
       )}

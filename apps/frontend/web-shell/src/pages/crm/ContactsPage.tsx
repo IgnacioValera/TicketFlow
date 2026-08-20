@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { AppIcon } from '@/components/common/AppIcon'
 import { DataTable, type Column } from '@/components/common/DataTable'
+import { ConfirmToast } from '@/components/common/FeedbackAlert'
 import { FormField } from '@/components/common/FormField'
 import { Modal } from '@/components/common/Modal'
-import { PageHeader } from '@/components/common/PageHeader'
 import { PrimaryButton, SecondaryButton, SelectInput, TextInput } from '@/components/common/UiControls'
 import { PERMISSIONS } from '@/constants/permissions'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -19,6 +20,13 @@ export function ContactsPage() {
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ clientId: '', firstName: '', lastName: '', email: '', phone: '', jobTitle: '' })
+  const [toast, setToast] = useState<{ title: string; message: string } | null>(null)
+
+  useEffect(() => {
+    if (!toast) return
+    const timer = window.setTimeout(() => setToast(null), 6000)
+    return () => window.clearTimeout(timer)
+  }, [toast])
 
   const load = useCallback(async () => {
     const response = await crm.getContacts({
@@ -50,32 +58,39 @@ export function ContactsPage() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    await crm.createContact(form)
+    const created = await crm.createContact(form)
     setOpen(false)
+    setForm({ clientId: '', firstName: '', lastName: '', email: '', phone: '', jobTitle: '' })
     await load()
+    setToast({
+      title: 'Contacto creado',
+      message: `${created.firstName} ${created.lastName} se asoció a ${created.clientName}.`,
+    })
   }
 
   return (
     <div className="space-y-4">
-      <PageHeader
-        kicker="CRM"
-        title="Contactos"
-        description="Personas de contacto asociadas a cada cliente."
-        actions={
-          hasPermission(PERMISSIONS.CRM_CONTACT_CREATE) ? (
-            <PrimaryButton onClick={() => setOpen(true)}>+ Nuevo contacto</PrimaryButton>
-          ) : undefined
-        }
-      />
-      <TextInput
-        className="max-w-xs"
-        placeholder="Buscar contactos..."
-        value={search}
-        onChange={(e) => {
-          setSearch(e.target.value)
-          setPage(1)
-        }}
-      />
+      <ConfirmToast open={Boolean(toast)} title={toast?.title ?? ''} message={toast?.message ?? ''} />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="w-full max-w-xs">
+          <TextInput
+            placeholder="Buscar contactos..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
+          />
+        </div>
+        {hasPermission(PERMISSIONS.CRM_CONTACT_CREATE) && (
+          <div className="ml-auto">
+            <PrimaryButton onClick={() => setOpen(true)}>
+              <AppIcon name="plus" className="h-4 w-4" />
+              Nuevo contacto
+            </PrimaryButton>
+          </div>
+        )}
+      </div>
       <DataTable
         columns={columns}
         data={items}
@@ -90,7 +105,10 @@ export function ContactsPage() {
         emptyDescription="Aún no hay contactos registrados."
         emptyAction={
           hasPermission(PERMISSIONS.CRM_CONTACT_CREATE) ? (
-            <PrimaryButton onClick={() => setOpen(true)}>Crear contacto</PrimaryButton>
+            <PrimaryButton onClick={() => setOpen(true)}>
+              <AppIcon name="plus" className="h-4 w-4" />
+              Crear contacto
+            </PrimaryButton>
           ) : undefined
         }
       />

@@ -39,13 +39,13 @@ export function SurveyInvitationModal({ invitation, onClose }: SurveyInvitationM
 
   return (
     <Modal open onClose={close} title="Encuesta generada" size="md">
-      <p className="text-sm text-slate-700">
+      <p className="text-sm text-text">
         Se creó la encuesta “{invitation.surveyTitle}” para esta oportunidad.
       </p>
       <p className="mt-3 break-all rounded bg-slate-50 px-3 py-2 font-mono text-xs text-brand-navy">
         {invitation.responseUrl}
       </p>
-      <p className="mt-3 text-sm text-slate-600">
+      <p className="mt-3 text-sm text-muted">
         El enlace estará disponible hasta el {formatDate(invitation.expiresAt)} y podrá responderse una sola vez.
       </p>
       <p className="mt-2 text-sm font-medium text-brand-navy">

@@ -4,6 +4,7 @@ import { FORGOT_PASSWORD_LINK } from '@/constants/password-recovery'
 import { useAuth } from '@/hooks/useAuth'
 import { FeedbackAlert } from '@/components/common/FeedbackAlert'
 import { PageLoader } from '@/components/common/PageLoader'
+import { PasswordField } from '@/components/common/PasswordField'
 import { PrimaryButton } from '@/components/common/UiControls'
 import { clearLoginNotice, peekLoginNotice } from '@/utils/storage'
 import { createSubmitLock } from '@/utils/submit-lock'
@@ -98,17 +99,13 @@ export function LoginPage() {
           />
         </div>
         <div>
-          <label htmlFor="password" className="mb-1 block text-sm font-medium text-brand-navy">
-            Contraseña
-          </label>
-          <input
+          <PasswordField
             id="password"
-            type="password"
+            label="Contraseña"
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={submitting}
-            className="w-full rounded border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:border-brand-teal focus:outline-none focus:ring-4 focus:ring-brand-teal/10"
             placeholder="Ingresa tu contraseña"
           />
           <div className="mt-2 text-right">

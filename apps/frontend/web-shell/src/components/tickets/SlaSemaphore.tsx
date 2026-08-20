@@ -9,10 +9,16 @@ interface SlaSemaphoreProps {
 export function SlaSemaphore({ sla, compact = false }: SlaSemaphoreProps) {
   return (
     <div
-      className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium ${SLA_COLORS[sla.level]}`}
+      className={`inline-flex items-center ${
+        compact
+          ? 'gap-1 rounded border px-2 py-0.5 text-[11px] font-semibold'
+          : 'gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium'
+      } ${SLA_COLORS[sla.level]}`}
     >
       <span
-        className={`h-2.5 w-2.5 rounded-full ${
+        className={`rounded-full ${
+          compact ? 'h-1.5 w-1.5' : 'h-2.5 w-2.5'
+        } ${
           sla.level === 'green'
             ? 'bg-sla-green'
             : sla.level === 'yellow'

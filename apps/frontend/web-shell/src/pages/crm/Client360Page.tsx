@@ -10,7 +10,9 @@ import {
 } from '@/components/common/CrmBadge'
 import { ErrorState } from '@/components/common/ErrorState'
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
+import { AppIcon } from '@/components/common/AppIcon'
 import { PrimaryButton, SecondaryButton } from '@/components/common/UiControls'
+import { KpiCard } from '@/components/dashboard/KpiCard'
 import { PERMISSIONS } from '@/constants/permissions'
 import { usePermissions } from '@/hooks/usePermissions'
 import * as crm from '@/services/crm.service'
@@ -64,51 +66,46 @@ export function Client360Page() {
         <Link to="/crm/clients" className="text-sm text-brand-teal hover:underline">
           ← Clientes
         </Link>
-        <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-semibold text-brand-navy">{client.name}</h1>
-            <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-xl font-semibold tracking-tight text-text">{client.name}</h1>
+            <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
               {client.industry || 'Sin industria'} · {getClientSegmentLabel(client.segment)} ·{' '}
               {getClientTierLabel(client.tier)}
+              <span>· Responsable: {client.ownerName || 'Sin asignar'}</span>
             </p>
-            <p className="mt-1 text-sm text-slate-500">Responsable: {client.ownerName || 'Sin asignar'}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {hasPermission(PERMISSIONS.CRM_CLIENT_EDIT) && (
               <SecondaryButton onClick={() => navigate(`/crm/clients?editar=${client.id}`)}>
+                <AppIcon name="edit" className="h-4 w-4" />
                 Editar cliente
               </SecondaryButton>
             )}
             {hasPermission(PERMISSIONS.CRM_OPPORTUNITY_CREATE) && (
-              <SecondaryButton onClick={() => navigate(`/crm/opportunities?nuevo=1&cliente=${client.id}`)}>
+              <PrimaryButton onClick={() => navigate(`/crm/opportunities?nuevo=1&cliente=${client.id}`)}>
+                <AppIcon name="plus" className="h-4 w-4" />
                 Nueva oportunidad
-              </SecondaryButton>
+              </PrimaryButton>
             )}
             {hasPermission(PERMISSIONS.CRM_ACTIVITY_CREATE) && (
-              <SecondaryButton onClick={() => navigate('/crm/activities?nuevo=1')}>Nueva actividad</SecondaryButton>
+              <SecondaryButton onClick={() => navigate('/crm/activities?nuevo=1')}>
+                <AppIcon name="plus" className="h-4 w-4" />
+                Nueva actividad
+              </SecondaryButton>
             )}
           </div>
         </div>
       </div>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          ['Contactos', data.kpis.contacts],
-          ['Oportunidades', data.kpis.openOpportunities],
-          ['Tickets', data.kpis.openTickets],
-          ['Actividades', data.activities.length],
-        ].map(([label, value]) => (
-          <article key={String(label)} className="rounded border border-slate-200 bg-white px-4 py-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
-            <p className="mt-1 text-2xl font-semibold text-brand-navy">{value}</p>
-          </article>
-        ))}
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard title="Contactos" value={data.kpis.contacts} tone="accent" />
+        <KpiCard title="Oportunidades" value={data.kpis.openOpportunities} tone="neutral" />
+        <KpiCard title="Tickets" value={data.kpis.openTickets} tone="accent" />
+        <KpiCard title="Actividades" value={data.activities.length} tone="neutral" />
       </section>
 
-      <article className="rounded border border-slate-200 bg-white px-4 py-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Puntuación del cliente</p>
-        <p className="mt-1 text-2xl font-semibold text-brand-navy">{data.kpis.score} / 100</p>
-      </article>
+      <KpiCard title="Puntuación del cliente" value={`${data.kpis.score} / 100`} tone="success" />
 
       <div className="flex flex-wrap gap-1 border-b border-slate-200">
         {TABS.map((item) => (
@@ -118,7 +115,7 @@ export function Client360Page() {
             role="tab"
             aria-selected={tab === item}
             onClick={() => setTab(item)}
-            className={`border-b-2 px-3 py-2 text-sm ${tab === item ? 'border-brand-teal font-semibold text-brand-teal' : 'border-transparent text-slate-600 hover:text-brand-navy'}`}
+            className={`border-b-2 px-3 py-2 text-sm ${tab === item ? 'border-brand-teal font-semibold text-brand-teal' : 'border-transparent text-muted hover:text-text'}`}
           >
             {item}
           </button>
@@ -136,19 +133,19 @@ export function Client360Page() {
               <ClientSegmentBadge segment={client.segment} />
               <ClientTierBadge tier={client.tier} />
             </div>
-            <p className="text-slate-500">
+            <p className="text-muted">
               {client.region || 'Sin región'} · ganado {formatMoney(data.kpis.wonAmount)}
             </p>
           </section>
           <section className="rounded border border-slate-200 bg-white p-4">
-            <h2 className="mb-3 text-sm font-semibold">Actividad reciente</h2>
+            <h2 className="mb-3 text-sm font-semibold text-brand-navy">Actividad reciente</h2>
             {data.timeline.length === 0 ? (
-              <p className="text-sm text-slate-500">No hay información disponible</p>
+              <p className="text-sm text-muted">No hay información disponible</p>
             ) : (
-              <ul className="space-y-2 text-sm">
+              <ul className="space-y-2 text-sm text-text">
                 {data.timeline.slice(0, 8).map((item) => (
                   <li key={`${item.type}-${item.id}`} className="flex gap-2">
-                    <span className="w-24 shrink-0 text-xs text-slate-400">{formatDate(item.at)}</span>
+                    <span className="w-24 shrink-0 text-xs text-muted">{formatDate(item.at)}</span>
                     <span>
                       {getTimelineTypeLabel(item.type)} · {item.title}
                     </span>
@@ -162,13 +159,13 @@ export function Client360Page() {
 
       {tab === 'Contactos' && (
         <ul className="divide-y divide-slate-100 rounded border border-slate-200 bg-white">
-          {data.contacts.length === 0 && <li className="p-4 text-sm text-slate-500">Aún no hay contactos registrados.</li>}
+          {data.contacts.length === 0 && <li className="p-4 text-sm text-muted">Aún no hay contactos registrados.</li>}
           {data.contacts.map((item) => (
             <li key={item.id} className="px-4 py-3 text-sm">
-              <p className="font-medium">
+              <p className="font-medium text-text">
                 {item.firstName} {item.lastName}
               </p>
-              <p className="text-slate-500">
+              <p className="text-muted">
                 {item.email} · {item.jobTitle || 'Sin puesto'}
               </p>
             </li>
@@ -178,7 +175,7 @@ export function Client360Page() {
       {tab === 'Oportunidades' && (
         <ul className="divide-y divide-slate-100 rounded border border-slate-200 bg-white">
           {data.opportunities.length === 0 && (
-            <li className="p-4 text-sm text-slate-500">Aún no hay oportunidades registradas.</li>
+            <li className="p-4 text-sm text-muted">Aún no hay oportunidades registradas.</li>
           )}
           {data.opportunities.map((item) => (
             <li key={item.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
@@ -198,7 +195,7 @@ export function Client360Page() {
       )}
       {tab === 'Actividades' && (
         <ul className="divide-y divide-slate-100 rounded border border-slate-200 bg-white">
-          {data.activities.length === 0 && <li className="p-4 text-sm text-slate-500">No hay actividades pendientes.</li>}
+          {data.activities.length === 0 && <li className="p-4 text-sm text-muted">No hay actividades pendientes.</li>}
           {data.activities.map((item) => (
             <li key={item.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
               <span>{item.subject}</span>
@@ -212,7 +209,7 @@ export function Client360Page() {
       )}
       {tab === 'Tickets' && (
         <ul className="divide-y divide-slate-100 rounded border border-slate-200 bg-white">
-          {data.tickets.length === 0 && <li className="p-4 text-sm text-slate-500">No hay información disponible</li>}
+          {data.tickets.length === 0 && <li className="p-4 text-sm text-muted">No hay información disponible</li>}
           {data.tickets.map((item) => (
             <li key={item.id} className="px-4 py-3 text-sm">
               <Link className="font-medium text-brand-teal hover:underline" to={`/tickets/${item.id}`}>
@@ -224,7 +221,7 @@ export function Client360Page() {
         </ul>
       )}
       {tab === 'Encuestas' && (
-        <div className="rounded border border-slate-200 bg-white p-4 text-sm text-slate-600">
+        <div className="rounded border border-slate-200 bg-white p-4 text-sm text-muted">
           Las encuestas se envían al ganar una oportunidad. Consulta el módulo de encuestas para ver resultados.
           <div className="mt-3">
             <PrimaryButton onClick={() => navigate('/crm/surveys')}>Ver encuestas</PrimaryButton>

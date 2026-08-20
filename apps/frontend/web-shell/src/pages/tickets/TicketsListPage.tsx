@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { AppIcon } from '@/components/common/AppIcon'
 import { DataTable, type Column } from '@/components/common/DataTable'
-import { PageHeader } from '@/components/common/PageHeader'
 import { ErrorState } from '@/components/common/ErrorState'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { SlaSemaphore } from '@/components/tickets/SlaSemaphore'
@@ -170,14 +170,61 @@ export function TicketsListPage() {
 
   return (
     <div>
-      <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <PageHeader
-          kicker="Mesa de ayuda"
-          title="Tickets"
-          description="Consulta, filtra y da seguimiento a cada solicitud."
-        />
-        <div className="flex flex-wrap items-center gap-2">
-            <div
+      <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-brand-slate/30 pb-2">
+        {(user?.role === 'AGENT' || showUnassignedTab) && (
+          <div className="flex flex-wrap gap-2">
+            {user?.role === 'AGENT' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setTab('mine')
+                  setPage(1)
+                }}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+                  tab === 'mine'
+                    ? 'bg-brand-teal text-white'
+                    : 'text-brand-navy hover:bg-brand-cream/50'
+                }`}
+              >
+                Mis asignados
+              </button>
+            )}
+            {showUnassignedTab && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTab('all')
+                    setPage(1)
+                  }}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+                    tab === 'all'
+                      ? 'bg-brand-teal text-white'
+                      : 'text-brand-navy hover:bg-brand-cream/50'
+                  }`}
+                >
+                  Todos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTab('unassigned')
+                    setPage(1)
+                  }}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+                    tab === 'unassigned'
+                      ? 'bg-brand-teal text-white'
+                      : 'text-brand-navy hover:bg-brand-cream/50'
+                  }`}
+                >
+                  Sin asignar
+                </button>
+              </>
+            )}
+          </div>
+        )}
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <div
             className="inline-flex rounded border border-border bg-surface p-1"
             role="group"
             aria-label="Cambiar vista de tickets"
@@ -185,7 +232,7 @@ export function TicketsListPage() {
             <button
               type="button"
               onClick={() => setViewMode('table')}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
                 viewMode === 'table'
                   ? 'bg-primary text-white shadow-sm'
                   : 'text-muted hover:bg-page hover:text-text'
@@ -210,7 +257,7 @@ export function TicketsListPage() {
                 setPresetFilter('')
                 setPage(1)
               }}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
                 viewMode === 'kanban'
                   ? 'bg-primary text-white shadow-sm'
                   : 'text-muted hover:bg-page hover:text-text'
@@ -231,82 +278,28 @@ export function TicketsListPage() {
           {hasPermission(PERMISSIONS.TICKET_CREATE) && (
             <Link
               to="/tickets/create"
-              className="inline-flex justify-center rounded bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-hover"
+              className="inline-flex items-center justify-center gap-2 rounded bg-primary px-3.5 py-2 text-sm font-medium text-white hover:bg-primary-hover"
             >
+              <AppIcon name="plus" className="h-4 w-4" />
               Nuevo ticket
             </Link>
           )}
         </div>
       </div>
 
-      {(user?.role === 'AGENT' || showUnassignedTab) && (
-        <div className="mb-4 flex flex-wrap gap-2 border-b border-brand-slate/30 pb-2">
-          {user?.role === 'AGENT' && (
-            <button
-              type="button"
-              onClick={() => {
-                setTab('mine')
-                setPage(1)
-              }}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
-                tab === 'mine'
-                  ? 'bg-brand-teal text-white'
-                  : 'text-brand-navy hover:bg-brand-cream/50'
-              }`}
-            >
-              Mis asignados
-            </button>
-          )}
-          {showUnassignedTab && (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  setTab('all')
-                  setPage(1)
-                }}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
-                  tab === 'all'
-                    ? 'bg-brand-teal text-white'
-                    : 'text-brand-navy hover:bg-brand-cream/50'
-                }`}
-              >
-                Todos
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setTab('unassigned')
-                  setPage(1)
-                }}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
-                  tab === 'unassigned'
-                    ? 'bg-brand-teal text-white'
-                    : 'text-brand-navy hover:bg-brand-cream/50'
-                }`}
-              >
-                Sin asignar
-              </button>
-            </>
-          )}
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        <div className="w-full max-w-xs">
+          <input
+            type="search"
+            placeholder="Buscar folio o título..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
+            className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-teal focus:outline-none"
+          />
         </div>
-      )}
-
-      <div
-        className={`ui-card mb-5 grid gap-3 p-4 sm:grid-cols-2 ${
-          viewMode === 'kanban' ? 'xl:grid-cols-4' : 'xl:grid-cols-5'
-        }`}
-      >
-        <input
-          type="search"
-          placeholder="Buscar folio o título..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value)
-            setPage(1)
-          }}
-          className="min-w-0 rounded-lg border border-brand-slate px-3 py-2 text-sm focus:border-brand-teal focus:outline-none"
-        />
         {viewMode === 'table' && (
           <select
             value={statusFilter}
@@ -315,7 +308,7 @@ export function TicketsListPage() {
               setPresetFilter('')
               setPage(1)
             }}
-            className="min-w-0 rounded-lg border border-brand-slate px-3 py-2 text-sm"
+            className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
           >
             <option value="">Todos los estados</option>
             <option value="OPEN">Abierto</option>
@@ -334,7 +327,7 @@ export function TicketsListPage() {
             setPriorityFilter(e.target.value)
             setPage(1)
           }}
-          className="min-w-0 rounded-lg border border-brand-slate px-3 py-2 text-sm"
+          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
         >
           <option value="">Todas las prioridades</option>
           {priorities.map((p) => (
@@ -349,7 +342,7 @@ export function TicketsListPage() {
             setCategoryFilter(e.target.value)
             setPage(1)
           }}
-          className="min-w-0 rounded-lg border border-brand-slate px-3 py-2 text-sm"
+          className="w-44 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
         >
           <option value="">Todas las categorías</option>
           {categories.map((c) => (
@@ -364,7 +357,7 @@ export function TicketsListPage() {
             setSlaFilter(e.target.value as SlaFilterStatus | '')
             setPage(1)
           }}
-          className="min-w-0 rounded-lg border border-brand-slate px-3 py-2 text-sm"
+          className="w-40 rounded border border-slate-300 bg-white px-3 py-2 text-sm text-brand-navy"
         >
           <option value="">SLA: todos</option>
           <option value="overdue">Vencidos</option>

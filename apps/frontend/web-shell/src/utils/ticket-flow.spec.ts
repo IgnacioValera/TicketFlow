@@ -5,6 +5,7 @@ import {
   countTicketsByStatusFilter,
   createSequenceGuard,
   displayValue,
+  filterTicketsByQuery,
   filterTicketsByStatus,
   formatFlowDate,
   formatFlowDuration,
@@ -297,5 +298,19 @@ describe('Flujo visual — filtro de estado', () => {
       CLOSED: 1,
       CANCELLED: 1,
     })
+  })
+})
+
+describe('Flujo visual — búsqueda de tickets', () => {
+  const tickets = [
+    { id: 't1', folio: 'HD-2026-0001', title: 'No puedo acceder al sistema' },
+    { id: 't2', folio: 'HD-2026-0002', title: 'Impresora no responde' },
+  ]
+
+  it('filtra por folio o título y deja la lista completa si no hay búsqueda', () => {
+    expect(filterTicketsByQuery(tickets, '')).toHaveLength(2)
+    expect(filterTicketsByQuery(tickets, '0002').map((item) => item.id)).toEqual(['t2'])
+    expect(filterTicketsByQuery(tickets, 'acceder').map((item) => item.id)).toEqual(['t1'])
+    expect(filterTicketsByQuery(tickets, 'sin coincidencias')).toHaveLength(0)
   })
 })

@@ -10,6 +10,8 @@ export const TICKET_FLOW_COPY = {
   errorHistory: 'No se pudo cargar el historial del ticket.',
   emptyEvents: 'Este ticket todavía no tiene eventos registrados.',
   selectTicket: 'Selecciona un ticket para consultar su flujo.',
+  searchTicket: 'Buscar por folio o título...',
+  noSearchResults: 'Ningún ticket coincide con la búsqueda.',
   noFilterResults: 'No hay tickets que coincidan con este filtro.',
   viewAll: 'Ver todos',
   statusFilter: 'Estado',
