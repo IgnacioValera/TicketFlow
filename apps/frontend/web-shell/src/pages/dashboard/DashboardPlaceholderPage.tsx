@@ -1,27 +1,30 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ErrorState } from '@/components/common/ErrorState'
 import { CardSkeleton } from '@/components/common/LoadingSkeleton'
+import { EmptyState } from '@/components/common/EmptyState'
+import { DashboardTicketList } from '@/components/dashboard/DashboardTicketList'
 import { KpiCard } from '@/components/dashboard/KpiCard'
+import { SlaAlertsBanner } from '@/components/dashboard/SlaAlertsBanner'
 import { TicketsChart } from '@/components/dashboard/TicketsChart'
+import { PERMISSIONS } from '@/constants/permissions'
 import { useAuth } from '@/hooks/useAuth'
+import { usePermissions } from '@/hooks/usePermissions'
 import * as dashboardService from '@/services/dashboard.service'
 import type { DashboardSummary, KpiMetric } from '@/types/dashboard.types'
+import { kpiFilterHref } from '@/utils/dashboard.utils'
 
-const KPI_TONE: Record<Exclude<KpiMetric['key'], 'sla'>, 'accent' | 'danger' | 'success' | 'neutral'> = {
+const KPI_TONE: Record<KpiMetric['key'], 'accent' | 'danger' | 'success' | 'neutral'> = {
   open: 'accent',
   overdue: 'danger',
   inProgress: 'neutral',
   resolved: 'success',
-}
-
-function slaTone(value: number): 'success' | 'warning' | 'danger' {
-  if (value >= 80) return 'success'
-  if (value >= 60) return 'warning'
-  return 'danger'
+  closed: 'neutral',
 }
 
 export function DashboardPlaceholderPage() {
   const { user } = useAuth()
+  const { hasPermission } = usePermissions()
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -48,41 +51,117 @@ export function DashboardPlaceholderPage() {
     void loadSummary()
   }, [scope])
 
+  const showUnassignedLink =
+    hasPermission(PERMISSIONS.TICKET_ASSIGN) || user?.role === 'SUPERVISOR' || user?.role === 'ADMIN'
+
   if (error) {
     return <ErrorState message={error} onRetry={() => void loadSummary()} />
   }
 
+  if (loading && !summary) {
+    return (
+      <div className="space-y-6">
+        <header className="rounded border border-slate-200 bg-[#163a5f] p-5 text-white">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/50">Resumen operativo</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">Panel</h1>
+        </header>
+        <CardSkeleton />
+      </div>
+    )
+  }
+
+  const hasTickets = (summary?.kpis ?? []).some((kpi) => kpi.value > 0)
+
   return (
     <div className="space-y-6">
       <header className="rounded border border-slate-200 bg-[#163a5f] p-5 text-white">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/50">
-          Resumen operativo
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">
-          Panel
-        </h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/50">Resumen operativo</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">Panel</h1>
         <p className="mt-2 text-sm text-white/70">
           {scope === 'OWN'
-            ? 'Vista limitada para agente: solo tus indicadores.'
+            ? 'Vista limitada para agente: solo tus indicadores y tickets asignados.'
             : 'Vista global del estado operativo de la mesa de ayuda.'}
         </p>
       </header>
 
-      {loading && !summary ? (
-        <CardSkeleton />
+      {summary?.slaAlerts && <SlaAlertsBanner alerts={summary.slaAlerts} />}
+
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {(summary?.kpis ?? []).map((kpi) => (
+          <KpiCard
+            key={kpi.key}
+            title={kpi.label}
+            value={kpi.value}
+            tone={KPI_TONE[kpi.key]}
+            href={kpiFilterHref(kpi.key)}
+          />
+        ))}
+      </section>
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Link
+          to="/tickets"
+          className="rounded border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-brand-navy transition hover:border-brand-teal hover:shadow-sm"
+        >
+          Ver todos los tickets
+        </Link>
+        {showUnassignedLink && (
+          <Link
+            to="/tickets?unassigned=true"
+            className="rounded border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-brand-navy transition hover:border-brand-teal hover:shadow-sm"
+          >
+            Tickets sin asignar
+          </Link>
+        )}
+        <Link
+          to="/tickets?slaStatus=overdue"
+          className="rounded border border-red-200 bg-white px-4 py-3 text-sm font-medium text-red-700 transition hover:border-red-300 hover:shadow-sm"
+        >
+          Tickets vencidos
+        </Link>
+        {hasPermission(PERMISSIONS.TICKET_CREATE) && (
+          <Link
+            to="/tickets/create"
+            className="rounded border border-brand-teal/30 bg-brand-teal/5 px-4 py-3 text-sm font-medium text-brand-teal transition hover:bg-brand-teal/10"
+          >
+            Crear ticket
+          </Link>
+        )}
+      </section>
+
+      {!hasTickets ? (
+        <EmptyState
+          title="Sin tickets registrados"
+          description="Cuando existan solicitudes en la mesa de ayuda, aquí verás indicadores y listados recientes."
+          action={
+            hasPermission(PERMISSIONS.TICKET_CREATE) ? (
+              <Link
+                to="/tickets/create"
+                className="inline-flex rounded bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
+              >
+                Crear primer ticket
+              </Link>
+            ) : undefined
+          }
+        />
       ) : (
         <>
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            {(summary?.kpis ?? []).map((kpi) => (
-              <KpiCard
-                key={kpi.key}
-                title={kpi.label}
-                value={kpi.value}
-                suffix={kpi.key === 'sla' ? '%' : undefined}
-                tone={kpi.key === 'sla' ? slaTone(kpi.value) : KPI_TONE[kpi.key]}
-              />
-            ))}
-          </section>
+          <div className="grid gap-4 xl:grid-cols-2">
+            <DashboardTicketList
+              title="Tickets recientes"
+              tickets={summary?.recentTickets ?? []}
+              emptyTitle="No hay tickets recientes"
+              emptyDescription="Los últimos tickets creados aparecerán aquí."
+              viewAllHref="/tickets"
+            />
+            <DashboardTicketList
+              title="Requieren atención"
+              tickets={summary?.urgentTickets ?? []}
+              emptyTitle="Nada urgente por ahora"
+              emptyDescription="Los tickets vencidos, críticos o con SLA en riesgo se mostrarán aquí."
+              viewAllHref="/tickets?slaStatus=warning"
+            />
+          </div>
 
           <TicketsChart trend={summary?.trend ?? []} distribution={summary?.distribution ?? []} />
         </>

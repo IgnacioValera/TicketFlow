@@ -163,13 +163,26 @@ export async function getKnowledge(search?: string) {
   )
   return response.data
 }
+
+export async function getKnowledgeById(id: string) {
+  const response = await apiGet<import('@/types/knowledge.types').KnowledgeArticle>(
+    `/knowledge-articles/${id}`,
+  )
+  return response.data
+}
+
 export async function createKnowledge(payload: { title: string; content: string; tags?: string; categoryId?: string }) {
   const response = await apiPost<import('@/types/knowledge.types').KnowledgeArticle>('/knowledge-articles', payload)
   return response.data
 }
 export async function updateKnowledge(
   id: string,
-  payload: { title?: string; content?: string; tags?: string; categoryId?: string },
+  payload: {
+    title?: string
+    content?: string
+    tags?: string
+    categoryId?: string | null
+  },
 ) {
   const response = await apiPut<import('@/types/knowledge.types').KnowledgeArticle>(`/knowledge-articles/${id}`, payload)
   return response.data

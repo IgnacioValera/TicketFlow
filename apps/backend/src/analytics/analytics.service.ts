@@ -3,7 +3,29 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, SelectQueryBuilder } from 'typeorm'
 import { assertDateRange } from '../common/validation'
 import { isPortalRole } from '../common/roles'
+import {
+  IN_PROGRESS_STATUSES,
+  OPEN_STATUSES,
+  isOverdueActive,
+  isSlaWarning,
+  isUrgentTicket,
+  slaLevelFromDates,
+  urgentTicketScore,
+} from './dashboard-rules'
 import { RoleCode, SatisfactionSurvey, Ticket, TicketStatus, User } from '../database/entities'
+
+export interface DashboardTicketSummary {
+  id: string
+  folio: string
+  title: string
+  status: TicketStatus
+  priorityName: string
+  priorityColor?: string
+  assigneeName?: string | null
+  slaLevel: 'green' | 'yellow' | 'orange' | 'red'
+  createdAt: string
+  slaDueAt: string
+}
 
 @Injectable()
 export class AnalyticsService {
@@ -36,20 +58,64 @@ export class AnalyticsService {
       .groupBy('DATE(ticket.created_at)')
       .orderBy('DATE(ticket.created_at)', 'ASC')
       .getRawMany<{ period: string; open: string; inProgress: string; resolved: string }>()
-    const sla = await this.slaCompliance(user)
     const kpis = [
-      { key: 'open', label: 'Abiertos', value: count([TicketStatus.OPEN, TicketStatus.ASSIGNED]) },
-      { key: 'overdue', label: 'Vencidos', value: overdue },
-      {
-        key: 'inProgress',
-        label: 'En proceso',
-        value: count([TicketStatus.IN_PROGRESS, TicketStatus.WAITING_USER, TicketStatus.ESCALATED]),
-      },
-      { key: 'resolved', label: 'Resueltos', value: count([TicketStatus.RESOLVED, TicketStatus.CLOSED]) },
-      { key: 'sla', label: 'SLA a tiempo', value: sla.withinPercentage },
+      { key: 'open' as const, label: 'Abiertos', value: count(OPEN_STATUSES) },
+      { key: 'overdue' as const, label: 'Vencidos', value: overdue },
+      { key: 'inProgress' as const, label: 'En proceso', value: count(IN_PROGRESS_STATUSES) },
+      { key: 'resolved' as const, label: 'Resueltos', value: count([TicketStatus.RESOLVED]) },
+      { key: 'closed' as const, label: 'Cerrados', value: count([TicketStatus.CLOSED]) },
     ]
+
+    const listQb = this.scoped(user, own)
+      .leftJoinAndSelect('ticket.category', 'category')
+      .leftJoinAndSelect('ticket.priority', 'priority')
+      .leftJoinAndSelect('ticket.assignee', 'assignee')
+
+    const recentTickets = (await listQb.clone().orderBy('ticket.createdAt', 'DESC').take(5).getMany()).map((ticket) =>
+      this.serializeDashboardTicket(ticket),
+    )
+
+    const urgentCandidates = await listQb.clone().andWhere('ticket.status NOT IN (:...terminal)', {
+      terminal: [TicketStatus.CLOSED, TicketStatus.CANCELLED],
+    }).getMany()
+
+    const urgentTickets = urgentCandidates
+      .filter((ticket) =>
+        isUrgentTicket({
+          status: ticket.status,
+          slaCreatedAt: ticket.slaCreatedAt,
+          slaDueAt: ticket.slaDueAt,
+          priorityLevel: ticket.priority.level,
+        }),
+      )
+      .sort(
+        (left, right) =>
+          urgentTicketScore({
+            status: left.status,
+            slaCreatedAt: left.slaCreatedAt,
+            slaDueAt: left.slaDueAt,
+            priorityLevel: left.priority.level,
+          }) -
+          urgentTicketScore({
+            status: right.status,
+            slaCreatedAt: right.slaCreatedAt,
+            slaDueAt: right.slaDueAt,
+            priorityLevel: right.priority.level,
+          }),
+      )
+      .slice(0, 5)
+      .map((ticket) => this.serializeDashboardTicket(ticket))
+
+    const now = new Date()
+    const slaAlerts = {
+      overdueCount: urgentCandidates.filter((ticket) => isOverdueActive(ticket.status, ticket.slaDueAt, now)).length,
+      warningCount: urgentCandidates.filter((ticket) =>
+        isSlaWarning(ticket.status, ticket.slaCreatedAt, ticket.slaDueAt, now),
+      ).length,
+    }
+
     return {
-      scope: own ? 'OWN' : 'GLOBAL',
+      scope: own ? ('OWN' as const) : ('GLOBAL' as const),
       kpis,
       trend: trendRows.map((row) => ({
         period: row.period,
@@ -57,9 +123,25 @@ export class AnalyticsService {
         inProgress: Number(row.inProgress),
         resolved: Number(row.resolved),
       })),
-      distribution: kpis
-        .filter((kpi) => kpi.key !== 'sla')
-        .map((kpi) => ({ name: kpi.label, value: kpi.value })),
+      distribution: kpis.map((kpi) => ({ name: kpi.label, value: kpi.value })),
+      recentTickets,
+      urgentTickets,
+      slaAlerts,
+    }
+  }
+
+  private serializeDashboardTicket(ticket: Ticket): DashboardTicketSummary {
+    return {
+      id: ticket.id,
+      folio: ticket.folio,
+      title: ticket.title,
+      status: ticket.status,
+      priorityName: ticket.priority.name,
+      priorityColor: ticket.priority.color,
+      assigneeName: ticket.assignee?.fullName ?? null,
+      slaLevel: slaLevelFromDates(ticket.slaCreatedAt, ticket.slaDueAt),
+      createdAt: ticket.createdAt.toISOString(),
+      slaDueAt: ticket.slaDueAt.toISOString(),
     }
   }
 

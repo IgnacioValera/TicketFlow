@@ -4,6 +4,7 @@ import type { Category, Company, Priority, SlaPolicy } from '@/types/catalog.typ
 import type { User, UserRole, UserStatus } from '@/types/user.types'
 import { createCrmHandlers } from '@/mocks/crm.handlers'
 import { createTicketHandlers } from '@/mocks/ticket.handlers'
+import { mockKnowledgeArticles, findMockKnowledgeArticle, findMockKnowledgeArticleIncludingInactive, isKnowledgeUuid } from '@/mocks/knowledge-data'
 import { validatePasswordPolicy } from '@/utils/validation'
 
 const mockPasswords: Record<string, string> = {
@@ -69,27 +70,6 @@ const mockUsers: User[] = [
     mustChangePassword: false,
     lastLoginAt: null,
     createdAt: '2026-04-01T09:00:00.000Z',
-  },
-]
-
-const mockKnowledge: Array<{
-  id: string
-  title: string
-  content: string
-  tags: string
-  topic: string
-  category: { id: string; name: string } | null
-  updatedAt: string
-}> = [
-  {
-    id: 'k1',
-    title: 'Cómo restablecer la contraseña',
-    content:
-      'Si olvidaste tu contraseña, selecciona “¿Olvidaste tu contraseña?” en la pantalla de inicio de sesión. TicketFlow te indicará que debes solicitar el restablecimiento a un administrador.',
-    tags: 'contraseña, acceso, cuenta, administrador',
-    topic: 'Accesos',
-    category: { id: '3', name: 'Accesos' },
-    updatedAt: '2026-08-17T12:00:00.000Z',
   },
 ]
 
@@ -1006,75 +986,32 @@ export const handlers = [
     return HttpResponse.json({ success: true, message: 'OK', data: company, meta: null })
   }),
 
-  http.get('*/api/v1/dashboard/summary', async ({ request }) => {
-    const user = findUserByToken(request.headers.get('Authorization'))
-    const url = new URL(request.url)
-    const scopeParam = url.searchParams.get('scope')
-    const isAgent = user?.role === 'AGENT' || scopeParam === 'OWN'
-
-    const summary = isAgent
-      ? {
-          scope: 'OWN',
-          kpis: [
-            { key: 'open', label: 'Abiertos', value: 8 },
-            { key: 'overdue', label: 'Vencidos', value: 2 },
-            { key: 'inProgress', label: 'En proceso', value: 5 },
-            { key: 'resolved', label: 'Resueltos', value: 21 },
-            { key: 'sla', label: 'SLA a tiempo', value: 66.7 },
-          ],
-          trend: [
-            { period: 'Lun', open: 4, inProgress: 3, resolved: 5 },
-            { period: 'Mar', open: 5, inProgress: 4, resolved: 4 },
-            { period: 'Mie', open: 6, inProgress: 3, resolved: 6 },
-            { period: 'Jue', open: 5, inProgress: 4, resolved: 5 },
-            { period: 'Vie', open: 8, inProgress: 5, resolved: 4 },
-          ],
-          distribution: [
-            { name: 'Abiertos', value: 8 },
-            { name: 'Vencidos', value: 2 },
-            { name: 'En proceso', value: 5 },
-            { name: 'Resueltos', value: 21 },
-          ],
-        }
-      : {
-          scope: 'GLOBAL',
-          kpis: [
-            { key: 'open', label: 'Abiertos', value: 42 },
-            { key: 'overdue', label: 'Vencidos', value: 11 },
-            { key: 'inProgress', label: 'En proceso', value: 27 },
-            { key: 'resolved', label: 'Resueltos', value: 164 },
-            { key: 'sla', label: 'SLA a tiempo', value: 72.5 },
-          ],
-          trend: [
-            { period: 'Lun', open: 32, inProgress: 24, resolved: 28 },
-            { period: 'Mar', open: 36, inProgress: 26, resolved: 30 },
-            { period: 'Mie', open: 35, inProgress: 23, resolved: 34 },
-            { period: 'Jue', open: 40, inProgress: 25, resolved: 29 },
-            { period: 'Vie', open: 42, inProgress: 27, resolved: 43 },
-          ],
-          distribution: [
-            { name: 'Abiertos', value: 42 },
-            { name: 'Vencidos', value: 11 },
-            { name: 'En proceso', value: 27 },
-            { name: 'Resueltos', value: 164 },
-          ],
-        }
-
-    return HttpResponse.json({
-      success: true,
-      message: 'OK',
-      data: summary,
-      meta: null,
-    })
-  }),
-
   ...createCrmHandlers(mockUsers),
   ...createTicketHandlers(mockUsers),
+
+  http.get('*/knowledge-articles/:id', async ({ params }) => {
+    const id = String(params.id)
+    if (isKnowledgeUuid(id)) {
+      return HttpResponse.json(
+        { success: false, message: 'Artículo no encontrado', data: null, meta: null },
+        { status: 404 },
+      )
+    }
+    const article = findMockKnowledgeArticle(id)
+    if (!article) {
+      return HttpResponse.json(
+        { success: false, message: 'Artículo no encontrado', data: null, meta: null },
+        { status: 404 },
+      )
+    }
+    return HttpResponse.json({ success: true, message: 'OK', data: article, meta: null })
+  }),
 
   http.get('*/knowledge-articles', async ({ request }) => {
     const url = new URL(request.url)
     const search = (url.searchParams.get('search') ?? '').toLowerCase()
-    const filtered = mockKnowledge.filter((article) => {
+    const filtered = mockKnowledgeArticles.filter((article) => {
+      if (article.status !== 'ACTIVE') return false
       if (!search) return true
       return (
         article.title.toLowerCase().includes(search) ||
@@ -1086,17 +1023,38 @@ export const handlers = [
   }),
 
   http.post('*/knowledge-articles', async ({ request }) => {
-    const body = (await request.json()) as { title: string; content: string; tags?: string }
-    const article = {
-      id: String(mockKnowledge.length + 1),
-      title: body.title,
-      content: body.content,
-      tags: body.tags ?? '',
-      topic: 'General',
-      category: null,
-      updatedAt: new Date().toISOString(),
+    const body = (await request.json()) as {
+      title: string
+      content: string
+      tags?: string
+      categoryId?: string | null
     }
-    mockKnowledge.push(article)
+    if (body.categoryId) {
+      const category = mockCategories.find((item) => item.id === body.categoryId)
+      if (!category) {
+        return HttpResponse.json(
+          { success: false, message: 'Categoría no encontrada', data: null, meta: null },
+          { status: 404 },
+        )
+      }
+    }
+    const article = {
+      id: `k${Date.now()}`,
+      title: body.title.trim(),
+      content: body.content.trim(),
+      tags: body.tags?.trim() ?? '',
+      topic: 'General',
+      category: body.categoryId
+        ? mockCategories
+            .filter((item) => item.id === body.categoryId)
+            .map((item) => ({ id: item.id, name: item.name }))[0] ?? null
+        : null,
+      author: { id: '1', fullName: 'Admin Sistema' },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: 'ACTIVE' as const,
+    }
+    mockKnowledgeArticles.push(article)
     return HttpResponse.json(
       { success: true, message: 'Artículo creado', data: article, meta: null },
       { status: 201 },
@@ -1104,36 +1062,66 @@ export const handlers = [
   }),
 
   http.put('*/knowledge-articles/:id', async ({ params, request }) => {
-    const body = (await request.json()) as { title?: string; content?: string; tags?: string }
-    const index = mockKnowledge.findIndex((article) => article.id === params.id)
+    const body = (await request.json()) as {
+      title?: string
+      content?: string
+      tags?: string
+      categoryId?: string | null
+    }
+    const index = mockKnowledgeArticles.findIndex((article) => article.id === params.id)
     if (index === -1) {
       return HttpResponse.json(
         { success: false, message: 'Artículo no encontrado', data: null, meta: null },
         { status: 404 },
       )
     }
-    mockKnowledge[index] = { ...mockKnowledge[index], ...body, updatedAt: new Date().toISOString() }
+    if (body.categoryId) {
+      const category = mockCategories.find((item) => item.id === body.categoryId)
+      if (!category) {
+        return HttpResponse.json(
+          { success: false, message: 'Categoría no encontrada', data: null, meta: null },
+          { status: 404 },
+        )
+      }
+    }
+    const current = mockKnowledgeArticles[index]
+    mockKnowledgeArticles[index] = {
+      ...current,
+      title: body.title?.trim() ?? current.title,
+      content: body.content?.trim() ?? current.content,
+      tags: body.tags !== undefined ? body.tags.trim() : current.tags,
+      category:
+        body.categoryId === null
+          ? null
+          : body.categoryId
+            ? {
+                id: body.categoryId,
+                name: mockCategories.find((item) => item.id === body.categoryId)?.name ?? 'General',
+              }
+            : current.category,
+      updatedAt: new Date().toISOString(),
+    }
     return HttpResponse.json({
       success: true,
       message: 'Artículo actualizado',
-      data: mockKnowledge[index],
+      data: mockKnowledgeArticles[index],
       meta: null,
     })
   }),
 
   http.delete('*/knowledge-articles/:id', async ({ params }) => {
-    const index = mockKnowledge.findIndex((article) => article.id === params.id)
-    if (index === -1) {
+    const article = findMockKnowledgeArticleIncludingInactive(String(params.id))
+    if (!article) {
       return HttpResponse.json(
         { success: false, message: 'Artículo no encontrado', data: null, meta: null },
         { status: 404 },
       )
     }
-    const [removed] = mockKnowledge.splice(index, 1)
+    article.status = 'INACTIVE'
     return HttpResponse.json({
       success: true,
       message: 'Artículo desactivado',
-      data: removed,
+      data: article,
       meta: null,
     })
   }),

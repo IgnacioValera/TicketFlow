@@ -27,6 +27,7 @@ import { SurveysPage } from '@/pages/crm/SurveysPage'
 import { SurveyBuilderPage } from '@/pages/crm/SurveyBuilderPage'
 import { SurveyResultsPage } from '@/pages/crm/SurveyResultsPage'
 import { KnowledgePage } from '@/pages/knowledge/KnowledgePage'
+import { KnowledgeDetailPage } from '@/pages/knowledge/KnowledgeDetailPage'
 import { SurveyRespondPage } from '@/pages/public/SurveyRespondPage'
 import { ForgotPasswordPage } from '@/pages/login/ForgotPasswordPage'
 import { ChangePasswordPage } from '@/pages/login/ChangePasswordPage'
@@ -93,6 +94,7 @@ export const routes: RouteObject[] = [
             ],
           },
           { path: 'knowledge', element: <RoleRoute permission={PERMISSIONS.KNOWLEDGE_MANAGE}><KnowledgePage /></RoleRoute> },
+          { path: 'knowledge/:id', element: <RoleRoute permission={PERMISSIONS.KNOWLEDGE_MANAGE}><KnowledgeDetailPage /></RoleRoute> },
           {
             path: 'users',
             children: [
