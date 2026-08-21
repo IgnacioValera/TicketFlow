@@ -22,4 +22,9 @@ describe('Artículos de conocimiento', () => {
     expect(joined).toMatch(/información|atención|resolución|Asignación/)
     expect(joined).not.toMatch(/Ã|Â|�/)
   })
+
+  it('mantiene títulos estables para evitar duplicados al re-sembrar', () => {
+    const titles = KNOWLEDGE_SEED_ARTICLES.map((item) => item.title.trim().toLowerCase())
+    expect(titles.length).toBe(new Set(titles).size)
+  })
 })

@@ -55,6 +55,8 @@ export const UNKNOWN_EVENT_TYPE_LABEL = 'Evento del sistema'
 const EVENT_TYPE_LABELS: Record<string, string> = {
   CREATED: 'Creación del ticket',
   ASSIGNED: 'Asignación del ticket',
+  AI_ASSIGNED: 'Asignación automática',
+  AI_ASSIGNMENT_FAILED: 'Asignación automática no aplicada',
   REASSIGNED: 'Reasignación del ticket',
   STATUS_CHANGED: 'Cambio de estado',
   PRIORITY_CHANGED: 'Cambio de prioridad',
@@ -104,6 +106,14 @@ export function filterTicketsByStatus<T extends Pick<Ticket, 'status'>>(
   selectedFilter: TicketFlowStatusFilter,
 ) {
   return tickets.filter((ticket) => matchesTicketStatusFilter(ticket, selectedFilter))
+}
+
+export function filterTicketsByQuery<T extends Pick<Ticket, 'folio' | 'title'>>(tickets: T[], query: string) {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return tickets
+  return tickets.filter(
+    (ticket) => ticket.folio.toLowerCase().includes(needle) || ticket.title.toLowerCase().includes(needle),
+  )
 }
 
 export function countTicketsByStatusFilter(tickets: Array<Pick<Ticket, 'status'>>) {
@@ -308,6 +318,8 @@ export function flowContentSize(count: number) {
 function eventTitle(item: TicketStatusHistory, type: string) {
   if (type === 'PRIORITY_CHANGED') return 'Prioridad actualizada'
   if (type === 'REASSIGNED') return 'Reasignación'
+  if (type === 'AI_ASSIGNED') return 'Asignación automática'
+  if (type === 'AI_ASSIGNMENT_FAILED') return 'Asignación automática no aplicada'
   if (type === 'CREATED') return TICKET_STATUS_LABELS.OPEN
   return TICKET_STATUS_LABELS[item.newStatus]
 }
@@ -315,7 +327,8 @@ function eventTitle(item: TicketStatusHistory, type: string) {
 function eventDescription(item: TicketStatusHistory, type: string) {
   if (item.reason) return item.reason
   if (type === 'CREATED') return 'El ticket ingresó al sistema y quedó en estado abierto.'
-  if (type === 'ASSIGNED') return 'Se asignó un responsable al ticket.'
+  if (type === 'ASSIGNED' || type === 'AI_ASSIGNED') return 'Se asignó un responsable al ticket.'
+  if (type === 'AI_ASSIGNMENT_FAILED') return 'La asignación automática no se aplicó; el ticket permanece disponible.'
   if (type === 'REASSIGNED') return 'El ticket cambió de responsable.'
   if (type === 'PRIORITY_CHANGED') return 'Se actualizó la prioridad del ticket.'
   if (item.oldStatus) {

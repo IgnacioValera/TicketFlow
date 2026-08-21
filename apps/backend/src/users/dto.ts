@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer'
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { IsEmail, IsEnum, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from 'class-validator'
+import { IsEmail, IsEnum, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator'
 import { LIMITS } from '../common/limits'
 import { IsPasswordPolicy, maxLengthMessage, minLengthMessage, NormalizeEmail, requiredMessage, Trim } from '../common/validation'
 import { RoleCode, UserStatus } from '../database/entities'
@@ -33,6 +33,11 @@ export class CreateUserDto {
   @ApiProperty({ enum: MANAGED_USER_ROLES })
   @IsIn(MANAGED_USER_ROLES, { message: 'El rol no es válido' })
   role: ManagedUserRole
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID('4', { message: 'El identificador de cliente no es un UUID válido' })
+  clientId?: string
 }
 
 export class UpdateUserDto {
@@ -55,6 +60,11 @@ export class UpdateUserDto {
   @IsOptional()
   @IsIn(MANAGED_USER_ROLES, { message: 'El rol no es válido' })
   role?: ManagedUserRole
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID('4', { message: 'El identificador de cliente no es un UUID válido' })
+  clientId?: string
 }
 
 export class UpdateUserStatusDto {

@@ -9,7 +9,10 @@ import { CatalogsModule } from './catalogs/catalogs.module'
 import { CrmModule } from './crm/crm.module'
 import { buildTypeOrmOptions } from './database/typeorm.config'
 import { KnowledgeModule } from './knowledge/knowledge.module'
+import { NotificationsModule } from './notifications/notifications.module'
+import { N8nIntegrationModule } from './integrations/n8n/n8n-integration.module'
 import { TicketsModule } from './tickets/tickets.module'
+import { AccessControlModule } from './access/access.module'
 import { UsersModule } from './users/users.module'
 import { HealthController } from './health.controller'
 
@@ -17,7 +20,7 @@ import { HealthController } from './health.controller'
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({ inject: [ConfigService], useFactory: (config: ConfigService) => buildTypeOrmOptions(config) }),
-    AuthModule, UsersModule, CatalogsModule, TicketsModule, AnalyticsModule, KnowledgeModule, CrmModule,
+    AuthModule, UsersModule, AccessControlModule, CatalogsModule, TicketsModule, AnalyticsModule, KnowledgeModule, CrmModule, NotificationsModule, N8nIntegrationModule,
   ],
   controllers: [HealthController],
   providers: [

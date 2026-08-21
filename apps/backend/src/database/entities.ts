@@ -21,6 +21,7 @@ export enum CompanyTier { BRONZE = 'BRONZE', SILVER = 'SILVER', GOLD = 'GOLD', P
 export enum ClientStatus { ACTIVE = 'ACTIVE', INACTIVE = 'INACTIVE', PROSPECT = 'PROSPECT' }
 export enum ClientSegment { ENTERPRISE = 'ENTERPRISE', MID_MARKET = 'MID_MARKET', SMB = 'SMB' }
 export enum TicketStatus { OPEN = 'OPEN', ASSIGNED = 'ASSIGNED', IN_PROGRESS = 'IN_PROGRESS', WAITING_USER = 'WAITING_USER', ESCALATED = 'ESCALATED', RESOLVED = 'RESOLVED', CLOSED = 'CLOSED', CANCELLED = 'CANCELLED' }
+export enum HistoryActorType { USER = 'USER', SYSTEM = 'SYSTEM' }
 export enum OpportunityStage { NEW = 'NEW', QUALIFICATION = 'QUALIFICATION', PROPOSAL = 'PROPOSAL', NEGOTIATION = 'NEGOTIATION', WON = 'WON', LOST = 'LOST' }
 export enum ActivityType { CALL = 'CALL', MEETING = 'MEETING', TASK = 'TASK', NOTE = 'NOTE' }
 export enum ActivityStatus { PENDING = 'PENDING', COMPLETED = 'COMPLETED', CANCELLED = 'CANCELLED' }
@@ -28,11 +29,32 @@ export enum SurveyStatus { DRAFT = 'DRAFT', PUBLISHED = 'PUBLISHED', CLOSED = 'C
 export enum SurveyTrigger { MANUAL = 'MANUAL', OPPORTUNITY_WON = 'OPPORTUNITY_WON' }
 export enum SurveyQuestionType { TEXT = 'TEXT', SINGLE_CHOICE = 'SINGLE_CHOICE', MULTIPLE_CHOICE = 'MULTIPLE_CHOICE', NPS = 'NPS', RATING = 'RATING', YES_NO = 'YES_NO' }
 
+@Entity('access_modules')
+export class AccessModule {
+  @PrimaryGeneratedColumn('uuid') id: string
+  @Index({ unique: true }) @Column({ length: 80 }) code: string
+  @Column({ length: 120 }) name: string
+  @Column({ length: 400, default: '' }) description: string
+  @Column({ name: 'is_active', default: true }) isActive: boolean
+  @Column({ name: 'is_system', default: false }) isSystem: boolean
+  @Column({ name: 'sort_order', type: 'int', default: 0 }) sortOrder: number
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date
+  @OneToMany(() => Permission, (permission) => permission.module) permissions: Permission[]
+}
+
 @Entity('permissions')
 export class Permission {
   @PrimaryGeneratedColumn('uuid') id: string
   @Index({ unique: true }) @Column({ length: 80 }) code: string
   @Column({ length: 120 }) name: string
+  @Column({ length: 400, default: '' }) description: string
+  @Column({ length: 40, default: 'MANAGE' }) action: string
+  @ManyToOne(() => AccessModule, (module) => module.permissions, { nullable: true, eager: true })
+  @JoinColumn({ name: 'module_id' })
+  module: AccessModule | null
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date
 }
 
 @Entity('roles')
@@ -40,9 +62,25 @@ export class Role {
   @PrimaryGeneratedColumn('uuid') id: string
   @Index({ unique: true }) @Column({ type: 'enum', enum: RoleCode }) code: RoleCode
   @Column({ length: 80 }) name: string
+  @Column({ length: 400, default: '' }) description: string
+  @Column({ name: 'permissions_version', type: 'int', default: 1 }) permissionsVersion: number
   @ManyToMany(() => Permission, { eager: true })
   @JoinTable({ name: 'role_permissions', joinColumn: { name: 'role_id' }, inverseJoinColumn: { name: 'permission_id' } })
   permissions: Permission[]
+}
+
+@Entity('permission_audits')
+export class PermissionAudit {
+  @PrimaryGeneratedColumn('uuid') id: string
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' }) @JoinColumn({ name: 'actor_user_id' }) actor: User | null
+  @ManyToOne(() => Role, { nullable: true, onDelete: 'SET NULL' }) @JoinColumn({ name: 'target_role_id' }) targetRole: Role | null
+  @ManyToOne(() => AccessModule, { nullable: true, onDelete: 'SET NULL' }) @JoinColumn({ name: 'target_module_id' }) targetModule: AccessModule | null
+  @Column({ length: 40 }) action: string
+  @Column({ name: 'previous_permissions', type: 'jsonb', nullable: true }) previousPermissions: string[] | null
+  @Column({ name: 'new_permissions', type: 'jsonb', nullable: true }) newPermissions: string[] | null
+  @Column({ name: 'added_permissions', type: 'jsonb', nullable: true }) addedPermissions: string[] | null
+  @Column({ name: 'removed_permissions', type: 'jsonb', nullable: true }) removedPermissions: string[] | null
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date
 }
 
 @Entity('users')
@@ -54,6 +92,7 @@ export class User {
   @Column({ type: 'enum', enum: UserStatus, default: UserStatus.ACTIVE }) status: UserStatus
   @Column({ name: 'must_change_password', default: false }) mustChangePassword: boolean
   @ManyToOne(() => Role, { eager: true, nullable: false }) @JoinColumn({ name: 'role_id' }) role: Role
+  @ManyToOne(() => Client, { nullable: true, onDelete: 'SET NULL' }) @JoinColumn({ name: 'client_id' }) client: Client | null
   @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true }) lastLoginAt: Date | null
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date
@@ -174,7 +213,9 @@ export class TicketAttachment {
 export class TicketHistory {
   @PrimaryGeneratedColumn('uuid') id: string
   @ManyToOne(() => Ticket, (ticket) => ticket.histories, { onDelete: 'CASCADE', nullable: false }) @JoinColumn({ name: 'ticket_id' }) ticket: Ticket
-  @ManyToOne(() => User, { eager: true, nullable: false }) @JoinColumn({ name: 'changed_by' }) changedBy: User
+  @ManyToOne(() => User, { eager: true, nullable: true }) @JoinColumn({ name: 'changed_by' }) changedBy: User | null
+  @Column({ name: 'actor_type', type: 'enum', enum: HistoryActorType, enumName: 'ticket_history_actor_type_enum', default: HistoryActorType.USER }) actorType: HistoryActorType
+  @Column({ name: 'actor_name', type: 'varchar', length: 160, nullable: true }) actorName: string | null
   @Column({ name: 'event_type', length: 40, default: 'STATUS_CHANGED' }) eventType: string
   @Column({ name: 'old_status', type: 'enum', enum: TicketStatus, nullable: true }) oldStatus: TicketStatus | null
   @Column({ name: 'new_status', type: 'enum', enum: TicketStatus }) newStatus: TicketStatus
@@ -191,6 +232,22 @@ export class SatisfactionSurvey {
   @Column({ type: 'smallint' }) rating: number
   @Column({ type: 'text', nullable: true }) comment: string | null
   @CreateDateColumn({ name: 'submitted_at', type: 'timestamptz' }) submittedAt: Date
+}
+
+@Entity('notifications')
+@Index('idx_notifications_recipient_created', ['recipient', 'createdAt'])
+@Index('uq_notifications_recipient_dedupe', ['recipient', 'dedupeKey'], { unique: true })
+export class Notification {
+  @PrimaryGeneratedColumn('uuid') id: string
+  @ManyToOne(() => User, { nullable: false, onDelete: 'CASCADE' }) @JoinColumn({ name: 'recipient_user_id' }) recipient: User
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' }) @JoinColumn({ name: 'actor_user_id' }) actor: User | null
+  @ManyToOne(() => Ticket, { nullable: true, onDelete: 'CASCADE' }) @JoinColumn({ name: 'ticket_id' }) ticket: Ticket | null
+  @Column({ name: 'dedupe_key', length: 120 }) dedupeKey: string
+  @Column({ length: 40 }) type: string
+  @Column({ length: 160 }) title: string
+  @Column({ length: 280 }) message: string
+  @Column({ name: 'read_at', type: 'timestamptz', nullable: true }) readAt: Date | null
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date
 }
 
 @Entity('knowledge_articles')
@@ -337,8 +394,8 @@ export class CrmSurveyAnswer {
 }
 
 export const ENTITIES = [
-  Permission, Role, User, RefreshToken, Category, Priority, SlaPolicy, Client, TicketCounter, Ticket,
-  TicketComment, TicketAttachment, TicketHistory, SatisfactionSurvey, KnowledgeArticle,
+  AccessModule, Permission, Role, PermissionAudit, User, RefreshToken, Category, Priority, SlaPolicy, Client, TicketCounter, Ticket,
+  TicketComment, TicketAttachment, TicketHistory, SatisfactionSurvey, Notification, KnowledgeArticle,
   CrmContact, CrmOpportunity, CrmOpportunityStageHistory, CrmActivity, CrmSurvey, CrmSurveyQuestion,
   CrmSurveyQuestionOption, CrmSurveyInvitation, CrmSurveyResponse, CrmSurveyAnswer,
 ]

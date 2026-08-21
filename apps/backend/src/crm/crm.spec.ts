@@ -1,12 +1,13 @@
 import { BadRequestException, UnprocessableEntityException } from '@nestjs/common'
 import { OpportunityStage, RoleCode, SurveyQuestionType, SurveyStatus } from '../database/entities'
 import { clientAccessMode, canAccessClient } from './access'
+import { isValidClientPhone, normalizeClientPhone } from './client-rules'
 import { calculateNps, classifyNps } from './nps'
 import { assertStageChange, probabilityForStage, stagesForStatus, summarizeOpportunities } from './opportunity-rules'
 import { conversionRate, mapPipeline } from './dashboard-metrics'
 import { calculateClientScore } from './score'
 import { createSurveyToken, hashSurveyToken } from './survey-token'
-import { isUniqueViolation } from './db-errors'
+import { isForeignKeyViolation, isUniqueViolation } from './db-errors'
 import {
   assertAnswer,
   assertCanClose,
@@ -17,22 +18,25 @@ import {
 } from './survey-rules'
 
 describe('Score CRM', () => {
-  it('usa 50 en dimensiones sin datos', () => {
+  it('no inventa 50/100 cuando faltan datos', () => {
     const result = calculateClientScore({
       ticketRatings: [], crmNpsScores: [], wonCount: 0, lostCount: 0, completedActivities90d: 0,
       totalActivities: 0, closedTickets: 0, totalTickets: 0, ageDays: 0,
     })
-    expect(result.score).toBe(50)
-    expect(result.dimensions.satisfaction).toBe(50)
-    expect(result.dimensions.won).toBe(50)
+    expect(result.score).toBeNull()
+    expect(result.insufficient).toBe(true)
+    expect(result.factors.every((factor) => !factor.hasData)).toBe(true)
   })
 
-  it('pondera satisfacción, won y actividad', () => {
+  it('pondera satisfacción, won y actividad y expone el desglose', () => {
     const result = calculateClientScore({
       ticketRatings: [5], crmNpsScores: [10], wonCount: 2, lostCount: 0, completedActivities90d: 8,
       totalActivities: 8, closedTickets: 4, totalTickets: 4, ageDays: 730,
     })
     expect(result.score).toBe(100)
+    expect(result.insufficient).toBe(false)
+    expect(result.factors.find((factor) => factor.key === 'satisfaction')?.points).toBe(30)
+    expect(result.factors.find((factor) => factor.key === 'won')?.points).toBe(25)
   })
 })
 
@@ -124,6 +128,8 @@ describe('Tokens de encuesta', () => {
     expect(isUniqueViolation(new Error('duplicate'))).toBe(false)
     expect(isUniqueViolation({ driverError: { code: '23505' } })).toBe(true)
     expect(isUniqueViolation({ code: '23503' })).toBe(false)
+    expect(isForeignKeyViolation({ code: '23503' })).toBe(true)
+    expect(isForeignKeyViolation({ driverError: { code: '23505' } })).toBe(false)
   })
 })
 
@@ -188,5 +194,14 @@ describe('Alcance de cartera', () => {
   it('niega 403 lógico a un agente sin tickets del cliente', () => {
     expect(canAccessClient({ role: { code: RoleCode.AGENT } } as never, { id: 'c1', owner: null }, [])).toBe(false)
     expect(canAccessClient({ role: { code: RoleCode.SALES } } as never, { id: 'c1', owner: { id: 'other' } }, [])).toBe(false)
+  })
+})
+
+describe('Teléfono de cliente', () => {
+  it('normaliza espacios y valida dígitos', () => {
+    expect(normalizeClientPhone('777 111 2233')).toBe('7771112233')
+    expect(isValidClientPhone('777 111 2233')).toBe(true)
+    expect(isValidClientPhone('abc')).toBe(false)
+    expect(isValidClientPhone('123')).toBe(false)
   })
 })

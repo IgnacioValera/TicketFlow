@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import type {
+  CrmActivity,
   CrmClient,
   CrmContact,
   CrmDashboard,
@@ -14,11 +15,15 @@ import type {
 } from '@/types/crm.types'
 import { PROBABILITY_BY_STAGE } from '@/types/crm.types'
 import type { User } from '@/types/user.types'
+import { isValidClientPhone, normalizeClientPhone } from '@/utils/client-form'
+import { toCsv } from '@/utils/csv'
 import { calculateNps } from '@/utils/nps'
+import { calculateClientScore } from '@/utils/crm-score'
 import { invitationCardStatus } from '@/utils/opportunity-survey'
+import { PERMISSIONS } from '@/constants/permissions'
 import { optionBreakdown, ratingBreakdown } from '@/utils/survey-form'
 
-const mockClients: CrmClient[] = [
+let mockClients: CrmClient[] = [
   {
     id: 'c1',
     name: 'Acme Corp',
@@ -58,13 +63,112 @@ const mockClients: CrmClient[] = [
     segment: 'SMB',
     email: 'contacto@initech.test',
     phone: '7773334455',
-    status: 'ACTIVE',
+    status: 'PROSPECT',
     score: 61,
     ownerId: null,
     ownerName: null,
     createdAt: '2025-06-10T00:00:00.000Z',
   },
 ]
+
+let mockActivities: CrmActivity[] = [
+  {
+    id: 'a1',
+    clientId: 'c1',
+    clientName: 'Acme Corp',
+    opportunityId: 'o1',
+    opportunityTitle: 'Renovación',
+    type: 'CALL',
+    status: 'PENDING',
+    subject: 'Seguimiento 1 Renovación ERP',
+    body: 'Llamar para confirmar alcance.',
+    dueAt: '2026-08-21T15:00:00.000Z',
+    completedAt: null,
+    createdAt: '2026-08-18T10:00:00.000Z',
+  },
+  {
+    id: 'a2',
+    clientId: 'c2',
+    clientName: 'Globex',
+    opportunityId: null,
+    opportunityTitle: null,
+    type: 'TASK',
+    status: 'COMPLETED',
+    subject: 'Enviar propuesta comercial',
+    body: 'Propuesta enviada por correo.',
+    dueAt: '2026-08-15T12:00:00.000Z',
+    completedAt: '2026-08-15T11:30:00.000Z',
+    createdAt: '2026-08-14T09:00:00.000Z',
+  },
+  {
+    id: 'a3',
+    clientId: 'c1',
+    clientName: 'Acme Corp',
+    opportunityId: 'o1',
+    opportunityTitle: 'Renovación',
+    type: 'MEETING',
+    status: 'PENDING',
+    subject: 'Cerrar deal',
+    body: 'Reunión de cierre con stakeholders.',
+    dueAt: '2026-08-22T17:00:00.000Z',
+    completedAt: null,
+    createdAt: '2026-08-19T08:00:00.000Z',
+  },
+  {
+    id: 'a4',
+    clientId: 'c3',
+    clientName: 'Initech',
+    opportunityId: null,
+    opportunityTitle: null,
+    type: 'NOTE',
+    status: 'CANCELLED',
+    subject: 'Nota cancelada de prueba',
+    body: 'Ya no aplica.',
+    dueAt: null,
+    completedAt: null,
+    createdAt: '2026-08-10T08:00:00.000Z',
+  },
+]
+
+function jsonOk(data: unknown, meta: unknown = null, message = 'OK') {
+  return HttpResponse.json({ success: true, message, data, meta })
+}
+
+function filterClients(url: URL) {
+  const status = url.searchParams.get('status')
+  const segment = url.searchParams.get('segment')
+  const search = (url.searchParams.get('search') ?? '').trim().toLowerCase()
+  return mockClients.filter((client) => {
+    if (status && client.status !== status) return false
+    if (segment && client.segment !== segment) return false
+    if (
+      search &&
+      !`${client.name} ${client.email} ${client.industry} ${client.region} ${client.phone}`
+        .toLowerCase()
+        .includes(search)
+    ) {
+      return false
+    }
+    return true
+  })
+}
+
+function clientsExportCsv(clients: CrmClient[]) {
+  return toCsv(
+    clients.map((item) => ({
+      nombre: item.name,
+      giro: item.industry,
+      region: item.region,
+      segmento: item.segment,
+      nivel: item.tier,
+      correo: item.email,
+      telefono: item.phone,
+      estado: item.status,
+      score: item.score,
+      propietario: item.ownerName ?? '',
+    })),
+  )
+}
 
 const mockContacts: CrmContact[] = [
   {
@@ -592,10 +696,7 @@ export function createCrmHandlers(users: User[] = []) {
           ? { usedAt: existing.usedAt, expiresAt: existing.expiresAt, revokedAt: existing.revokedAt }
           : null,
       })
-      if (existing && status === 'PENDING') {
-        return jsonError('Ya existe una invitación vigente para esta oportunidad.', 409)
-      }
-      if (existing && (status === 'EXPIRED' || status === 'REVOKED') && !confirmRegenerate) {
+      if (existing && (status === 'PENDING' || status === 'EXPIRED' || status === 'REVOKED') && !confirmRegenerate) {
         return jsonError('Confirma la regeneración del enlace. El enlace anterior dejará de funcionar.', 409)
       }
       const token = randomToken()
@@ -638,12 +739,142 @@ export function createCrmHandlers(users: User[] = []) {
     http.get('*/api/v1/crm/dashboard', () =>
       HttpResponse.json({ success: true, message: 'OK', data: mockDashboard, meta: null }),
     ),
+    http.get('*/api/v1/crm/clients/export', ({ request }) => {
+      const csv = clientsExportCsv(filterClients(new URL(request.url)))
+      return new HttpResponse(`\uFEFF${csv}`, {
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': 'attachment; filename="clientes.csv"',
+        },
+      })
+    }),
+    http.get('*/api/v1/crm/clients/:id/360', ({ params }) => {
+      const client = mockClients.find((item) => item.id === params.id)
+      if (!client) return jsonError('Cliente no encontrado', 404)
+      const clientOpps = opportunities.filter((item) => item.clientId === client.id)
+      const score = calculateClientScore({
+        ticketRatings: [],
+        crmNpsScores: [],
+        wonCount: clientOpps.filter((item) => item.stage === 'WON').length,
+        lostCount: clientOpps.filter((item) => item.stage === 'LOST').length,
+        completedActivities90d: 0,
+        totalActivities: 0,
+        closedTickets: 0,
+        totalTickets: 0,
+        ageDays: Math.max(0, Math.floor((Date.now() - new Date(client.createdAt).getTime()) / 86400000)),
+      })
+      return jsonOk({
+        client,
+        kpis: {
+          score: score.score,
+          insufficient: score.insufficient,
+          factors: score.factors,
+          updatedAt: nowIso(),
+          contacts: 1,
+          openOpportunities: clientOpps.filter((item) => item.stage !== 'WON' && item.stage !== 'LOST').length,
+          wonAmount: 30000,
+          openTickets: 0,
+        },
+        contacts: [
+          {
+            id: 'ct1',
+            clientId: client.id,
+            clientName: client.name,
+            firstName: 'Ana',
+            lastName: 'López',
+            email: 'ana@' + client.email.split('@')[1],
+            phone: client.phone,
+            jobTitle: 'Gerente',
+            isPrimary: true,
+          },
+        ],
+        opportunities: [{ id: 'o1', title: 'Renovación', amount: 10000, stage: 'PROPOSAL', probability: 50 }],
+        activities: [],
+        tickets: [],
+        timeline: [],
+      })
+    }),
+    http.get('*/api/v1/crm/clients/:id', ({ params }) => {
+      const client = mockClients.find((item) => item.id === params.id)
+      if (!client) return jsonError('Cliente no encontrado', 404)
+      return jsonOk(client)
+    }),
     http.get('*/api/v1/crm/clients', ({ request }) => {
       const url = new URL(request.url)
       const page = Number(url.searchParams.get('page') ?? 1)
       const perPage = Number(url.searchParams.get('perPage') ?? 10)
-      const status = url.searchParams.get('status')
-      const items = status ? mockClients.filter((client) => client.status === status) : mockClients
+      const items = filterClients(url)
+      const start = (page - 1) * perPage
+      return jsonOk(items.slice(start, start + perPage), {
+        page,
+        perPage,
+        total: items.length,
+        totalPages: Math.max(1, Math.ceil(items.length / perPage) || 1),
+      })
+    }),
+    http.post('*/api/v1/crm/clients', async ({ request }) => {
+      const body = (await request.json()) as Partial<CrmClient>
+      if (mockClients.some((item) => item.name.toLowerCase() === String(body.name ?? '').trim().toLowerCase())) {
+        return jsonError('Ya existe un cliente con ese nombre', 409)
+      }
+      if (mockClients.some((item) => item.email.toLowerCase() === String(body.email ?? '').trim().toLowerCase())) {
+        return jsonError('Ya existe un cliente con ese correo', 409)
+      }
+      if (body.phone && !isValidClientPhone(String(body.phone))) {
+        return jsonError('El teléfono debe tener entre 8 y 10 dígitos', 400)
+      }
+      const client: CrmClient = {
+        id: `c${Date.now()}`,
+        name: String(body.name ?? '').trim(),
+        industry: String(body.industry ?? '').trim(),
+        region: String(body.region ?? '').trim(),
+        tier: (body.tier as CrmClient['tier']) ?? 'BRONZE',
+        segment: (body.segment as CrmClient['segment']) ?? 'SMB',
+        email: String(body.email ?? '').trim().toLowerCase(),
+        phone: normalizeClientPhone(String(body.phone ?? '')),
+        status: (body.status as CrmClient['status']) ?? 'PROSPECT',
+        score: 50,
+        ownerId: '1',
+        ownerName: 'Admin Sistema',
+        createdAt: new Date().toISOString(),
+      }
+      mockClients = [client, ...mockClients]
+      return jsonOk(client, null, 'Cliente creado')
+    }),
+    http.put('*/api/v1/crm/clients/:id', async ({ params, request }) => {
+      const index = mockClients.findIndex((item) => item.id === params.id)
+      if (index === -1) return jsonError('Cliente no encontrado', 404)
+      const body = (await request.json()) as Partial<CrmClient>
+      const current = mockClients[index]
+      const nextName = body.name?.trim() ?? current.name
+      const nextEmail = body.email?.trim().toLowerCase() ?? current.email
+      if (mockClients.some((item) => item.id !== current.id && item.name.toLowerCase() === nextName.toLowerCase())) {
+        return jsonError('Ya existe un cliente con ese nombre', 409)
+      }
+      if (mockClients.some((item) => item.id !== current.id && item.email.toLowerCase() === nextEmail)) {
+        return jsonError('Ya existe un cliente con ese correo', 409)
+      }
+      mockClients[index] = {
+        ...current,
+        ...body,
+        name: nextName,
+        email: nextEmail,
+        phone: body.phone ? normalizeClientPhone(body.phone) : current.phone,
+      }
+      return jsonOk(mockClients[index], null, 'Cliente actualizado')
+    }),
+    http.get('*/api/v1/crm/contacts', ({ request }) => {
+      const url = new URL(request.url)
+      const page = Number(url.searchParams.get('page') ?? 1)
+      const perPage = Number(url.searchParams.get('perPage') ?? 10)
+      const clientId = url.searchParams.get('clientId')
+      const search = (url.searchParams.get('search') ?? '').toLowerCase()
+      let items = clientId ? mockContacts.filter((item) => item.clientId === clientId) : mockContacts
+      if (search) {
+        items = items.filter((item) =>
+          `${item.firstName} ${item.lastName} ${item.email} ${item.clientName}`.toLowerCase().includes(search),
+        )
+      }
       const start = (page - 1) * perPage
       return HttpResponse.json({
         success: true,
@@ -652,23 +883,138 @@ export function createCrmHandlers(users: User[] = []) {
         meta: { page, perPage, total: items.length, totalPages: Math.max(1, Math.ceil(items.length / perPage)) },
       })
     }),
-    http.get('*/api/v1/crm/clients/:id', ({ params }) => {
-      const client = mockClients.find((item) => item.id === params.id)
-      if (!client) {
-        return HttpResponse.json({ success: false, message: 'Cliente no encontrado', data: null, meta: null }, { status: 404 })
+    http.post('*/api/v1/crm/contacts', async ({ request }) => {
+      const denied = denyUnless(request, users, PERMISSIONS.CRM_CONTACT_CREATE)
+      if (denied) return denied
+      const body = (await request.json()) as Partial<CrmContact> & { clientId?: string; firstName?: string; lastName?: string; email?: string }
+      if (!body.clientId) return jsonError('Selecciona un cliente', 400)
+      if (!body.firstName?.trim() || !body.lastName?.trim()) return jsonError('El nombre es obligatorio y no puede contener solo espacios', 400)
+      if (!body.email?.trim()) return jsonError('El correo es obligatorio y no puede contener solo espacios', 400)
+      const client = mockClients.find((item) => item.id === body.clientId)
+      if (!client) return jsonError('Cliente no encontrado', 404)
+      const email = body.email.toLowerCase().trim()
+      if (mockContacts.some((item) => item.clientId === client.id && item.email === email)) {
+        return jsonError('Ya existe un contacto con ese correo para este cliente', 409)
       }
-      return HttpResponse.json({ success: true, message: 'OK', data: client, meta: null })
+      const created: CrmContact = {
+        id: `ct-${Date.now()}`,
+        clientId: client.id,
+        clientName: client.name,
+        firstName: body.firstName.trim(),
+        lastName: body.lastName.trim(),
+        email,
+        phone: body.phone ?? '',
+        jobTitle: body.jobTitle ?? '',
+        isPrimary: Boolean(body.isPrimary),
+      }
+      mockContacts.push(created)
+      return jsonOk(created, null, 'Contacto creado')
     }),
-    http.get('*/api/v1/crm/contacts', ({ request }) => {
+    http.put('*/api/v1/crm/contacts/:id', async ({ request, params }) => {
+      const denied = denyUnless(request, users, PERMISSIONS.CRM_CONTACT_EDIT)
+      if (denied) return denied
+      const id = String(params.id)
+      const index = mockContacts.findIndex((item) => item.id === id)
+      if (index === -1) return jsonError('Contacto no encontrado', 404)
+      const body = (await request.json()) as Partial<CrmContact>
+      const current = mockContacts[index]
+      const clientId = body.clientId ?? current.clientId
+      const client = mockClients.find((item) => item.id === clientId)
+      if (!client) return jsonError('Cliente no encontrado', 404)
+      const email = (body.email ?? current.email).toLowerCase().trim()
+      if (mockContacts.some((item) => item.id !== current.id && item.clientId === client.id && item.email === email)) {
+        return jsonError('Ya existe un contacto con ese correo para este cliente', 409)
+      }
+      mockContacts[index] = {
+        ...current,
+        clientId: client.id,
+        clientName: client.name,
+        firstName: body.firstName?.trim() || current.firstName,
+        lastName: body.lastName?.trim() || current.lastName,
+        email,
+        phone: body.phone ?? current.phone,
+        jobTitle: body.jobTitle ?? current.jobTitle,
+      }
+      return jsonOk(mockContacts[index], null, 'Contacto actualizado')
+    }),
+    http.delete('*/api/v1/crm/contacts/:id', ({ request, params }) => {
+      const denied = denyUnless(request, users, PERMISSIONS.CRM_CONTACT_DELETE)
+      if (denied) return denied
+      const index = mockContacts.findIndex((item) => item.id === String(params.id))
+      if (index === -1) return jsonError('Contacto no encontrado', 404)
+      const removed = mockContacts[index]
+      mockContacts.splice(index, 1)
+      return jsonOk({ id: removed.id }, null, 'Contacto eliminado')
+    }),
+    http.get('*/api/v1/crm/activities', ({ request }) => {
       const url = new URL(request.url)
-      const clientId = url.searchParams.get('clientId')
-      const items = clientId ? mockContacts.filter((item) => item.clientId === clientId) : mockContacts
+      const page = Number(url.searchParams.get('page') ?? 1)
+      const perPage = Number(url.searchParams.get('perPage') ?? 10)
+      const status = url.searchParams.get('status')
+      const search = (url.searchParams.get('search') ?? '').trim().toLowerCase()
+      let items = [...mockActivities]
+      if (status) items = items.filter((item) => item.status === status)
+      if (search) {
+        items = items.filter((item) =>
+          `${item.subject} ${item.clientName} ${item.body}`.toLowerCase().includes(search),
+        )
+      }
+      const start = (page - 1) * perPage
       return HttpResponse.json({
         success: true,
         message: 'OK',
-        data: items,
-        meta: { page: 1, perPage: 100, total: items.length, totalPages: 1 },
+        data: items.slice(start, start + perPage),
+        meta: {
+          page,
+          perPage,
+          total: items.length,
+          totalPages: Math.max(1, Math.ceil(items.length / perPage) || 1),
+        },
       })
+    }),
+    http.post('*/api/v1/crm/activities', async ({ request }) => {
+      const body = (await request.json()) as {
+        clientId?: string
+        type?: CrmActivity['type']
+        subject?: string
+        body?: string
+        dueAt?: string
+        opportunityId?: string
+      }
+      const client = mockClients.find((item) => item.id === body.clientId)
+      if (!client) return jsonError('Cliente no encontrado', 404)
+      if (!body.subject?.trim()) return jsonError('El asunto es obligatorio', 400)
+      const created: CrmActivity = {
+        id: `a-${Date.now()}`,
+        clientId: client.id,
+        clientName: client.name,
+        opportunityId: body.opportunityId ?? null,
+        opportunityTitle: null,
+        type: body.type ?? 'CALL',
+        status: 'PENDING',
+        subject: body.subject.trim(),
+        body: body.body?.trim() ?? '',
+        dueAt: body.dueAt || null,
+        completedAt: null,
+        createdAt: nowIso(),
+      }
+      mockActivities = [created, ...mockActivities]
+      return json(created, 'Actividad creada', 201)
+    }),
+    http.patch('*/api/v1/crm/activities/:id/complete', ({ params }) => {
+      const item = mockActivities.find((entry) => entry.id === params.id)
+      if (!item) return jsonError('Actividad no encontrada', 404)
+      if (item.status === 'COMPLETED') return jsonError('La actividad ya está completada', 422)
+      if (item.status === 'CANCELLED') return jsonError('La actividad ya está cancelada', 422)
+      item.status = 'COMPLETED'
+      item.completedAt = nowIso()
+      return json(item, 'Actividad completada')
+    }),
+    http.delete('*/api/v1/crm/activities/:id', ({ params }) => {
+      const index = mockActivities.findIndex((entry) => entry.id === params.id)
+      if (index === -1) return jsonError('Actividad no encontrada', 404)
+      const [removed] = mockActivities.splice(index, 1)
+      return json(removed, 'Actividad eliminada')
     }),
     http.get('*/api/v1/crm/opportunities', ({ request }) => {
       hydrateMockStore()
@@ -863,13 +1209,20 @@ export function createCrmHandlers(users: User[] = []) {
     http.get('*/api/v1/crm/surveys', ({ request }) => {
       hydrateMockStore()
       const url = new URL(request.url)
+      const page = Number(url.searchParams.get('page') ?? 1)
+      const perPage = Number(url.searchParams.get('perPage') ?? 10)
       const status = url.searchParams.get('status') as SurveyStatus | null
-      const items = surveys.filter((survey) => !status || survey.status === status).map(serialize)
+      const search = (url.searchParams.get('search') ?? '').toLowerCase()
+      let items = surveys.filter((survey) => !status || survey.status === status)
+      if (search) {
+        items = items.filter((survey) => survey.title.toLowerCase().includes(search))
+      }
+      const start = (page - 1) * perPage
       return HttpResponse.json({
         success: true,
         message: 'OK',
-        data: items,
-        meta: { page: 1, perPage: 50, total: items.length, totalPages: 1 },
+        data: items.slice(start, start + perPage).map(serialize),
+        meta: { page, perPage, total: items.length, totalPages: Math.max(1, Math.ceil(items.length / perPage)) },
       })
     }),
     http.post('*/api/v1/crm/surveys', async ({ request }) => {
@@ -904,7 +1257,7 @@ export function createCrmHandlers(users: User[] = []) {
     http.put('*/api/v1/crm/surveys/:id/questions/order', async ({ params, request }) => {
       const survey = surveys.find((item) => item.id === params.id)
       if (!survey) return jsonError('Encuesta no encontrada', 404)
-      if (survey.status !== 'DRAFT') return jsonError('Sólo se editan encuestas en borrador', 422)
+      if (!['DRAFT', 'CLOSED', 'PUBLISHED'].includes(survey.status)) return jsonError('No se puede editar esta encuesta', 422)
       const body = (await request.json()) as { questionIds: string[] }
       const current = survey.questions ?? []
       if (body.questionIds.length !== current.length || current.some((question) => !body.questionIds.includes(question.id))) {
@@ -920,7 +1273,7 @@ export function createCrmHandlers(users: User[] = []) {
     http.put('*/api/v1/crm/surveys/:id', async ({ params, request }) => {
       const survey = surveys.find((item) => item.id === params.id)
       if (!survey) return jsonError('Encuesta no encontrada', 404)
-      if (survey.status !== 'DRAFT') return jsonError('Sólo se editan encuestas en borrador', 422)
+      if (!['DRAFT', 'CLOSED', 'PUBLISHED'].includes(survey.status)) return jsonError('No se puede editar esta encuesta', 422)
       const body = (await request.json()) as { title?: string; description?: string; trigger?: SurveyTrigger }
       if (body.title) survey.title = body.title.trim()
       if (body.description !== undefined) survey.description = body.description.trim()
@@ -956,7 +1309,7 @@ export function createCrmHandlers(users: User[] = []) {
     http.post('*/api/v1/crm/surveys/:id/questions', async ({ params, request }) => {
       const survey = surveys.find((item) => item.id === params.id)
       if (!survey) return jsonError('Encuesta no encontrada', 404)
-      if (survey.status !== 'DRAFT') return jsonError('Sólo se editan encuestas en borrador', 422)
+      if (!['DRAFT', 'CLOSED', 'PUBLISHED'].includes(survey.status)) return jsonError('No se puede editar esta encuesta', 422)
       const body = (await request.json()) as {
         prompt: string
         type: SurveyQuestionType
@@ -991,7 +1344,7 @@ export function createCrmHandlers(users: User[] = []) {
     http.delete('*/api/v1/crm/surveys/:id/questions/:questionId', ({ params }) => {
       const survey = surveys.find((item) => item.id === params.id)
       if (!survey) return jsonError('Encuesta no encontrada', 404)
-      if (survey.status !== 'DRAFT') return jsonError('Sólo se editan encuestas en borrador', 422)
+      if (!['DRAFT', 'CLOSED', 'PUBLISHED'].includes(survey.status)) return jsonError('No se puede editar esta encuesta', 422)
       survey.questions = (survey.questions ?? []).filter((question) => question.id !== params.questionId)
       survey.questionCount = survey.questions.length
       persistMockStore()

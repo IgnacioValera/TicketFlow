@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import { calculateSlaStatus, matchesSlaFilter } from '@/utils/sla.utils'
+import { buildDashboardSummary, statusesForPreset, TERMINAL_STATUSES } from '@/utils/dashboard.utils'
 import {
   aggregateSatisfaction,
   aggregateSlaCompliance,
@@ -12,6 +13,13 @@ import {
 } from '@/utils/reports'
 import { normalizeTicketForm, validateTicketForm, type TicketFormValues } from '@/utils/ticket-form'
 import type { User } from '@/types/user.types'
+import {
+  notifyInternalComment,
+  notifyPublicComment,
+  notifyStatusChanged,
+  notifyTicketAssigned,
+  notifyTicketCreated,
+} from '@/mocks/notifications-store'
 import type {
   Ticket,
   TicketAttachment,
@@ -44,11 +52,6 @@ const mockPriorities = [
   { id: '2', name: 'Media', color: '#247b7b', resolutionHours: 48 },
   { id: '3', name: 'Alta', color: '#f97316', resolutionHours: 24 },
   { id: '4', name: 'Critica', color: '#db3a34', resolutionHours: 8 },
-]
-
-const mockCompanies = [
-  { id: '1', name: 'Acme Corp' },
-  { id: '2', name: 'Globex' },
 ]
 
 function hoursAgo(h: number) {
@@ -610,6 +613,23 @@ function addHistory(
 
 export function createTicketHandlers(mockUsers: User[]) {
   return [
+    http.get('*/api/v1/dashboard/summary', async ({ request }) => {
+      const user = findUserFromRequest(request, mockUsers)
+      if (!user) {
+        return HttpResponse.json(
+          { success: false, message: 'No autenticado', data: null, meta: null },
+          { status: 401 },
+        )
+      }
+
+      const url = new URL(request.url)
+      const scopeParam = url.searchParams.get('scope')
+      const own = user.role === 'AGENT' || scopeParam === 'OWN'
+      const tickets = filterByRole([...ticketStores], user).map((store) => store.ticket)
+      const summary = buildDashboardSummary(tickets, own ? 'OWN' : 'GLOBAL')
+      return jsonOk(summary)
+    }),
+
     http.get('*/api/v1/tickets', async ({ request }) => {
       const user = findUserFromRequest(request, mockUsers)
       if (!user)
@@ -622,6 +642,7 @@ export function createTicketHandlers(mockUsers: User[]) {
       let filtered = filterByRole([...ticketStores], user)
 
       const status = url.searchParams.get('status') as TicketStatus | null
+      const preset = url.searchParams.get('preset') as 'open' | 'inProgress' | 'resolved' | 'closed' | null
       const priorityId = url.searchParams.get('priorityId')
       const categoryId = url.searchParams.get('categoryId')
       const assigneeId = url.searchParams.get('assigneeId')
@@ -630,7 +651,10 @@ export function createTicketHandlers(mockUsers: User[]) {
       const slaStatus = (url.searchParams.get('sla_status') ??
         url.searchParams.get('slaStatus')) as 'overdue' | 'warning' | 'on_time' | null
 
-      if (status) filtered = filtered.filter((s) => s.ticket.status === status)
+      if (preset) {
+        const allowed = statusesForPreset(preset)
+        filtered = filtered.filter((s) => allowed.includes(s.ticket.status))
+      } else if (status) filtered = filtered.filter((s) => s.ticket.status === status)
       if (priorityId) filtered = filtered.filter((s) => s.ticket.priorityId === priorityId)
       if (categoryId) filtered = filtered.filter((s) => s.ticket.categoryId === categoryId)
       if (assigneeId) filtered = filtered.filter((s) => s.ticket.assigneeId === assigneeId)
@@ -645,6 +669,7 @@ export function createTicketHandlers(mockUsers: User[]) {
       }
       if (slaStatus) {
         filtered = filtered.filter((s) => {
+          if (slaStatus !== 'on_time' && TERMINAL_STATUSES.includes(s.ticket.status)) return false
           const sla = calculateSlaStatus(
             s.ticket.slaCreatedAt,
             s.ticket.slaDueAt,
@@ -685,7 +710,7 @@ export function createTicketHandlers(mockUsers: User[]) {
         )
       }
 
-      const body = (await request.json()) as TicketFormValues & { companyId?: string; clientId?: string }
+      const body = (await request.json()) as TicketFormValues & { companyId?: string; clientId?: string; requesterId?: string }
       const normalized = normalizeTicketForm(body)
       const validationError = validateTicketForm(normalized)
       if (validationError) {
@@ -712,8 +737,23 @@ export function createTicketHandlers(mockUsers: User[]) {
 
       folioCounter += 1
       const id = `t${Date.now()}`
-      const companyId = body.clientId ?? body.companyId
-      const company = companyId ? mockCompanies.find((c) => c.id === companyId) : null
+      const isPortal = user.role === 'CLIENT' || user.role === 'REQUESTER'
+      if (isPortal && !user.clientId) {
+        return HttpResponse.json(
+          {
+            success: false,
+            message: 'Tu usuario no está vinculado con un cliente. Solicita apoyo al administrador.',
+            data: null,
+            meta: null,
+          },
+          { status: 409 },
+        )
+      }
+      const selectedRequester =
+        !isPortal && body.requesterId ? mockUsers.find((item) => item.id === body.requesterId) : null
+      const requester = selectedRequester ?? user
+      const clientId = isPortal || selectedRequester ? requester.clientId ?? null : null
+      const clientName = isPortal || selectedRequester ? requester.clientName ?? null : null
       const createdAt = new Date().toISOString()
       const slaDueAt = new Date(Date.now() + pri.resolutionHours * 3600000).toISOString()
 
@@ -723,12 +763,14 @@ export function createTicketHandlers(mockUsers: User[]) {
         title: normalized.title,
         description: normalized.description,
         status: 'OPEN',
-        requesterId: user.id,
-        requesterName: user.fullName,
+        requesterId: requester.id,
+        requesterName: requester.fullName,
         categoryId: normalized.categoryId,
         priorityId: normalized.priorityId,
-        companyId: company?.id ?? null,
-        companyName: company?.name ?? null,
+        companyId: clientId,
+        companyName: clientName,
+        clientId,
+        clientName,
         createdAt,
         slaDueAt,
         slaCreatedAt: createdAt,
@@ -753,6 +795,7 @@ export function createTicketHandlers(mockUsers: User[]) {
         survey: null,
       }
       ticketStores.unshift(store)
+      notifyTicketCreated(ticket, user)
       return HttpResponse.json(
         { success: true, message: 'Ticket creado', data: ticket, meta: null },
         { status: 201 },
@@ -852,6 +895,7 @@ export function createTicketHandlers(mockUsers: User[]) {
         /* keep */
       }
       addHistory(store, old, body.status, user!, body.reason)
+      notifyStatusChanged(store.ticket, user!, body.status)
       return HttpResponse.json({
         success: true,
         message: 'Estado actualizado',
@@ -876,12 +920,14 @@ export function createTicketHandlers(mockUsers: User[]) {
           { status: 422 },
         )
       const old = store.ticket.status
+      const previousAssigneeId = store.ticket.assigneeId
       store.ticket.assigneeId = agent.id
       store.ticket.assigneeName = agent.fullName
       if (store.ticket.status === 'OPEN') {
         store.ticket.status = 'ASSIGNED'
         addHistory(store, old, 'ASSIGNED', user!, 'Asignado a agente')
       }
+      notifyTicketAssigned(store.ticket, user!, previousAssigneeId)
       return HttpResponse.json({
         success: true,
         message: 'Ticket asignado',
@@ -963,6 +1009,8 @@ export function createTicketHandlers(mockUsers: User[]) {
         createdAt: new Date().toISOString(),
       }
       store.comments.push(comment)
+      if (isInternal) notifyInternalComment(store.ticket, user, comment.id)
+      else notifyPublicComment(store.ticket, user, comment.id)
       return HttpResponse.json(
         { success: true, message: 'Comentario agregado', data: comment, meta: null },
         { status: 201 },

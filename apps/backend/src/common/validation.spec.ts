@@ -4,10 +4,10 @@ import { LoginDto } from '../auth/dto'
 import { CreateSlaPolicyDto, CreateCategoryDto } from '../catalogs/dto'
 import { CreateTicketDto, ChangeStatusDto, CreateCommentDto } from '../tickets/dto'
 import { CreateUserDto } from '../users/dto'
+import { CreateClientDto, CreateOpportunityDto, CreateSurveyDto } from '../crm/dto'
 import { CreateArticleDto } from '../knowledge/knowledge.module'
 import { DateRangeQuery } from '../analytics/analytics.controller'
-import { CreateOpportunityDto, CreateSurveyDto } from '../crm/dto'
-import { RoleCode, TicketStatus } from '../database/entities'
+import { RoleCode, TicketStatus, CompanyTier, ClientSegment } from '../database/entities'
 
 function dtoErrors(errors: { property: string; constraints?: Record<string, string> }[]) {
   return errors.flatMap((error) => Object.values(error.constraints ?? {}))
@@ -230,5 +230,42 @@ describe('Validación de DTOs', () => {
     const dto = createDto(CreateSurveyDto, { title: '   ' })
     const messages = dtoErrors(await validate(dto))
     expect(messages.some((message) => message.toLowerCase().includes('título'))).toBe(true)
+  })
+})
+
+describe('Validación de clientes CRM', () => {
+  const validClient = {
+    name: 'Acme Corp',
+    industry: 'Tecnología',
+    region: 'Centro',
+    tier: CompanyTier.GOLD,
+    segment: ClientSegment.SMB,
+    email: 'contacto@acme.test',
+    phone: '7771112233',
+  }
+
+  it('rechaza nombre formado solo por espacios', async () => {
+    const dto = createDto(CreateClientDto, { ...validClient, name: '   ' })
+    const messages = dtoErrors(await validate(dto))
+    expect(messages.some((message) => message.toLowerCase().includes('nombre'))).toBe(true)
+  })
+
+  it('rechaza un correo inválido', async () => {
+    const dto = createDto(CreateClientDto, { ...validClient, email: 'no-es-correo' })
+    const messages = dtoErrors(await validate(dto))
+    expect(messages.some((message) => message.toLowerCase().includes('correo'))).toBe(true)
+  })
+
+  it('rechaza un teléfono con letras', async () => {
+    const dto = createDto(CreateClientDto, { ...validClient, phone: 'abc' })
+    const messages = dtoErrors(await validate(dto))
+    expect(messages.some((message) => message.toLowerCase().includes('teléfono'))).toBe(true)
+  })
+
+  it('acepta un cliente válido y normaliza el teléfono', async () => {
+    const dto = createDto(CreateClientDto, { ...validClient, name: '  Acme Corp  ', phone: '777 111 2233' })
+    expect(await validate(dto)).toHaveLength(0)
+    expect(dto.name).toBe('Acme Corp')
+    expect(dto.phone).toBe('7771112233')
   })
 })

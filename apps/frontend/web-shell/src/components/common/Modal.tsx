@@ -1,4 +1,6 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useId, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+import { AppIcon } from '@/components/common/AppIcon'
 
 interface ModalProps {
   open: boolean
@@ -8,6 +10,9 @@ interface ModalProps {
   children: ReactNode
   footer?: ReactNode
   size?: 'sm' | 'md' | 'lg'
+  overlayClassName?: string
+  closeOnEscape?: boolean
+  closable?: boolean
 }
 
 const sizeClasses = {
@@ -16,50 +21,93 @@ const sizeClasses = {
   lg: 'max-w-2xl',
 }
 
-export function Modal({ open, onClose, title, description, children, footer, size = 'md' }: ModalProps) {
+const escapeStack: Array<() => void> = []
+
+export function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+  footer,
+  size = 'md',
+  overlayClassName = 'z-50',
+  closeOnEscape = true,
+  closable = true,
+}: ModalProps) {
+  const titleId = useId()
+  const canDismiss = closable && closeOnEscape
+
   useEffect(() => {
     if (!open) return
+    const closeTop = () => {
+      if (canDismiss) onClose()
+    }
+    escapeStack.push(closeTop)
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key !== 'Escape') return
+      if (escapeStack[escapeStack.length - 1] !== closeTop) return
+      e.preventDefault()
+      closeTop()
     }
     document.addEventListener('keydown', handleEscape)
+    const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => {
       document.removeEventListener('keydown', handleEscape)
-      document.body.style.overflow = ''
+      const index = escapeStack.lastIndexOf(closeTop)
+      if (index >= 0) escapeStack.splice(index, 1)
+      if (escapeStack.length === 0) document.body.style.overflow = previousOverflow
     }
-  }, [open, onClose])
+  }, [open, onClose, canDismiss])
 
-  if (!open) return null
+  if (!open || typeof document === 'undefined') return null
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        className="absolute inset-0 bg-brand-navy/50"
-        aria-label="Cerrar modal"
-        onClick={onClose}
-      />
+  return createPortal(
+    <div className={`fixed inset-0 flex items-center justify-center p-4 ${overlayClassName}`}>
+      {closable ? (
+        <button
+          type="button"
+          className="absolute inset-0 bg-brand-navy/50"
+          aria-label="Cerrar modal"
+          onClick={onClose}
+        />
+      ) : (
+        <div className="absolute inset-0 bg-brand-navy/50" />
+      )}
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="modal-title"
-        className={`relative w-full ${sizeClasses[size]} rounded border border-slate-200 bg-white shadow-xl`}
+        aria-labelledby={titleId}
+        className={`relative flex max-h-[calc(100vh-2rem)] w-full flex-col ${sizeClasses[size]} rounded border border-slate-200 bg-white shadow-xl`}
       >
-        <div className="border-b border-slate-200 px-5 py-3">
-          <h2 id="modal-title" className="text-base font-semibold text-brand-navy">
-            {title}
-          </h2>
-          {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-5 py-3">
+          <div className="min-w-0">
+            <h2 id={titleId} className="text-base font-semibold text-brand-navy">
+              {title}
+            </h2>
+            {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
+          </div>
+          {closable ? (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Cerrar ventana"
+              className="-mr-1 rounded p-1 text-muted hover:bg-slate-100 hover:text-brand-navy"
+            >
+              <AppIcon name="x" className="h-4 w-4" />
+            </button>
+          ) : null}
         </div>
-        <div className="px-5 py-4">{children}</div>
+        <div className="min-h-0 overflow-y-auto px-5 py-4">{children}</div>
         {footer && (
-          <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-3">
+          <div className="flex shrink-0 justify-end gap-2 border-t border-slate-200 px-5 py-3">
             {footer}
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -74,6 +122,7 @@ interface ConfirmModalProps {
   variant?: 'danger' | 'primary'
   loading?: boolean
   loadingLabel?: string
+  overlayClassName?: string
 }
 
 export function ConfirmModal({
@@ -87,6 +136,7 @@ export function ConfirmModal({
   variant = 'primary',
   loading = false,
   loadingLabel = 'Procesando…',
+  overlayClassName = 'z-[60]',
 }: ConfirmModalProps) {
   const confirmClass =
     variant === 'danger'
@@ -97,6 +147,7 @@ export function ConfirmModal({
     <Modal
       open={open}
       onClose={onClose}
+      overlayClassName={overlayClassName}
       title={title}
       footer={
         <>

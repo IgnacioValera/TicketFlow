@@ -1,6 +1,6 @@
 # helpdesk-frontend
 
-Frontend del **Sistema de Tickets / Mesa de Ayuda** — React + Vite + TypeScript + Tailwind CSS.
+Frontend del **Sistema de Tickets / Mesa de Ayuda** — React + Next.js (App Router) + TypeScript + Tailwind CSS.
 
 ## Requisitos
 
@@ -18,8 +18,8 @@ cp .env.example .env
 
 | Variable | Descripción | Ejemplo |
 |----------|-------------|---------|
-| `VITE_API_BASE_URL` | URL base de la API REST | `http://localhost:8000/api/v1` |
-| `VITE_USE_MOCKS` | Activar mocks locales (sin backend) | `false` |
+| `NEXT_PUBLIC_API_BASE_URL` | URL base de la API REST | `http://localhost:8000/api/v1` |
+| `NEXT_PUBLIC_USE_MOCKS` | Activar mocks locales (sin backend) | `false` |
 
 ## Desarrollo
 
@@ -38,7 +38,7 @@ La aplicación estará disponible en `http://localhost:5173`.
 | supervisor@helpdesk.com | password | Supervisor |
 | requester@helpdesk.com | password | Solicitante |
 
-Con `VITE_USE_MOCKS=false`, estos usuarios son creados en PostgreSQL por el seed del backend. Para trabajar sin API se puede cambiar temporalmente la variable a `true`.
+Con `NEXT_PUBLIC_USE_MOCKS=false`, estos usuarios son creados en PostgreSQL por el seed del backend. Para trabajar sin API se puede cambiar temporalmente la variable a `true`.
 
 ## Scripts
 
@@ -54,7 +54,8 @@ Con `VITE_USE_MOCKS=false`, estos usuarios son creados en PostgreSQL por el seed
 
 ```
 src/
-├── pages/          # Pantallas (PascalCase + Page)
+├── app/            # Rutas Next.js App Router
+├── views/          # Pantallas (PascalCase + Page)
 ├── components/     # Componentes reutilizables
 ├── layouts/        # AuthLayout, DashboardLayout
 ├── hooks/          # useAuth, usePermissions

@@ -33,6 +33,7 @@ describe('Restablecimiento administrativo de contraseña', () => {
     const service = new UsersService(
       users as never,
       { findOneBy: jest.fn() } as never,
+      { findOne: jest.fn() } as never,
       { transaction: jest.fn(async (cb: (m: typeof manager) => Promise<void>) => cb(manager)) } as never,
     )
     return { service, manager, users }
@@ -123,6 +124,7 @@ describe('Cambio de estado de usuario', () => {
           .mockResolvedValueOnce({ ...user, status: UserStatus.INACTIVE }),
       } as never,
       { findOneBy: jest.fn() } as never,
+      { findOne: jest.fn() } as never,
       { transaction: jest.fn(async (cb: (m: typeof manager) => Promise<void>) => cb(manager)) } as never,
     )
 

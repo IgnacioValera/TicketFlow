@@ -40,7 +40,8 @@ export interface TicketStatusHistory {
   eventType?: string
   oldStatus: TicketStatus | null
   newStatus: TicketStatus
-  changedBy: string
+  actorType?: 'USER' | 'SYSTEM'
+  changedBy: string | null
   changedByName: string
   reason?: string
   details?: Record<string, unknown> | null
@@ -100,6 +101,7 @@ export interface CreateTicketPayload {
   priorityId: string
   companyId?: string
   clientId?: string
+  requesterId?: string
 }
 
 export interface UpdateTicketPayload {
@@ -134,8 +136,11 @@ export interface SubmitSurveyPayload {
 
 export type SlaFilterStatus = 'overdue' | 'warning' | 'on_time'
 
+export type TicketPreset = 'open' | 'inProgress' | 'resolved' | 'closed'
+
 export interface TicketsListParams extends PaginationParams {
   status?: TicketStatus
+  preset?: TicketPreset
   priorityId?: string
   categoryId?: string
   assigneeId?: string

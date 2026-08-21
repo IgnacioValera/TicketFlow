@@ -8,10 +8,18 @@ export interface User {
   email: string
   role: UserRole
   status: UserStatus
+  clientId?: string | null
+  clientName?: string | null
   permissions: string[]
+  permissionsVersion?: number
   mustChangePassword?: boolean
   lastLoginAt?: string | null
   createdAt?: string
+}
+
+export interface ClientOption {
+  id: string
+  name: string
 }
 
 export interface LoginCredentials {
@@ -30,12 +38,14 @@ export interface CreateUserPayload {
   email: string
   password: string
   role: UserRole
+  clientId?: string
 }
 
 export interface UpdateUserPayload {
   fullName?: string
   email?: string
   role?: UserRole
+  clientId?: string | null
 }
 
 export interface UsersListParams {

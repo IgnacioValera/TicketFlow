@@ -3,7 +3,7 @@ import { AppIcon } from '@/components/common/AppIcon'
 import { EmptyState } from '@/components/common/EmptyState'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { SurfaceCard } from '@/components/common/SurfaceCard'
-import { TICKET_FLOW_COPY } from '@/pages/tickets/ticket-flow-copy'
+import { TICKET_FLOW_COPY } from '@/views/tickets/ticket-flow-copy'
 import type { TicketStatus } from '@/types/ticket.types'
 import {
   clampFlowZoom,

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" role="img" aria-label="TicketFlow">
+  <path
+    d="M6.5 8.25C6.5 7.007 7.507 6 8.75 6H19.2L25.5 12.3V23.75C25.5 24.993 24.493 26 23.25 26H8.75C7.507 26 6.5 24.993 6.5 23.75V8.25Z"
+    stroke="#2563D9"
+    stroke-width="2"
+    stroke-linejoin="round"
+  />
+  <path d="M19.2 6V12.3H25.5" stroke="#2563D9" stroke-width="2" stroke-linejoin="round" />
+  <path d="M11 11.5V22" stroke="#2563D9" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="1.4 2.2" />
+  <circle cx="15" cy="16.5" r="1.55" fill="#2563D9" />
+  <circle cx="19.4" cy="16.5" r="1.55" fill="#2563D9" />
+  <circle cx="23.7" cy="16.5" r="1.55" fill="#2563D9" />
+  <path d="M16.55 16.5H17.85M20.95 16.5H22.15" stroke="#2563D9" stroke-width="1.5" stroke-linecap="round" />
+  <path d="M14.2 21.1l1.15 1.15 2.15-2.25" stroke="#2563D9" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

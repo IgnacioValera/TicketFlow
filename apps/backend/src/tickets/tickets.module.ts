@@ -1,7 +1,18 @@
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { Category, Client, Priority, SatisfactionSurvey, SlaPolicy, Ticket, TicketAttachment, TicketComment, TicketCounter, TicketHistory, User } from '../database/entities'
+import { NotificationsModule } from '../notifications/notifications.module'
+import { N8nIntegrationModule } from '../integrations/n8n/n8n-integration.module'
 import { AttachmentsController, TicketsController } from './tickets.controller'
 import { TicketsService } from './tickets.service'
-@Module({ imports: [TypeOrmModule.forFeature([Ticket, Category, Priority, SlaPolicy, Client, User, TicketComment, TicketAttachment, TicketHistory, SatisfactionSurvey, TicketCounter])], controllers: [TicketsController, AttachmentsController], providers: [TicketsService], exports: [TicketsService] })
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([Ticket, Category, Priority, SlaPolicy, Client, User, TicketComment, TicketAttachment, TicketHistory, SatisfactionSurvey, TicketCounter]),
+    NotificationsModule,
+    N8nIntegrationModule,
+  ],
+  controllers: [TicketsController, AttachmentsController],
+  providers: [TicketsService],
+  exports: [TicketsService],
+})
 export class TicketsModule {}

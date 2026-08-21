@@ -170,7 +170,6 @@ export class OpportunitiesService {
         hasPublishedAutomaticSurvey: true,
         invitation: existing,
       })
-      if (existing && status === 'PENDING') throw new ConflictException(ACTIVE_INVITATION_EXISTS)
       if (existing && canRegenerateInvitation(status) && !dto.confirmRegenerate) {
         throw new ConflictException(REGENERATE_CONFIRMATION_REQUIRED)
       }

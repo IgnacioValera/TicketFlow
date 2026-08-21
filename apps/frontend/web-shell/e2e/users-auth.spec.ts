@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { chooseSelectOption } from './select'
 
 async function login(page: Page, email: string, password = 'password') {
   const currentUrl = page.url()
@@ -17,14 +18,11 @@ async function loginSuccessfully(page: Page, email: string, password = 'password
 }
 
 async function navigateSpa(page: Page, path: string) {
-  await page.evaluate((nextPath) => {
-    window.history.pushState({}, '', nextPath)
-    window.dispatchEvent(new PopStateEvent('popstate'))
-  }, path)
+  await page.goto(path, { waitUntil: 'domcontentloaded' })
 }
 
 async function logout(page: Page) {
-  await page.locator('header button[aria-expanded]:not([aria-label="Creación rápida"])').click()
+  await page.locator('header button[aria-label="Perfil"]').click()
   await page.getByRole('button', { name: 'Cerrar sesión' }).click()
   await expect(page).toHaveURL(/login/)
 }
@@ -39,7 +37,12 @@ async function createManagedUser(page: Page, fullName: string, email: string, ro
   await page.getByLabel('Correo electrónico').fill(email)
   await page.getByLabel('Contraseña inicial').fill('Password1!')
   await page.getByLabel('Confirmar contraseña').fill('Password1!')
-  await page.getByLabel('Rol').selectOption({ label: roleLabel })
+  await chooseSelectOption(page.getByLabel('Rol', { exact: true }), { label: roleLabel })
+  if (roleLabel === 'Solicitante') {
+    await page.locator('#clientId').click()
+    await expect(page.getByRole('option').nth(1)).toBeVisible({ timeout: 10000 })
+    await page.getByRole('option').nth(1).click()
+  }
   await page.getByRole('button', { name: 'Crear usuario' }).click()
   await expect(page).toHaveURL(/\/users$/)
   await expect(page.getByRole('button', { name: `Editar usuario ${fullName}` })).toBeVisible({

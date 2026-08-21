@@ -1,6 +1,7 @@
 import { apiGet, apiPatch, apiPost, apiPut } from '@/services/apiClient'
 import type { ApiResponse } from '@/types/api.types'
 import type {
+  ClientOption,
   CreateUserPayload,
   UpdateUserPayload,
   User,
@@ -15,6 +16,17 @@ export async function getUsers(params: UsersListParams = {}) {
 
 export async function getAssignableUsers() {
   const response = await apiGet<User[]>('/users/assignable')
+  return response as ApiResponse<User[]>
+}
+
+export async function getClientOptions(params: { page?: number; perPage?: number; search?: string } = {}) {
+  return apiGet<ClientOption[]>('/users/client-options', params as Record<string, unknown>) as Promise<
+    ApiResponse<ClientOption[]>
+  >
+}
+
+export async function getRequesters() {
+  const response = await apiGet<User[]>('/users/requesters')
   return response as ApiResponse<User[]>
 }
 

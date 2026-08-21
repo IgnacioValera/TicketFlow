@@ -20,6 +20,15 @@ export class UsersController {
     return result(await this.users.listAssignable())
   }
 
+  @RequireRoles(RoleCode.ADMIN) @Get('client-options') async clientOptions(@Query() query: UsersQueryDto) {
+    const response = await this.users.listClientOptions(query)
+    return result(response.items, 'OK', response.meta)
+  }
+
+  @RequireRoles(RoleCode.ADMIN, RoleCode.SUPERVISOR) @Get('requesters') async requesters() {
+    return result(await this.users.listRequesters())
+  }
+
   @RequireRoles(RoleCode.ADMIN) @Get(':id') async find(@Param('id', ParseUuidPipe) id: string) {
     return result(this.users.serialize(await this.users.find(id)))
   }

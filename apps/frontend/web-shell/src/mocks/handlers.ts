@@ -4,7 +4,17 @@ import type { Category, Company, Priority, SlaPolicy } from '@/types/catalog.typ
 import type { User, UserRole, UserStatus } from '@/types/user.types'
 import { createCrmHandlers } from '@/mocks/crm.handlers'
 import { createTicketHandlers } from '@/mocks/ticket.handlers'
+import { createAccessHandlers } from '@/mocks/access.handlers'
+import {
+  listNotifications,
+  markAllRead,
+  markNotificationRead,
+  unreadCount,
+} from '@/mocks/notifications-store'
+import { mockKnowledgeArticles, findMockKnowledgeArticle, findMockKnowledgeArticleIncludingInactive, isKnowledgeUuid } from '@/mocks/knowledge-data'
 import { validatePasswordPolicy } from '@/utils/validation'
+
+const USERS_STORE_KEY = 'ticketflow-mock-users-v1'
 
 const mockPasswords: Record<string, string> = {
   '1': 'password',
@@ -14,7 +24,7 @@ const mockPasswords: Record<string, string> = {
   '5': 'password',
 }
 
-const mockUsers: User[] = [
+const seedUsers: User[] = [
   {
     id: '1',
     fullName: 'Admin Sistema',
@@ -52,9 +62,11 @@ const mockUsers: User[] = [
     id: '4',
     fullName: 'Usuario Solicitante',
     email: 'requester@helpdesk.com',
-    role: 'CLIENT',
+    role: 'REQUESTER',
     status: 'ACTIVE',
-    permissions: ROLE_PERMISSIONS.CLIENT,
+    clientId: 'c1',
+    clientName: 'Acme Corp',
+    permissions: ROLE_PERMISSIONS.REQUESTER,
     mustChangePassword: false,
     lastLoginAt: '2026-08-18T08:00:00.000Z',
     createdAt: '2026-03-20T09:00:00.000Z',
@@ -72,25 +84,43 @@ const mockUsers: User[] = [
   },
 ]
 
-const mockKnowledge: Array<{
-  id: string
-  title: string
-  content: string
-  tags: string
-  topic: string
-  category: { id: string; name: string } | null
-  updatedAt: string
-}> = [
-  {
-    id: 'k1',
-    title: 'Cómo restablecer la contraseña',
-    content:
-      'Si olvidaste tu contraseña, selecciona “¿Olvidaste tu contraseña?” en la pantalla de inicio de sesión. TicketFlow te indicará que debes solicitar el restablecimiento a un administrador.',
-    tags: 'contraseña, acceso, cuenta, administrador',
-    topic: 'Accesos',
-    category: { id: '3', name: 'Accesos' },
-    updatedAt: '2026-08-17T12:00:00.000Z',
-  },
+function readStore<T>(key: string, fallback: T): T {
+  if (typeof sessionStorage === 'undefined') return fallback
+  try {
+    const raw = sessionStorage.getItem(key)
+    if (!raw) return fallback
+    return JSON.parse(raw) as T
+  } catch {
+    return fallback
+  }
+}
+
+function writeStore(key: string, value: unknown) {
+  if (typeof sessionStorage === 'undefined') return
+  sessionStorage.setItem(key, JSON.stringify(value))
+}
+
+const mockUsers: User[] = (() => {
+  const stored = readStore<User[] | null>(USERS_STORE_KEY, null)
+  return stored?.length ? stored : seedUsers.map((user) => ({ ...user }))
+})()
+
+// After remounts, users may come from sessionStorage while in-memory passwords reset.
+for (const user of mockUsers) {
+  if (mockPasswords[user.id] == null) {
+    mockPasswords[user.id] = user.mustChangePassword ? 'Tf-A7k9!mQ2x' : 'Password1!'
+  }
+}
+
+function persistUsers() {
+  // Persist users (incl. mustChangePassword) but never plaintext passwords.
+  writeStore(USERS_STORE_KEY, mockUsers)
+}
+
+const mockClientOptions = [
+  { id: 'c1', name: 'Acme Corp' },
+  { id: 'c2', name: 'Globex' },
+  { id: 'c3', name: 'Initech' },
 ]
 
 const mockCategories: Category[] = [
@@ -382,6 +412,7 @@ export const handlers = [
     }
     mockPasswords[actor.id] = body.newPassword
     actor.mustChangePassword = false
+    persistUsers()
     return HttpResponse.json({
       success: true,
       message: 'Tu contraseña se actualizó correctamente.',
@@ -446,6 +477,71 @@ export const handlers = [
     })
   }),
 
+  http.get('*/users/client-options', async ({ request }) => {
+    const url = new URL(request.url)
+    const search = url.searchParams.get('search')?.toLowerCase() ?? ''
+    const filtered = mockClientOptions.filter((item) => item.name.toLowerCase().includes(search))
+    const page = Number(url.searchParams.get('page')) || 1
+    const perPage = Number(url.searchParams.get('perPage')) || 20
+    const result = paginate(filtered, page, perPage)
+    return HttpResponse.json({
+      success: true,
+      message: 'OK',
+      data: result.data,
+      meta: result.meta,
+    })
+  }),
+
+  http.get('*/users/requesters', async () => {
+    const requesters = mockUsers.filter(
+      (user) => (user.role === 'REQUESTER' || user.role === 'CLIENT') && user.status === 'ACTIVE',
+    )
+    return HttpResponse.json({ success: true, message: 'OK', data: requesters, meta: null })
+  }),
+
+  http.get('*/notifications/unread-count', async ({ request }) => {
+    const actor = findUserByToken(request.headers.get('Authorization'))
+    if (!actor) {
+      return HttpResponse.json({ success: false, message: 'No autenticado', data: null, meta: null }, { status: 401 })
+    }
+    return HttpResponse.json({ success: true, message: 'OK', data: { count: unreadCount(actor.id) }, meta: null })
+  }),
+
+  http.patch('*/notifications/read-all', async ({ request }) => {
+    const actor = findUserByToken(request.headers.get('Authorization'))
+    if (!actor) {
+      return HttpResponse.json({ success: false, message: 'No autenticado', data: null, meta: null }, { status: 401 })
+    }
+    markAllRead(actor.id)
+    return HttpResponse.json({ success: true, message: 'Notificaciones actualizadas', data: { updated: true }, meta: null })
+  }),
+
+  http.patch('*/notifications/:id/read', async ({ params, request }) => {
+    const actor = findUserByToken(request.headers.get('Authorization'))
+    if (!actor) {
+      return HttpResponse.json({ success: false, message: 'No autenticado', data: null, meta: null }, { status: 401 })
+    }
+    const item = markNotificationRead(String(params.id), actor.id)
+    if (!item) {
+      return HttpResponse.json({ success: false, message: 'Notificación no encontrada', data: null, meta: null }, { status: 404 })
+    }
+    return HttpResponse.json({ success: true, message: 'Notificación leída', data: item, meta: null })
+  }),
+
+  http.get('*/notifications', async ({ request }) => {
+    const actor = findUserByToken(request.headers.get('Authorization'))
+    if (!actor) {
+      return HttpResponse.json({ success: false, message: 'No autenticado', data: null, meta: null }, { status: 401 })
+    }
+    const url = new URL(request.url)
+    const result = listNotifications(actor.id, {
+      page: Number(url.searchParams.get('page')) || 1,
+      perPage: Number(url.searchParams.get('perPage')) || 20,
+      unread: url.searchParams.get('unread') === 'true',
+    })
+    return HttpResponse.json({ success: true, message: 'OK', data: result.items, meta: result.meta })
+  }),
+
   http.get('*/users/:id', async ({ params, request }) => {
     const user = mockUsers.find((u) => u.id === params.id)
     if (!user) {
@@ -464,7 +560,20 @@ export const handlers = [
       email: string
       password: string
       role: UserRole
+      clientId?: string
     }
+    if (body.role === 'REQUESTER' && !body.clientId) {
+      return HttpResponse.json(
+        {
+          success: false,
+          message: 'Selecciona el cliente al que pertenece el solicitante.',
+          data: null,
+          meta: null,
+        },
+        { status: 400 },
+      )
+    }
+    const client = mockClientOptions.find((item) => item.id === body.clientId)
     if (mockUsers.some((u) => u.email.toLowerCase() === body.email.trim().toLowerCase())) {
       return HttpResponse.json(
         {
@@ -482,11 +591,14 @@ export const handlers = [
       email: body.email.trim().toLowerCase(),
       role: body.role,
       status: 'ACTIVE',
+      clientId: body.role === 'REQUESTER' ? client?.id ?? null : null,
+      clientName: body.role === 'REQUESTER' ? client?.name ?? null : null,
       permissions: ROLE_PERMISSIONS[body.role],
       mustChangePassword: false,
     }
     mockUsers.push(newUser)
     mockPasswords[newUser.id] = body.password
+    persistUsers()
     return HttpResponse.json(
       { success: true, message: 'Usuario creado', data: newUser, meta: null },
       { status: 201 },
@@ -508,6 +620,7 @@ export const handlers = [
       permissions: body.role ? ROLE_PERMISSIONS[body.role] : mockUsers[index].permissions,
     }
     mockUsers[index] = updated
+    persistUsers()
     return HttpResponse.json({
       success: true,
       message: 'Usuario actualizado',
@@ -526,6 +639,7 @@ export const handlers = [
       )
     }
     mockUsers[index] = { ...mockUsers[index], status: body.status }
+    persistUsers()
     return HttpResponse.json({
       success: true,
       message: 'Estado actualizado',
@@ -567,6 +681,7 @@ export const handlers = [
     }
     user.mustChangePassword = true
     mockPasswords[user.id] = 'Tf-A7k9!mQ2x'
+    persistUsers()
     return HttpResponse.json({
       success: true,
       message: 'La contraseña se restableció correctamente.',
@@ -1006,73 +1121,33 @@ export const handlers = [
     return HttpResponse.json({ success: true, message: 'OK', data: company, meta: null })
   }),
 
-  http.get('*/api/v1/dashboard/summary', async ({ request }) => {
-    const user = findUserByToken(request.headers.get('Authorization'))
-    const url = new URL(request.url)
-    const scopeParam = url.searchParams.get('scope')
-    const isAgent = user?.role === 'AGENT' || scopeParam === 'OWN'
-
-    const summary = isAgent
-      ? {
-          scope: 'OWN',
-          kpis: [
-            { key: 'open', label: 'Abiertos', value: 8 },
-            { key: 'overdue', label: 'Vencidos', value: 2 },
-            { key: 'resolved', label: 'Resueltos', value: 21 },
-            { key: 'inProgress', label: 'En proceso', value: 5 },
-          ],
-          trend: [
-            { period: 'Lun', open: 4, inProgress: 3, resolved: 5 },
-            { period: 'Mar', open: 5, inProgress: 4, resolved: 4 },
-            { period: 'Mie', open: 6, inProgress: 3, resolved: 6 },
-            { period: 'Jue', open: 5, inProgress: 4, resolved: 5 },
-            { period: 'Vie', open: 8, inProgress: 5, resolved: 4 },
-          ],
-          distribution: [
-            { name: 'Abiertos', value: 8 },
-            { name: 'En proceso', value: 5 },
-            { name: 'Resueltos', value: 21 },
-            { name: 'Vencidos', value: 2 },
-          ],
-        }
-      : {
-          scope: 'GLOBAL',
-          kpis: [
-            { key: 'open', label: 'Abiertos', value: 42 },
-            { key: 'overdue', label: 'Vencidos', value: 11 },
-            { key: 'resolved', label: 'Resueltos', value: 164 },
-            { key: 'inProgress', label: 'En proceso', value: 27 },
-          ],
-          trend: [
-            { period: 'Lun', open: 32, inProgress: 24, resolved: 28 },
-            { period: 'Mar', open: 36, inProgress: 26, resolved: 30 },
-            { period: 'Mie', open: 35, inProgress: 23, resolved: 34 },
-            { period: 'Jue', open: 40, inProgress: 25, resolved: 29 },
-            { period: 'Vie', open: 42, inProgress: 27, resolved: 43 },
-          ],
-          distribution: [
-            { name: 'Abiertos', value: 42 },
-            { name: 'En proceso', value: 27 },
-            { name: 'Resueltos', value: 164 },
-            { name: 'Vencidos', value: 11 },
-          ],
-        }
-
-    return HttpResponse.json({
-      success: true,
-      message: 'OK',
-      data: summary,
-      meta: null,
-    })
-  }),
-
   ...createCrmHandlers(mockUsers),
   ...createTicketHandlers(mockUsers),
+  ...createAccessHandlers(mockUsers, findUserByToken),
+
+  http.get('*/knowledge-articles/:id', async ({ params }) => {
+    const id = String(params.id)
+    if (isKnowledgeUuid(id)) {
+      return HttpResponse.json(
+        { success: false, message: 'Artículo no encontrado', data: null, meta: null },
+        { status: 404 },
+      )
+    }
+    const article = findMockKnowledgeArticle(id)
+    if (!article) {
+      return HttpResponse.json(
+        { success: false, message: 'Artículo no encontrado', data: null, meta: null },
+        { status: 404 },
+      )
+    }
+    return HttpResponse.json({ success: true, message: 'OK', data: article, meta: null })
+  }),
 
   http.get('*/knowledge-articles', async ({ request }) => {
     const url = new URL(request.url)
     const search = (url.searchParams.get('search') ?? '').toLowerCase()
-    const filtered = mockKnowledge.filter((article) => {
+    const filtered = mockKnowledgeArticles.filter((article) => {
+      if (article.status !== 'ACTIVE') return false
       if (!search) return true
       return (
         article.title.toLowerCase().includes(search) ||
@@ -1084,17 +1159,38 @@ export const handlers = [
   }),
 
   http.post('*/knowledge-articles', async ({ request }) => {
-    const body = (await request.json()) as { title: string; content: string; tags?: string }
-    const article = {
-      id: String(mockKnowledge.length + 1),
-      title: body.title,
-      content: body.content,
-      tags: body.tags ?? '',
-      topic: 'General',
-      category: null,
-      updatedAt: new Date().toISOString(),
+    const body = (await request.json()) as {
+      title: string
+      content: string
+      tags?: string
+      categoryId?: string | null
     }
-    mockKnowledge.push(article)
+    if (body.categoryId) {
+      const category = mockCategories.find((item) => item.id === body.categoryId)
+      if (!category) {
+        return HttpResponse.json(
+          { success: false, message: 'Categoría no encontrada', data: null, meta: null },
+          { status: 404 },
+        )
+      }
+    }
+    const article = {
+      id: `k${Date.now()}`,
+      title: body.title.trim(),
+      content: body.content.trim(),
+      tags: body.tags?.trim() ?? '',
+      topic: 'General',
+      category: body.categoryId
+        ? mockCategories
+            .filter((item) => item.id === body.categoryId)
+            .map((item) => ({ id: item.id, name: item.name }))[0] ?? null
+        : null,
+      author: { id: '1', fullName: 'Admin Sistema' },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: 'ACTIVE' as const,
+    }
+    mockKnowledgeArticles.push(article)
     return HttpResponse.json(
       { success: true, message: 'Artículo creado', data: article, meta: null },
       { status: 201 },
@@ -1102,43 +1198,77 @@ export const handlers = [
   }),
 
   http.put('*/knowledge-articles/:id', async ({ params, request }) => {
-    const body = (await request.json()) as { title?: string; content?: string; tags?: string }
-    const index = mockKnowledge.findIndex((article) => article.id === params.id)
+    const body = (await request.json()) as {
+      title?: string
+      content?: string
+      tags?: string
+      categoryId?: string | null
+    }
+    const index = mockKnowledgeArticles.findIndex((article) => article.id === params.id)
     if (index === -1) {
       return HttpResponse.json(
         { success: false, message: 'Artículo no encontrado', data: null, meta: null },
         { status: 404 },
       )
     }
-    mockKnowledge[index] = { ...mockKnowledge[index], ...body, updatedAt: new Date().toISOString() }
+    if (body.categoryId) {
+      const category = mockCategories.find((item) => item.id === body.categoryId)
+      if (!category) {
+        return HttpResponse.json(
+          { success: false, message: 'Categoría no encontrada', data: null, meta: null },
+          { status: 404 },
+        )
+      }
+    }
+    const current = mockKnowledgeArticles[index]
+    mockKnowledgeArticles[index] = {
+      ...current,
+      title: body.title?.trim() ?? current.title,
+      content: body.content?.trim() ?? current.content,
+      tags: body.tags !== undefined ? body.tags.trim() : current.tags,
+      category:
+        body.categoryId === null
+          ? null
+          : body.categoryId
+            ? {
+                id: body.categoryId,
+                name: mockCategories.find((item) => item.id === body.categoryId)?.name ?? 'General',
+              }
+            : current.category,
+      updatedAt: new Date().toISOString(),
+    }
     return HttpResponse.json({
       success: true,
       message: 'Artículo actualizado',
-      data: mockKnowledge[index],
+      data: mockKnowledgeArticles[index],
       meta: null,
     })
   }),
 
   http.delete('*/knowledge-articles/:id', async ({ params }) => {
-    const index = mockKnowledge.findIndex((article) => article.id === params.id)
-    if (index === -1) {
+    const article = findMockKnowledgeArticleIncludingInactive(String(params.id))
+    if (!article) {
       return HttpResponse.json(
         { success: false, message: 'Artículo no encontrado', data: null, meta: null },
         { status: 404 },
       )
     }
-    const [removed] = mockKnowledge.splice(index, 1)
+    article.status = 'INACTIVE'
     return HttpResponse.json({
       success: true,
       message: 'Artículo desactivado',
-      data: removed,
+      data: article,
       meta: null,
     })
   }),
 ]
 
+let mockingEnabled = false
+
 export async function enableMocking() {
+  if (mockingEnabled) return
   const { setupWorker } = await import('msw/browser')
   const worker = setupWorker(...handlers)
   await worker.start({ onUnhandledRequest: 'bypass' })
+  mockingEnabled = true
 }
