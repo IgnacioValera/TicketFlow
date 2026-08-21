@@ -107,7 +107,7 @@ export function Client360Page() {
         <KpiCard title="Actividades" value={data.activities.length} tone="neutral" />
       </section>
 
-      <KpiCard title="Puntuación del cliente" value={`${data.kpis.score} / 100`} tone="success" />
+      <ClientScoreCard kpis={data.kpis} />
 
       <div className="flex flex-wrap gap-1 border-b border-slate-200">
         {TABS.map((item) => (
@@ -231,5 +231,57 @@ export function Client360Page() {
         </div>
       )}
     </div>
+  )
+}
+
+function ClientScoreCard({ kpis }: { kpis: Customer360['kpis'] }) {
+  const [open, setOpen] = useState(false)
+  const insufficient = kpis.insufficient || kpis.score == null
+  const factors = kpis.factors ?? []
+
+  return (
+    <article className="rounded border border-emerald-200 bg-white px-4 py-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Puntuación del cliente</p>
+          <p className="mt-2 text-2xl font-semibold leading-none text-emerald-800">
+            {insufficient ? 'Sin información suficiente' : `${kpis.score} / 100`}
+          </p>
+        </div>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 rounded border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-brand-navy hover:bg-page"
+          aria-expanded={open}
+          onClick={() => setOpen((current) => !current)}
+        >
+          <AppIcon name="info" className="h-4 w-4" />
+          ¿Cómo se calcula?
+        </button>
+      </div>
+      {open ? (
+        <div className="mt-4 border-t border-slate-100 pt-3 text-sm">
+          <p className="text-muted">
+            Se calcula con datos reales de satisfacción, oportunidades, actividad comercial, tickets y antigüedad. No se usa un valor fijo.
+          </p>
+          {insufficient ? (
+            <p className="mt-2 text-text">Todavía no hay señales suficientes para puntuar a este cliente.</p>
+          ) : (
+            <ul className="mt-3 space-y-2">
+              {factors.map((factor) => (
+                <li key={factor.key}>
+                  <p className="font-medium text-brand-navy">
+                    {factor.label}: {factor.hasData ? `${factor.points}/${factor.weight}` : 'Sin datos'}
+                  </p>
+                  <p className="text-xs text-muted">{factor.description}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+          {kpis.updatedAt ? (
+            <p className="mt-3 text-xs text-muted">Última actualización: {formatDate(kpis.updatedAt)}</p>
+          ) : null}
+        </div>
+      ) : null}
+    </article>
   )
 }

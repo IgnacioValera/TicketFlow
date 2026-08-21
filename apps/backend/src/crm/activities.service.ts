@@ -62,10 +62,18 @@ export class ActivitiesService {
     const activity = await this.find(id)
     await this.clients.getAccessible(activity.client.id, user)
     if (activity.status === ActivityStatus.COMPLETED) throw new UnprocessableEntityException('La actividad ya está completada')
+    if (activity.status === ActivityStatus.CANCELLED) throw new UnprocessableEntityException('La actividad ya está cancelada')
     activity.status = ActivityStatus.COMPLETED
     activity.completedAt = new Date()
     await this.activities.save(activity)
     return this.serialize(await this.find(id))
+  }
+
+  async remove(id: string, user: User) {
+    const activity = await this.find(id)
+    await this.clients.getAccessible(activity.client.id, user)
+    await this.activities.remove(activity)
+    return this.serialize(activity)
   }
 
   serialize(item: CrmActivity) {

@@ -78,7 +78,7 @@ export interface CreateSlaPolicyPayload {
 
 export interface UpdateSlaPolicyPayload {
   name: string
-  priorityId: string
+  priorityId?: string
   responseHours: number
   resolutionHours: number
 }

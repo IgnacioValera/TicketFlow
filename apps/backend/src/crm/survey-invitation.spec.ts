@@ -60,7 +60,7 @@ describe('Automatización de encuestas CRM', () => {
     ).toBe('REVOKED')
     expect(canRegenerateInvitation('EXPIRED')).toBe(true)
     expect(canRegenerateInvitation('RESPONDED')).toBe(false)
-    expect(canRegenerateInvitation('PENDING')).toBe(false)
+    expect(canRegenerateInvitation('PENDING')).toBe(true)
   })
 
   it('guarda hash y no el token en claro', () => {

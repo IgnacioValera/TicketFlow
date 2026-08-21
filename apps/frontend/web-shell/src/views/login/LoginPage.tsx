@@ -33,7 +33,9 @@ export function LoginPage() {
     if (notice) clearLoginNotice()
   }, [notice])
 
-  if (isLoading) return <PageLoader />
+  if (isLoading || submitting) {
+    return <PageLoader label={submitting ? 'Ingresando…' : 'Cargando información…'} />
+  }
 
   if (isAuthenticated) {
     return <ClientRedirect href={getHomePath(user)} />

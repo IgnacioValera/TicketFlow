@@ -140,7 +140,24 @@ export interface CrmDashboard {
 
 export interface Customer360 {
   client: CrmClient
-  kpis: { score: number; contacts: number; openOpportunities: number; wonAmount: number; openTickets: number }
+  kpis: {
+    score: number | null
+    insufficient?: boolean
+    factors?: Array<{
+      key: string
+      label: string
+      description: string
+      weight: number
+      value: number | null
+      points: number
+      hasData: boolean
+    }>
+    updatedAt?: string
+    contacts: number
+    openOpportunities: number
+    wonAmount: number
+    openTickets: number
+  }
   contacts: CrmContact[]
   opportunities: Array<{ id: string; title: string; amount: number; stage: OpportunityStage; probability: number }>
   activities: Array<{ id: string; type: ActivityType; status: ActivityStatus; subject: string; createdAt: string }>

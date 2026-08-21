@@ -11,11 +11,18 @@ describe('NPS', () => {
 })
 
 describe('Score CRM', () => {
-  it('usa 50 sin datos', () => {
+  it('no inventa 50/100 cuando faltan datos', () => {
     expect(calculateClientScore({
       ticketRatings: [], crmNpsScores: [], wonCount: 0, lostCount: 0, completedActivities90d: 0,
       totalActivities: 0, closedTickets: 0, totalTickets: 0, ageDays: 0,
-    })).toBe(50)
+    })).toMatchObject({ score: null, insufficient: true })
+  })
+
+  it('usa la misma fórmula ponderada que el backend', () => {
+    expect(calculateClientScore({
+      ticketRatings: [5], crmNpsScores: [10], wonCount: 2, lostCount: 0, completedActivities90d: 8,
+      totalActivities: 8, closedTickets: 4, totalTickets: 4, ageDays: 730,
+    }).score).toBe(100)
   })
 })
 

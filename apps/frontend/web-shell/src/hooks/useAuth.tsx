@@ -20,9 +20,11 @@ interface AuthContextValue {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
+  sessionError: string | null
   login: (credentials: LoginCredentials) => Promise<User>
   logout: () => Promise<void>
   refreshProfile: () => Promise<void>
+  retrySession: () => Promise<void>
   updateOwnProfile: (payload: { fullName: string }) => Promise<User>
 }
 
@@ -47,6 +49,7 @@ function setSessionUser(user: User | null) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(sessionUser)
   const [isLoading, setIsLoading] = useState(() => !sessionUser && Boolean(tokenStorage.getAccessToken()))
+  const [sessionError, setSessionError] = useState<string | null>(null)
   const profileEpoch = useRef(0)
 
   const logout = useCallback(async () => {
@@ -54,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authService.logout()
     setSessionUser(null)
     setUser(null)
+    setSessionError(null)
   }, [])
 
   const refreshProfile = useCallback(async () => {
@@ -84,6 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         tokenStorage.clearTokens()
         setSessionUser(null)
         setUser(null)
+        setSessionError(null)
       },
       () => refreshProfile(),
     )
@@ -105,32 +110,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshProfile])
 
-  useEffect(() => {
-    if (sessionUser) {
+  const restoreSession = useCallback(async () => {
+    const token = tokenStorage.getAccessToken()
+    if (sessionUser || !token) {
+      setSessionError(null)
       setIsLoading(false)
       return
     }
-    const init = async () => {
-      const token = tokenStorage.getAccessToken()
-      if (!token) {
-        setIsLoading(false)
-        return
-      }
-      try {
-        const profile = await authService.getProfile()
-        const normalized = normalizeUser(profile)
-        setSessionUser(normalized)
-        setUser(normalized)
-      } catch {
+    setIsLoading(true)
+    setSessionError(null)
+    try {
+      const profile = await authService.getProfile()
+      const normalized = normalizeUser(profile)
+      setSessionUser(normalized)
+      setUser(normalized)
+      setSessionError(null)
+    } catch (error: unknown) {
+      const status = (error as { status?: number }).status
+      if (status === 401) {
         tokenStorage.clearTokens()
         setSessionUser(null)
         setUser(null)
-      } finally {
-        setIsLoading(false)
+        setSessionError(null)
+      } else {
+        setSessionError('No se pudo validar la sesión.')
       }
+    } finally {
+      setIsLoading(false)
     }
-    void init()
   }, [])
+
+  useEffect(() => {
+    void restoreSession()
+  }, [restoreSession])
 
   const login = useCallback(async (credentials: LoginCredentials) => {
     const response = await authService.login(credentials)
@@ -138,6 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     flushSync(() => {
       setSessionUser(normalized)
       setUser(normalized)
+      setSessionError(null)
     })
     return normalized
   }, [])
@@ -147,12 +160,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       isAuthenticated: !!user,
       isLoading,
+      sessionError,
       login,
       logout,
       refreshProfile,
+      retrySession: restoreSession,
       updateOwnProfile,
     }),
-    [user, isLoading, login, logout, refreshProfile, updateOwnProfile],
+    [user, isLoading, sessionError, login, logout, refreshProfile, restoreSession, updateOwnProfile],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

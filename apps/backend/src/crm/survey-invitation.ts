@@ -47,7 +47,7 @@ export function invitationCardStatus(input: {
 }
 
 export function canRegenerateInvitation(status: InvitationCardStatus) {
-  return status === 'EXPIRED' || status === 'REVOKED'
+  return status === 'EXPIRED' || status === 'REVOKED' || status === 'PENDING'
 }
 
 export function buildPublicSurveyUrl(frontendUrl: string, rawToken: string) {
