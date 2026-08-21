@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common'
+import { ConflictException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Brackets, Repository } from 'typeorm'
 import { pagination, parsePagination } from '../common/api'
 import { toCsv } from '../common/csv'
 import { CrmContact, User } from '../database/entities'
 import { applyClientScope } from './access'
+import { isForeignKeyViolation, isUniqueViolation } from './db-errors'
 import { ContactsQueryDto, CreateContactDto, UpdateContactDto } from './dto'
 import { ClientsService } from './clients.service'
 
@@ -29,6 +30,7 @@ export class ContactsService {
 
   async create(dto: CreateContactDto, user: User) {
     const client = await this.clients.getAccessible(dto.clientId, user)
+    await this.assertUniqueEmail(dto.email, client.id)
     const contact = await this.contacts.save(this.contacts.create({
       client, firstName: dto.firstName.trim(), lastName: dto.lastName.trim(), email: dto.email.toLowerCase().trim(),
       phone: dto.phone?.trim() ?? '', jobTitle: dto.jobTitle?.trim() ?? '', isPrimary: Boolean(dto.isPrimary),
@@ -43,13 +45,19 @@ export class ContactsService {
     if (dto.clientId && dto.clientId !== contact.client.id) {
       contact.client = await this.clients.getAccessible(dto.clientId, user)
     }
+    if (dto.email) await this.assertUniqueEmail(dto.email, contact.client.id, contact.id)
     if (dto.firstName) contact.firstName = dto.firstName.trim()
     if (dto.lastName) contact.lastName = dto.lastName.trim()
     if (dto.email) contact.email = dto.email.toLowerCase().trim()
     if (dto.phone !== undefined) contact.phone = dto.phone.trim()
     if (dto.jobTitle !== undefined) contact.jobTitle = dto.jobTitle.trim()
     if (dto.isPrimary !== undefined) contact.isPrimary = dto.isPrimary
-    await this.contacts.save(contact)
+    try {
+      await this.contacts.save(contact)
+    } catch (error) {
+      if (isUniqueViolation(error)) throw new ConflictException('Ya existe un contacto con ese correo para este cliente')
+      throw error
+    }
     if (contact.isPrimary) await this.clearOtherPrimaries(contact.client.id, contact.id)
     return this.serialize(await this.find(id))
   }
@@ -57,7 +65,16 @@ export class ContactsService {
   async remove(id: string, user: User) {
     const contact = await this.find(id)
     await this.clients.getAccessible(contact.client.id, user)
-    await this.contacts.remove(contact)
+    try {
+      await this.contacts.manager.transaction(async (manager) => {
+        await manager.remove(CrmContact, contact)
+      })
+    } catch (error) {
+      if (isForeignKeyViolation(error)) {
+        throw new ConflictException('No se puede eliminar el contacto porque tiene información relacionada que lo impide. El cliente, las oportunidades y las actividades se conservan.')
+      }
+      throw error
+    }
     return { id }
   }
 
@@ -87,6 +104,14 @@ export class ContactsService {
     const contact = await this.contacts.findOne({ where: { id }, relations: { client: true } })
     if (!contact) throw new NotFoundException('Contacto no encontrado')
     return contact
+  }
+
+  private async assertUniqueEmail(email: string, clientId: string, ignoreId?: string) {
+    const normalized = email.toLowerCase().trim()
+    const existing = await this.contacts.findOne({ where: { email: normalized, client: { id: clientId } }, relations: { client: true } })
+    if (existing && existing.id !== ignoreId) {
+      throw new ConflictException('Ya existe un contacto con ese correo para este cliente')
+    }
   }
 
   private async clearOtherPrimaries(clientId: string, keepId: string) {
