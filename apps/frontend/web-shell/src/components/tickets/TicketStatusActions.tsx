@@ -1,12 +1,13 @@
 import { useState } from 'react'
+import { ConfirmModal, Modal } from '@/components/common/Modal'
 import { PERMISSIONS } from '@/constants/permissions'
 import { LIMITS } from '@/constants/validation'
 import { useAuth } from '@/hooks/useAuth'
 import { usePermissions } from '@/hooks/usePermissions'
 import type { Ticket, TicketStatus } from '@/types/ticket.types'
+import { reasonCaptureCopy } from '@/utils/ticket-event-context'
 import { errorMessage, maxLengthAfterTrim, requiredTrimmed } from '@/utils/validation'
 import { getAllowedTransitions, STATUS_ACTION_LABELS } from '@/utils/ticket-state-machine'
-import { ConfirmModal, Modal } from '@/components/common/Modal'
 
 interface TicketStatusActionsProps {
   ticket: Ticket
@@ -83,11 +84,13 @@ export function TicketStatusActions({
 
   const handleReasonConfirm = async () => {
     if (!reasonModal) return
+    const targetStatus = reasonModal.status ?? 'ESCALATED'
+    const copy = reasonCaptureCopy(ticket.status, targetStatus, reasonModal.type)
     const min = reasonModal.type === 'escalate' ? LIMITS.ESCALATE_REASON_MIN : 1
     const validation =
-      requiredTrimmed(reason, 'El motivo') ||
-      (reason.trim().length < min ? `El motivo debe tener al menos ${min} caracteres` : null) ||
-      maxLengthAfterTrim(reason, 'El motivo', LIMITS.REASON)
+      requiredTrimmed(reason, copy.label) ||
+      (reason.trim().length < min ? `${copy.label} debe tener al menos ${min} caracteres` : null) ||
+      maxLengthAfterTrim(reason, copy.label, LIMITS.REASON)
     if (validation) {
       setReasonError(validation)
       return
@@ -129,12 +132,15 @@ export function TicketStatusActions({
     return null
   }
 
-  const reasonLabel =
-    reasonModal?.status === 'IN_PROGRESS' && ticket.status === 'CLOSED'
-      ? 'Motivo de reapertura (obligatorio)'
+  const capture =
+    reasonModal?.status
+      ? reasonCaptureCopy(ticket.status, reasonModal.status, reasonModal.type)
       : reasonModal?.type === 'escalate'
-        ? 'Motivo del escalamiento (obligatorio)'
-        : 'Motivo del cambio (obligatorio)'
+        ? reasonCaptureCopy(ticket.status, 'ESCALATED', 'escalate')
+        : null
+  const reasonId = 'ticket-reason-field'
+  const helperId = 'ticket-reason-helper'
+  const errorId = 'ticket-reason-error'
 
   return (
     <div className="space-y-2">
@@ -193,7 +199,7 @@ export function TicketStatusActions({
           setReason('')
           setReasonError('')
         }}
-        title={reasonModal?.type === 'escalate' ? 'Escalar ticket' : 'Motivo del cambio'}
+        title={capture?.title ?? 'Motivo del cambio'}
         footer={
           <>
             <button
@@ -219,15 +225,40 @@ export function TicketStatusActions({
           </>
         }
       >
-        <textarea
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          rows={3}
-          maxLength={LIMITS.REASON}
-          placeholder={`${reasonLabel}...`}
-          className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
-        />
-        {reasonError && <p className="mt-2 text-sm text-brand-scarlet">{reasonError}</p>}
+        {capture ? (
+          <>
+            <label htmlFor={reasonId} className="mb-1 block text-sm font-medium text-brand-navy">
+              {capture.label}
+            </label>
+            <textarea
+              id={reasonId}
+              value={reason}
+              onChange={(e) => {
+                setReason(e.target.value)
+                if (reasonError) setReasonError('')
+              }}
+              rows={4}
+              maxLength={LIMITS.REASON}
+              placeholder={capture.placeholder}
+              aria-invalid={reasonError ? true : undefined}
+              aria-describedby={`${helperId}${reasonError ? ` ${errorId}` : ''}`}
+              className={`w-full min-w-0 resize-y break-words rounded-lg border px-3 py-2 text-sm [overflow-wrap:anywhere] ${
+                reasonError ? 'border-brand-scarlet' : 'border-brand-slate'
+              }`}
+            />
+            <div className="mt-1 flex items-start justify-between gap-3 text-xs text-muted">
+              <p id={helperId}>{capture.helper}</p>
+              <p className="shrink-0 tabular-nums">
+                {reason.length}/{LIMITS.REASON}
+              </p>
+            </div>
+            {reasonError ? (
+              <p id={errorId} className="mt-2 text-sm text-brand-scarlet" role="alert">
+                {reasonError}
+              </p>
+            ) : null}
+          </>
+        ) : null}
       </Modal>
     </div>
   )

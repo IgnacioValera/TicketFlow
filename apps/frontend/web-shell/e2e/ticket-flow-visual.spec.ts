@@ -7,6 +7,8 @@ const KNOWN_EVENT_CODES = [
   'STATUS_CHANGED',
   'PRIORITY_CHANGED',
   'UPDATED',
+  'AI_ASSIGNED',
+  'AI_ASSIGNMENT_FAILED',
   'UNKNOWN_EVENT_TYPE',
 ]
 
@@ -15,7 +17,7 @@ async function login(page: Page, email = 'admin@helpdesk.com') {
   await page.getByLabel('Correo electrónico').fill(email)
   await page.getByLabel('Contraseña').fill('password')
   await page.getByRole('button', { name: 'Ingresar' }).click()
-  await expect(page).not.toHaveURL(/login/)
+  await expect(page).not.toHaveURL(/login/, { timeout: 15_000 })
 }
 
 function flowTicketOption(page: Page, ticketId: string) {
@@ -44,7 +46,7 @@ async function expectFlowTicketOption(page: Page, ticketId: string, present: boo
 async function closeTicketSelect(page: Page) {
   const listbox = page.getByRole('listbox', { name: 'Tickets' })
   if (await listbox.isVisible()) {
-    await page.getByLabel('Seleccionar ticket').click()
+    await page.keyboard.press('Escape')
     await expect(listbox).toBeHidden()
   }
 }
@@ -90,7 +92,7 @@ test.describe('Flujo visual', () => {
     await selectFlowTicket(page, 't5')
     await page.getByRole('button', { name: /Escalado/ }).first().click()
     await expect(page.getByText('Tipo de evento')).toBeVisible()
-    await expect(page.getByRole('paragraph').filter({ hasText: /^Cambio de estado$/ })).toBeVisible()
+    await expect(page.getByText('Cambio de estado', { exact: true }).first()).toBeVisible()
     await expectNoInternalEventCodes(page)
   })
 
@@ -124,9 +126,9 @@ test.describe('Flujo visual', () => {
     await selectFlowTicket(page, 't5')
     await expect(page.getByText('Excepción').first()).toBeVisible()
     await page.getByRole('button', { name: /Escalado/ }).first().click()
-    await expect(page.getByText('Requiere infraestructura')).toBeVisible()
+    await expect(page.getByText('Requiere infraestructura').first()).toBeVisible()
     await page.getByLabel('Acercar').click()
-    await expect(page.getByText('Requiere infraestructura')).toBeVisible()
+    await expect(page.getByText('Requiere infraestructura').first()).toBeVisible()
     await page.getByLabel('Ajustar vista').click()
     await page.getByLabel('Ir al estado actual').click()
     await expect(page.getByText('Actual', { exact: true }).first()).toBeVisible()

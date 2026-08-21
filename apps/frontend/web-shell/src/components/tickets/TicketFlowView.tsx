@@ -3,7 +3,14 @@ import { AppIcon } from '@/components/common/AppIcon'
 import { EmptyState } from '@/components/common/EmptyState'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { SurfaceCard } from '@/components/common/SurfaceCard'
+import {
+  EventContextCard,
+  EventContextPreviewBadge,
+  EventContextPreviewText,
+} from '@/components/tickets/EventContextCard'
+import { buildEventContext } from '@/utils/ticket-event-context'
 import { TICKET_FLOW_COPY } from '@/views/tickets/ticket-flow-copy'
+import { TICKET_STATUS_LABELS } from '@/utils/reports'
 import type { TicketStatus } from '@/types/ticket.types'
 import {
   clampFlowZoom,
@@ -14,9 +21,9 @@ import {
   formatFlowTime,
   getEventTypeLabel,
   layoutFlow,
+  MISSING_VALUE,
   type FlowEvent,
 } from '@/utils/ticket-flow'
-import { TICKET_STATUS_LABELS } from '@/utils/reports'
 
 type ViewMode = 'map' | 'timeline'
 
@@ -31,6 +38,21 @@ interface TicketFlowViewProps {
   onViewMode: (mode: ViewMode) => void
   onZoom: (value: number) => void
   onSelect: (id: string) => void
+}
+
+function contextForEvent(event: FlowEvent) {
+  if (event.isPending || !event.ticketStatus) return null
+  const context = buildEventContext({
+    eventType: event.technicalEvent === MISSING_VALUE ? undefined : event.technicalEvent,
+    oldStatus: event.oldStatus,
+    newStatus: event.ticketStatus,
+    reason: event.reason,
+    details: event.details,
+    changedByName: event.actorName,
+    actorType: event.actorType,
+    createdAt: event.occurredAt ?? '',
+  })
+  return context.show ? context : null
 }
 
 export function TicketFlowView({
@@ -199,6 +221,7 @@ function FlowNode({
   selected: boolean
   onSelect: () => void
 }) {
+  const context = contextForEvent(event)
   const tone =
     event.kind === 'current'
       ? 'border-2 border-primary bg-surface font-semibold shadow-sm ticket-flow-node-active'
@@ -214,10 +237,10 @@ function FlowNode({
       data-flow-current={event.isCurrent ? 'true' : undefined}
       aria-current={event.isCurrent ? 'step' : undefined}
       aria-pressed={selected}
-      aria-label={`${event.title}. ${event.kindLabel}${event.isCurrent ? '. Estado actual' : ''}`}
+      aria-label={`${event.title}. ${event.kindLabel}${event.isCurrent ? '. Estado actual' : ''}${context?.showPreview ? '. Incluye motivo' : context?.automatic ? '. Asignación por IA' : ''}`}
       onClick={onSelect}
-      className={`absolute rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-primary ${tone} ${selected ? 'ring-2 ring-offset-2 ring-slate-400' : ''}`}
-      style={{ left: event.x, top: event.y, width: FLOW_LAYOUT.nodeWidth, minHeight: FLOW_LAYOUT.nodeHeight }}
+      className={`absolute overflow-hidden rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-primary ${tone} ${selected ? 'ring-2 ring-offset-2 ring-slate-400' : ''}`}
+      style={{ left: event.x, top: event.y, width: FLOW_LAYOUT.nodeWidth, height: FLOW_LAYOUT.nodeHeight }}
     >
       <div className="flex items-start justify-between gap-2 border-b border-border px-3 py-2">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-muted">{event.kindLabel}</span>
@@ -231,12 +254,24 @@ function FlowNode({
           <AppIcon name="priority" className="h-4 w-4 text-warning" />
         ) : null}
       </div>
-      <div className="px-3 py-2">
-        <p className="text-sm font-semibold leading-5 text-text">{event.title}</p>
+      <div className="min-w-0 px-3 py-2">
+        <p className="break-words text-sm font-semibold leading-5 text-text [overflow-wrap:anywhere]">{event.title}</p>
         <p className="mt-1 text-[11px] text-muted">{event.isPending ? 'Sin fecha' : formatFlowTime(event.occurredAt)}</p>
         <p className="mt-1 truncate text-[11px] text-text" title={event.actorName ?? undefined}>
           {displayValue(event.actorName)}
         </p>
+        {context?.showPreview ? (
+          <>
+            <div className="mt-1">
+              <EventContextPreviewBadge />
+            </div>
+            <EventContextPreviewText text={context.body} />
+          </>
+        ) : context?.automatic ? (
+          <div className="mt-1">
+            <EventContextPreviewBadge automatic />
+          </div>
+        ) : null}
       </div>
     </button>
   )
@@ -253,17 +288,19 @@ function TimelineList({
 }) {
   return (
     <ol className="max-h-[640px] space-y-3 overflow-y-auto bg-page p-4 md:p-6">
-      {events.map((event, index) => (
+      {events.map((event, index) => {
+        const context = contextForEvent(event)
+        return (
         <li key={event.id}>
           <button
             type="button"
             data-flow-timeline={event.id}
             onClick={() => onSelect(event.id)}
             aria-current={event.isCurrent ? 'step' : undefined}
-            className={`grid w-full gap-3 rounded border bg-surface p-4 text-left sm:grid-cols-[auto_1fr_auto] ${selectedId === event.id ? 'border-slate-400 ring-2 ring-slate-300' : 'border-border'} ${event.isCurrent ? 'border-primary' : ''}`}
+            className={`grid w-full min-w-0 gap-3 overflow-hidden rounded border bg-surface p-4 text-left sm:grid-cols-[auto_1fr_auto] ${selectedId === event.id ? 'border-slate-400 ring-2 ring-slate-300' : 'border-border'} ${event.isCurrent ? 'border-primary' : ''}`}
           >
             <span className="text-[10px] font-semibold text-muted">{String(index + 1).padStart(2, '0')}</span>
-            <div>
+            <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className={`text-sm ${event.isCurrent ? 'font-bold' : 'font-semibold'}`}>{event.title}</h3>
                 <span className="rounded-full bg-page px-2 py-0.5 text-[9px] font-semibold uppercase">{event.kindLabel}</span>
@@ -272,8 +309,11 @@ function TimelineList({
                     Actual
                   </span>
                 ) : null}
+                {context?.showPreview ? <EventContextPreviewBadge /> : null}
+                {context?.automatic && !context.showPreview ? <EventContextPreviewBadge automatic /> : null}
               </div>
-              <p className="mt-1 text-xs text-muted">{event.description}</p>
+              <p className="mt-1 break-words text-xs text-muted [overflow-wrap:anywhere]">{event.description}</p>
+              {context?.showPreview ? <EventContextPreviewText text={context.body} /> : null}
               <p className="mt-2 text-[11px] text-text">
                 {displayValue(event.actorName)} ·{' '}
                 {event.isPending ? event.sourceLabel : getEventTypeLabel(event.technicalEvent)}
@@ -286,7 +326,8 @@ function TimelineList({
             </div>
           </button>
         </li>
-      ))}
+        )
+      })}
     </ol>
   )
 }
@@ -294,15 +335,21 @@ function TimelineList({
 const MISSING_PLACEHOLDER = displayValue(null)
 
 function Inspector({ event }: { event: FlowEvent }) {
+  const context = contextForEvent(event)
   return (
-    <SurfaceCard className="p-5">
+    <SurfaceCard className="min-w-0 overflow-hidden p-5">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-semibold uppercase tracking-[.14em] text-muted">Inspector de evento</p>
         <span className="rounded-full bg-page px-2 py-1 text-[10px] font-semibold uppercase">{event.kindLabel}</span>
       </div>
-      <h3 className="mt-4 text-lg font-semibold">{event.title}</h3>
+      <h3 className="mt-4 break-words text-lg font-semibold [overflow-wrap:anywhere]">{event.title}</h3>
       {event.ticketStatus ? <div className="mt-2"><StatusBadge status={event.ticketStatus} /></div> : null}
-      <p className="mt-3 text-sm leading-6 text-text">{event.description}</p>
+      <p className="mt-3 break-words text-sm leading-6 text-text [overflow-wrap:anywhere]">{event.description}</p>
+      {context ? (
+        <div className="mt-4">
+          <EventContextCard context={context} />
+        </div>
+      ) : null}
       <dl className="mt-5 space-y-3 border-t border-border pt-4 text-sm">
         <Meta label="Etapa" value={event.title} />
         <Meta label="Estado" value={event.kindLabel} />
@@ -379,8 +426,8 @@ function IconControl({
 function Meta({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-4">
-      <dt className="text-muted">{label}</dt>
-      <dd className="text-right font-medium">{value}</dd>
+      <dt className="shrink-0 text-muted">{label}</dt>
+      <dd className="min-w-0 break-words text-right font-medium [overflow-wrap:anywhere]">{value}</dd>
     </div>
   )
 }
