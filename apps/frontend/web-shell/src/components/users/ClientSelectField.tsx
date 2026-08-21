@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { SelectInput } from '@/components/common/UiControls'
+import { useEffect, useMemo, useState } from 'react'
+import { SearchableSelect } from '@/components/common/SearchableSelect'
 import type { ClientOption } from '@/types/user.types'
 import * as usersService from '@/services/users.service'
 import { errorMessage } from '@/utils/validation'
@@ -19,53 +19,40 @@ export function ClientSelectField({
   required,
   currentLabel,
 }: ClientSelectFieldProps) {
-  const [search, setSearch] = useState('')
   const [items, setItems] = useState<ClientOption[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const handle = window.setTimeout(() => {
-      const load = async () => {
-        setLoading(true)
-        setError('')
-        try {
-          const response = await usersService.getClientOptions({
-            search: search.trim() || undefined,
-            page: 1,
-            perPage: 20,
-          })
-          setItems(response.data)
-        } catch (err: unknown) {
-          setError(errorMessage(err, 'No se pudieron cargar los clientes'))
-        } finally {
-          setLoading(false)
-        }
+    const load = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const response = await usersService.getClientOptions({
+          page: 1,
+          perPage: 100,
+        })
+        setItems(response.data)
+      } catch (err: unknown) {
+        setError(errorMessage(err, 'No se pudieron cargar los clientes'))
+      } finally {
+        setLoading(false)
       }
-      void load()
-    }, 250)
-    return () => window.clearTimeout(handle)
-  }, [search])
+    }
+    void load()
+  }, [])
 
-  const options = items.some((item) => item.id === value)
-    ? items
-    : value
-      ? [{ id: value, name: currentLabel || 'Cliente seleccionado' }, ...items]
-      : items
+  const options = useMemo(() => {
+    const list = items.some((item) => item.id === value)
+      ? items
+      : value
+        ? [{ id: value, name: currentLabel || 'Cliente seleccionado' }, ...items]
+        : items
+    return list.map((client) => ({ value: client.id, label: client.name }))
+  }, [currentLabel, items, value])
 
   return (
     <div>
-      <label htmlFor="clientSearch" className="mb-1 block text-sm font-medium">
-        Buscar cliente
-      </label>
-      <input
-        id="clientSearch"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="mb-2 w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
-        placeholder="Escribe el nombre del cliente"
-        disabled={disabled}
-      />
       <label htmlFor="clientId" className="mb-1 block text-sm font-medium">
         Cliente {required ? '*' : ''}
       </label>
@@ -75,20 +62,20 @@ export function ClientSelectField({
           {error}
         </p>
       )}
-      <SelectInput
+      <SearchableSelect
         id="clientId"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={onChange}
+        options={options}
+        placeholder="Seleccionar cliente"
+        searchPlaceholder="Buscar cliente..."
+        emptyMessage="No hay clientes disponibles"
+        noResultsMessage="Ningún cliente coincide con la búsqueda"
+        allowEmpty={!required}
+        emptyLabel="Seleccionar cliente"
         disabled={disabled || loading}
-        required={required}
-      >
-        <option value="">Seleccionar cliente</option>
-        {options.map((client) => (
-          <option key={client.id} value={client.id}>
-            {client.name}
-          </option>
-        ))}
-      </SelectInput>
+        ariaLabel="Cliente"
+      />
     </div>
   )
 }
