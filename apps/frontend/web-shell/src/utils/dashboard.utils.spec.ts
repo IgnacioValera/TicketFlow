@@ -50,6 +50,12 @@ describe('dashboard.utils', () => {
   it('expone enlaces de filtro por KPI', () => {
     expect(kpiFilterHref('open')).toBe('/tickets?preset=open')
     expect(kpiFilterHref('overdue')).toBe('/tickets?slaStatus=overdue')
+    expect(kpiFilterHref('inProgress')).toBe('/tickets?preset=inProgress')
+    expect(kpiFilterHref('resolved')).toBe('/tickets?preset=resolved')
+    expect(kpiFilterHref('closed')).toBe('/tickets?preset=closed')
+    expect(statusesForPreset('open')).toEqual(['OPEN', 'ASSIGNED'])
+    expect(statusesForPreset('inProgress')).toEqual(['IN_PROGRESS', 'WAITING_USER', 'ESCALATED'])
     expect(statusesForPreset('resolved')).toEqual(['RESOLVED'])
+    expect(statusesForPreset('closed')).toEqual(['CLOSED'])
   })
 })
