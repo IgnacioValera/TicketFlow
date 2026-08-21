@@ -23,7 +23,7 @@ REGISTRY="$${ECR_URL%%/*}"
 aws ecr get-login-password --region "$${AWS_REGION}" | docker login --username AWS --password-stdin "$${REGISTRY}"
 
 ok=0
-for i in $$(seq 1 60); do
+for i in $(seq 1 60); do
   if docker pull "$${IMAGE}"; then
     ok=1
     break
@@ -40,10 +40,10 @@ fi
 docker rm -f ticketflow || true
 
 if [[ "$${ROLE}" == "backend" ]]; then
-  DATABASE_URL="$$(aws ssm get-parameter --region "$${AWS_REGION}" --name /ticketflow/DATABASE_URL --with-decryption --query Parameter.Value --output text)"
-  JWT_ACCESS_SECRET="$$(aws ssm get-parameter --region "$${AWS_REGION}" --name /ticketflow/JWT_ACCESS_SECRET --with-decryption --query Parameter.Value --output text)"
-  JWT_REFRESH_SECRET="$$(aws ssm get-parameter --region "$${AWS_REGION}" --name /ticketflow/JWT_REFRESH_SECRET --with-decryption --query Parameter.Value --output text)"
-  ALB_DNS="$$(aws ssm get-parameter --region "$${AWS_REGION}" --name /ticketflow/alb_dns --query Parameter.Value --output text)"
+  DATABASE_URL="$(aws ssm get-parameter --region "$${AWS_REGION}" --name /ticketflow/DATABASE_URL --with-decryption --query Parameter.Value --output text)"
+  JWT_ACCESS_SECRET="$(aws ssm get-parameter --region "$${AWS_REGION}" --name /ticketflow/JWT_ACCESS_SECRET --with-decryption --query Parameter.Value --output text)"
+  JWT_REFRESH_SECRET="$(aws ssm get-parameter --region "$${AWS_REGION}" --name /ticketflow/JWT_REFRESH_SECRET --with-decryption --query Parameter.Value --output text)"
+  ALB_DNS="$(aws ssm get-parameter --region "$${AWS_REGION}" --name /ticketflow/alb_dns --query Parameter.Value --output text)"
   docker run -d --name ticketflow --restart unless-stopped \
     -p 8000:8000 \
     -e NODE_ENV=production \
