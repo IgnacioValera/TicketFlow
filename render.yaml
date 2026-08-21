@@ -66,9 +66,9 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: VITE_USE_MOCKS
+      - key: NEXT_PUBLIC_USE_MOCKS
         value: "false"
-      # Build-time: Dockerfile sets VITE_API_BASE_URL=${API_ORIGIN}/api/v1
+      # Build-time: Dockerfile sets NEXT_PUBLIC_API_BASE_URL=${API_ORIGIN}/api/v1
       - key: API_ORIGIN
         fromService:
           name: ticketflow-api

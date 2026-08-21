@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
 import type { DashboardSlaAlerts } from '@/types/dashboard.types'
 
 interface SlaAlertsBannerProps {
@@ -41,7 +41,7 @@ export function SlaAlertsBanner({ alerts }: SlaAlertsBannerProps) {
         <div className="flex flex-wrap gap-2">
           {alerts.overdueCount > 0 && (
             <Link
-              to="/tickets?slaStatus=overdue"
+              href="/tickets?slaStatus=overdue"
               className="rounded bg-white px-3 py-1.5 text-sm font-medium text-red-700 shadow-sm hover:bg-red-100"
             >
               Ver vencidos
@@ -49,7 +49,7 @@ export function SlaAlertsBanner({ alerts }: SlaAlertsBannerProps) {
           )}
           {alerts.warningCount > 0 && (
             <Link
-              to="/tickets?slaStatus=warning"
+              href="/tickets?slaStatus=warning"
               className="rounded bg-white px-3 py-1.5 text-sm font-medium text-amber-800 shadow-sm hover:bg-amber-100"
             >
               Ver en riesgo

@@ -67,7 +67,7 @@ export function Modal({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Cerrar"
+            aria-label="Cerrar ventana"
             className="-mr-1 rounded p-1 text-muted hover:bg-slate-100 hover:text-brand-navy"
           >
             <AppIcon name="x" className="h-4 w-4" />

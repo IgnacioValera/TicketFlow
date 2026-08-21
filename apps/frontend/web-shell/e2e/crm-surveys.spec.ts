@@ -14,7 +14,7 @@ test.describe('Encuestas CRM y ticket cerrado', () => {
     await page.goto('/crm/surveys', { waitUntil: 'domcontentloaded' })
     await expect(page.getByRole('heading', { name: 'Encuestas' })).toBeVisible()
 
-    await page.getByRole('button', { name: '+ Nueva encuesta' }).click()
+    await page.getByRole('button', { name: 'Nueva encuesta' }).click()
     await page.getByLabel('Título').fill('   ')
     await page.getByRole('button', { name: 'Guardar' }).click()
     await expect(page.getByText(/título.*obligatorio/i).first()).toBeVisible()
@@ -28,7 +28,7 @@ test.describe('Encuestas CRM y ticket cerrado', () => {
     await page.getByRole('textbox', { name: 'Pregunta' }).fill('¿Cómo calificarías la atención?')
     await chooseSelectOption(page.getByLabel('Tipo'), 'RATING')
     await page.getByRole('dialog', { name: 'Pregunta' }).getByRole('button', { name: 'Agregar', exact: true }).click()
-    await expect(page.getByText('¿Cómo calificarías la atención?')).toBeVisible()
+    await expect(page.getByText('1. ¿Cómo calificarías la atención?')).toBeVisible()
     await expect(page.getByText(/Obligatoria/)).toBeVisible()
 
     await page.getByRole('button', { name: 'Activar' }).click()
@@ -66,7 +66,7 @@ test.describe('Encuestas CRM y ticket cerrado', () => {
   test('el supervisor consulta resultados pero no administra', async ({ page }) => {
     await login(page, 'supervisor@helpdesk.com')
     await page.goto('/crm/surveys', { waitUntil: 'domcontentloaded' })
-    await expect(page.getByRole('button', { name: '+ Nueva encuesta' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Nueva encuesta' })).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Editar' })).toHaveCount(0)
     await page.locator('li').filter({ hasText: 'NPS de cliente' }).getByRole('link', { name: 'Resultados' }).click()
     await expect(page.getByRole('heading', { name: 'NPS de cliente' })).toBeVisible()

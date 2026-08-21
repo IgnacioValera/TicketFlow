@@ -39,10 +39,9 @@ test.describe('Oportunidades CRM', () => {
     await expect(page.getByRole('dialog')).toHaveCount(0)
 
     await page.getByRole('button', { name: 'Nueva oportunidad' }).click()
-    const dialog = page.getByRole('dialog')
+    const dialog = page.getByRole('dialog', { name: 'Nueva oportunidad' })
     await dialog.getByRole('textbox').first().fill('Nueva venta')
-    await dialog.getByLabel('Cliente', { exact: true }).click()
-    await dialog.getByRole('option', { name: 'Acme Corp' }).click()
+    await chooseSelectOption(dialog.locator('#opportunity-client'), { label: 'Acme Corp' })
     await dialog.getByLabel('Importe').fill('15000')
     await page.getByRole('button', { name: 'Guardar' }).click()
     await expect(page.getByRole('status')).toContainText('Oportunidad creada')

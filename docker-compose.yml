@@ -52,12 +52,10 @@ services:
     build:
       context: ./apps/frontend/web-shell
       args:
-        VITE_API_BASE_URL: http://localhost:8000/api/v1
-        VITE_USE_MOCKS: "false"
-    environment:
-      PORT: 80
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
+        NEXT_PUBLIC_USE_MOCKS: "false"
     ports:
-      - "5173:80"
+      - "5173:3000"
     depends_on:
       - backend
     restart: unless-stopped
