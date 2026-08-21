@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import { DataSource, DataSourceOptions } from 'typeorm'
 import { ENTITIES } from './entities'
+import { postgresSsl, postgresUrlWithoutSslMode } from './postgres-ssl'
 import { InitialSchema1760000000000 } from './migrations/1760000000000-InitialSchema'
 import { SlaResolutionGteResponse1761000000000 } from './migrations/1761000000000-SlaResolutionGteResponse'
 import { CrmSchema1762000000000 } from './migrations/1762000000000-CrmSchema'
@@ -25,7 +26,7 @@ const migrations = [
   CrmContactDeletePermission1769000000000,
 ]
 
-const ssl = process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false
+const ssl = postgresSsl()
 
 function buildDataSourceOptions(): DataSourceOptions {
   const shared = {
@@ -39,7 +40,7 @@ function buildDataSourceOptions(): DataSourceOptions {
   }
 
   if (process.env.DATABASE_URL) {
-    return { ...shared, url: process.env.DATABASE_URL }
+    return { ...shared, url: postgresUrlWithoutSslMode(process.env.DATABASE_URL) }
   }
 
   return {

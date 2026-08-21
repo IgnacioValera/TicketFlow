@@ -66,8 +66,8 @@ jobs:
           context: apps/frontend/web-shell
           push: true
           build-args: |
-            VITE_API_BASE_URL=/api/v1
-            VITE_USE_MOCKS=false
+            NEXT_PUBLIC_API_BASE_URL=/api/v1
+            NEXT_PUBLIC_USE_MOCKS=false
           tags: |
             ${{ steps.images.outputs.frontend }}:${{ github.sha }}
             ${{ steps.images.outputs.frontend }}:main

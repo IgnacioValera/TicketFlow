@@ -60,7 +60,7 @@ if [[ "$${ROLE}" == "backend" ]]; then
     -v /opt/ticketflow/uploads:/app/uploads \
     "$${IMAGE}"
 else
-  docker run -d --name ticketflow --restart unless-stopped -p 80:80 "$${IMAGE}"
+  docker run -d --name ticketflow --restart unless-stopped -p 80:3000 "$${IMAGE}"
 fi
 SCRIPT
 chmod +x /opt/ticketflow/run.sh

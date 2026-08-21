@@ -22,8 +22,8 @@ jobs:
       - run: npm run lint
       - run: npm run build
         env:
-          VITE_API_BASE_URL: /api/v1
-          VITE_USE_MOCKS: "false"
+          NEXT_PUBLIC_API_BASE_URL: /api/v1
+          NEXT_PUBLIC_USE_MOCKS: "false"
 
   backend:
     name: Backend lint, test and build
