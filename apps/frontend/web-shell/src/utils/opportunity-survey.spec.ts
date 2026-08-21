@@ -5,6 +5,7 @@ import {
   invitationCardStatus,
   invitationCopyWarning,
   invitationRequestSurveyId,
+  isRegenerateConfirmation,
   INVITATION_STATUS_LABELS,
 } from '@/utils/opportunity-survey'
 
@@ -13,7 +14,7 @@ describe('Encuesta de oportunidad', () => {
     expect(canRegenerateInvitation('EXPIRED')).toBe(true)
     expect(canRegenerateInvitation('REVOKED')).toBe(true)
     expect(canRegenerateInvitation('RESPONDED')).toBe(false)
-    expect(canRegenerateInvitation('PENDING')).toBe(false)
+    expect(canRegenerateInvitation('PENDING')).toBe(true)
     expect(INVITATION_STATUS_LABELS.PENDING).toBe('Pendiente de respuesta')
     expect(INVITATION_STATUS_LABELS.EXPIRED).toBe('Enlace expirado')
   })
@@ -48,5 +49,7 @@ describe('Encuesta de oportunidad', () => {
     expect(invitationRequestSurveyId({ selectedManualId: '', stage: 'NEW', cardSurveyId: 's-auto' })).toBeUndefined()
     expect(invitationRequestSurveyId({ selectedManualId: '', stage: 'WON', cardSurveyId: 's-auto' })).toBe('s-auto')
     expect(invitationRequestSurveyId({ selectedManualId: '', stage: 'NEW', cardSurveyId: 's-nps', confirmRegenerate: true })).toBe('s-nps')
+    expect(isRegenerateConfirmation('Confirma la regeneración del enlace. El enlace anterior dejará de funcionar.')).toBe(true)
+    expect(isRegenerateConfirmation('No se pudo generar la encuesta.')).toBe(false)
   })
 })

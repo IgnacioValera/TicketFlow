@@ -10,12 +10,47 @@ export interface ScoreInput {
   ageDays: number
 }
 
-function dim(hasData: boolean, value: number) {
-  if (!hasData) return 50
+export interface ScoreFactor {
+  key: 'satisfaction' | 'won' | 'activity' | 'tickets' | 'seniority'
+  label: string
+  description: string
+  weight: number
+  value: number | null
+  points: number
+  hasData: boolean
+}
+
+export interface ClientScoreResult {
+  score: number | null
+  insufficient: boolean
+  factors: ScoreFactor[]
+}
+
+function clamp(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)))
 }
 
-export function calculateClientScore(input: ScoreInput) {
+function factor(
+  key: ScoreFactor['key'],
+  label: string,
+  description: string,
+  weight: number,
+  hasData: boolean,
+  raw: number,
+): ScoreFactor {
+  const value = hasData ? clamp(raw) : null
+  return {
+    key,
+    label,
+    description,
+    weight,
+    hasData,
+    value,
+    points: value == null ? 0 : Math.round((value * weight) / 100),
+  }
+}
+
+export function calculateClientScore(input: ScoreInput): ClientScoreResult {
   const satisfactionParts: number[] = []
   if (input.ticketRatings.length) {
     satisfactionParts.push((input.ticketRatings.reduce((sum, rating) => sum + rating, 0) / input.ticketRatings.length / 5) * 100)
@@ -23,20 +58,52 @@ export function calculateClientScore(input: ScoreInput) {
   if (input.crmNpsScores.length) {
     satisfactionParts.push((input.crmNpsScores.reduce((sum, score) => sum + score, 0) / input.crmNpsScores.length) * 10)
   }
-  const satisfaction = dim(satisfactionParts.length > 0, satisfactionParts.reduce((sum, part) => sum + part, 0) / Math.max(1, satisfactionParts.length))
 
   const closedOpps = input.wonCount + input.lostCount
-  const won = dim(closedOpps > 0, (input.wonCount / closedOpps) * 100)
+  const factors: ScoreFactor[] = [
+    factor(
+      'satisfaction',
+      'Satisfacción',
+      'Promedio de encuestas de tickets (0-5) y NPS de CRM (0-10).',
+      30,
+      satisfactionParts.length > 0,
+      satisfactionParts.reduce((sum, part) => sum + part, 0) / Math.max(1, satisfactionParts.length),
+    ),
+    factor(
+      'won',
+      'Oportunidades',
+      'Porcentaje de oportunidades ganadas sobre las cerradas.',
+      25,
+      closedOpps > 0,
+      (input.wonCount / Math.max(1, closedOpps)) * 100,
+    ),
+    factor(
+      'activity',
+      'Actividad comercial',
+      'Actividades completadas en los últimos 90 días (meta de 8).',
+      20,
+      input.totalActivities > 0,
+      (input.completedActivities90d / 8) * 100,
+    ),
+    factor(
+      'tickets',
+      'Relación y seguimiento',
+      'Tickets resueltos o cerrados sobre el total del cliente.',
+      15,
+      input.totalTickets > 0,
+      (input.closedTickets / Math.max(1, input.totalTickets)) * 100,
+    ),
+    factor(
+      'seniority',
+      'Antigüedad',
+      'Tiempo como cliente, hasta 24 meses.',
+      10,
+      input.ageDays >= 1,
+      (input.ageDays / 730) * 100,
+    ),
+  ]
 
-  const activity = dim(input.totalActivities > 0, (input.completedActivities90d / 8) * 100)
-
-  const tickets = dim(input.totalTickets > 0, (input.closedTickets / input.totalTickets) * 100)
-
-  const seniority = dim(input.ageDays >= 1, (input.ageDays / 730) * 100)
-
-  const score = Math.round(satisfaction * 0.3 + won * 0.25 + activity * 0.2 + tickets * 0.15 + seniority * 0.1)
-  return {
-    score: Math.max(0, Math.min(100, score)),
-    dimensions: { satisfaction, won, activity, tickets, seniority },
-  }
+  const insufficient = factors.every((item) => !item.hasData)
+  const score = insufficient ? null : Math.max(0, Math.min(100, factors.reduce((sum, item) => sum + item.points, 0)))
+  return { score, insufficient, factors }
 }

@@ -57,7 +57,7 @@ export class ContactsController {
   @RequirePermissions('CRM_EXPORT') @Get('export') @Header('Content-Type', 'text/csv; charset=utf-8') async export(@Query() query: ContactsQueryDto, @CurrentUser() user: User) { return csvFile(await this.service.exportCsv(query, user), 'contactos.csv') }
   @RequirePermissions('CRM_CONTACT_CREATE') @Post() async create(@Body() dto: CreateContactDto, @CurrentUser() user: User) { return result(await this.service.create(dto, user), 'Contacto creado') }
   @RequirePermissions('CRM_CONTACT_EDIT') @Put(':id') async update(@Param('id', ParseUuidPipe) id: string, @Body() dto: UpdateContactDto, @CurrentUser() user: User) { return result(await this.service.update(id, dto, user), 'Contacto actualizado') }
-  @RequirePermissions('CRM_CONTACT_EDIT') @Delete(':id') async remove(@Param('id', ParseUuidPipe) id: string, @CurrentUser() user: User) { return result(await this.service.remove(id, user), 'Contacto eliminado') }
+  @RequirePermissions('CRM_CONTACT_DELETE') @Delete(':id') async remove(@Param('id', ParseUuidPipe) id: string, @CurrentUser() user: User) { return result(await this.service.remove(id, user), 'Contacto eliminado') }
 }
 
 @ApiBearerAuth() @ApiTags('CRM Oportunidades') @Controller('crm/opportunities')
@@ -79,6 +79,7 @@ export class ActivitiesController {
   @RequirePermissions('CRM_ACTIVITY_VIEW') @Get() async list(@Query() query: ActivitiesQueryDto, @CurrentUser() user: User) { const r = await this.service.list(query, user); return result(r.items, 'OK', r.meta) }
   @RequirePermissions('CRM_ACTIVITY_CREATE') @Post() async create(@Body() dto: CreateActivityDto, @CurrentUser() user: User) { return result(await this.service.create(dto, user), 'Actividad creada') }
   @RequirePermissions('CRM_ACTIVITY_EDIT') @Patch(':id/complete') async complete(@Param('id', ParseUuidPipe) id: string, @CurrentUser() user: User) { return result(await this.service.complete(id, user), 'Actividad completada') }
+  @RequirePermissions('CRM_ACTIVITY_EDIT') @Delete(':id') async remove(@Param('id', ParseUuidPipe) id: string, @CurrentUser() user: User) { return result(await this.service.remove(id, user), 'Actividad eliminada') }
   @RequirePermissions('CRM_ACTIVITY_EDIT') @Put(':id') async update(@Param('id', ParseUuidPipe) id: string, @Body() dto: UpdateActivityDto, @CurrentUser() user: User) { return result(await this.service.update(id, dto, user), 'Actividad actualizada') }
 }
 

@@ -1,11 +1,13 @@
-import { ForbiddenPage } from '@/pages/errors/ForbiddenPage'
+'use client'
+
+import { ForbiddenPage } from '@/views/errors/ForbiddenPage'
 import { usePermissions } from '@/hooks/usePermissions'
 import type { UserRole } from '@/types/user.types'
 
 interface RoleRouteProps {
   children: React.ReactNode
   roles?: UserRole[]
-  permission?: string
+  permission?: string | string[]
   path?: string
 }
 
@@ -16,8 +18,11 @@ export function RoleRoute({ children, roles, permission, path }: RoleRouteProps)
     return <ForbiddenPage />
   }
 
-  if (permission && !hasPermission(permission)) {
-    return <ForbiddenPage />
+  if (permission) {
+    const required = Array.isArray(permission) ? permission : [permission]
+    if (!required.some((code) => hasPermission(code))) {
+      return <ForbiddenPage />
+    }
   }
 
   if (path && !canAccessRoute(path)) {

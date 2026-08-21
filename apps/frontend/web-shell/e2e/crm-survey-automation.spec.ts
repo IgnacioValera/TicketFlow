@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
+import { chooseSelectOption } from './select'
 
 async function login(page: Page, email: string) {
   await page.goto('/login', { waitUntil: 'domcontentloaded' })
@@ -15,17 +16,17 @@ async function clickNav(page: Page, name: string) {
 async function createWonSurvey(page: Page, title: string) {
   await clickNav(page, 'Encuestas')
   await expect(page.getByRole('heading', { name: 'Encuestas' })).toBeVisible()
-  await page.getByRole('button', { name: '+ Nueva encuesta' }).click()
+  await page.getByRole('button', { name: 'Nueva encuesta' }).click()
   const createDialog = page.getByRole('dialog', { name: 'Nueva encuesta' })
   await createDialog.getByLabel('Título').fill(title)
-  await createDialog.getByLabel('Disparador').selectOption({ label: 'Oportunidad ganada' })
+  await chooseSelectOption(createDialog.getByLabel('Disparador'), { label: 'Oportunidad ganada' })
   await createDialog.getByRole('button', { name: 'Guardar' }).click()
   await expect(page.getByRole('button', { name: 'Agregar pregunta' })).toBeVisible()
   await page.getByRole('button', { name: 'Agregar pregunta' }).click()
   await page.getByRole('textbox', { name: 'Pregunta' }).fill('¿Cómo calificarías la atención comercial?')
-  await page.getByLabel('Tipo').selectOption('RATING')
+  await chooseSelectOption(page.getByLabel('Tipo'), 'RATING')
   await page.getByRole('dialog', { name: 'Pregunta' }).getByRole('button', { name: 'Agregar', exact: true }).click()
-  await expect(page.getByText('¿Cómo calificarías la atención comercial?')).toBeVisible()
+  await expect(page.getByText('1. ¿Cómo calificarías la atención comercial?')).toBeVisible()
   await page.getByRole('button', { name: 'Activar' }).click()
   await expect(page.getByText('Encuesta activada')).toBeVisible()
 }
@@ -35,7 +36,7 @@ async function markOpportunityWon(page: Page, title: string) {
   await expect(page.getByRole('heading', { name: 'Oportunidades' })).toBeVisible()
   await page.locator('article').filter({ hasText: title }).getByRole('button', { name: 'Editar' }).click()
   const editor = page.getByRole('dialog', { name: 'Editar oportunidad' })
-  await editor.getByLabel('Etapa').selectOption({ label: 'Ganada' })
+  await chooseSelectOption(editor.getByLabel('Etapa'), { label: 'Ganada' })
   await editor.getByRole('button', { name: 'Guardar' }).click()
 }
 
@@ -99,7 +100,7 @@ test.describe('Automatización real de encuestas CRM', () => {
     await clickNav(page, 'Oportunidades')
     await page.locator('article').filter({ hasText: 'Expansión' }).getByRole('button', { name: 'Editar' }).click()
     const editor = page.getByRole('dialog', { name: 'Editar oportunidad' })
-    await editor.getByLabel('Etapa').selectOption({ label: 'Ganada' })
+    await chooseSelectOption(editor.getByLabel('Etapa'), { label: 'Ganada' })
     await editor.getByRole('button', { name: 'Guardar' }).click()
     await expect(page.getByRole('dialog', { name: 'Encuesta generada' })).toHaveCount(0)
     await expect(page.getByRole('status')).toContainText('No hay una encuesta activa para este disparador')
@@ -117,7 +118,7 @@ test.describe('Automatización real de encuestas CRM', () => {
     await clickNav(page, 'Oportunidades')
     await page.locator('article').filter({ hasText: 'Renovación' }).getByRole('button', { name: 'Editar' }).click()
     const editor = page.getByRole('dialog', { name: 'Editar oportunidad' })
-    await editor.getByLabel('Etapa').selectOption({ label: 'Ganada' })
+    await chooseSelectOption(editor.getByLabel('Etapa'), { label: 'Ganada' })
     const save = editor.getByRole('button', { name: 'Guardar' })
     await save.dblclick()
     await expect(page.getByRole('dialog', { name: 'Encuesta generada' })).toBeVisible()
@@ -127,12 +128,14 @@ test.describe('Automatización real de encuestas CRM', () => {
   test('una invitación expirada permite regenerar con confirmación y el token anterior deja de funcionar', async ({ page }) => {
     await login(page, 'admin@helpdesk.com')
     await clickNav(page, 'Oportunidades')
-    await page.locator('article').filter({ hasText: 'Soporte anual' }).getByRole('button', { name: 'Ver detalle' }).click()
-    const detail = page.getByRole('dialog', { name: 'Soporte anual' })
+    await page.locator('article').filter({ hasText: 'Soporte anual' }).getByRole('button', { name: 'Gestionar encuesta' }).click()
+    const detail = page.getByRole('dialog').filter({ hasText: 'Encuesta de satisfacción' })
     await expect(detail.getByText('Estado: Enlace expirado')).toBeVisible()
     await expect(detail.getByRole('button', { name: 'Generar nuevo enlace' })).toBeVisible()
-    page.once('dialog', (dialog) => dialog.accept())
     await detail.getByRole('button', { name: 'Generar nuevo enlace' }).click()
+    const regenerate = page.getByRole('dialog', { name: '¿Generar un enlace nuevo?' })
+    await expect(regenerate).toBeVisible()
+    await regenerate.getByRole('button', { name: 'Generar uno nuevo' }).click()
     const modal = page.getByRole('dialog', { name: 'Encuesta generada' })
     await expect(modal).toBeVisible()
     const responseUrl = (await modal.locator('.font-mono').innerText()).trim()
@@ -144,11 +147,12 @@ test.describe('Automatización real de encuestas CRM', () => {
   test('una encuesta manual se genera desde el detalle sin ganar la oportunidad', async ({ page }) => {
     await login(page, 'admin@helpdesk.com')
     await clickNav(page, 'Oportunidades')
-    await page.locator('article').filter({ hasText: 'Renovación' }).getByRole('button', { name: 'Ver detalle' }).click()
-    const detail = page.getByRole('dialog', { name: 'Renovación' })
+    await page.locator('article').filter({ hasText: 'Renovación' }).getByRole('button', { name: 'Gestionar encuesta' }).click()
+    const detail = page.getByRole('dialog').filter({ hasText: 'Encuesta de satisfacción' })
     await expect(detail.getByText('Enviar ahora (manual)')).toBeVisible()
     await expect(detail.getByRole('button', { name: 'Generar encuesta', exact: true })).toHaveCount(0)
-    await detail.getByLabel('Encuesta manual').selectOption({ label: 'NPS de cliente' })
+    await detail.getByLabel('Encuesta manual').scrollIntoViewIfNeeded()
+    await chooseSelectOption(detail.getByLabel('Encuesta manual'), { label: 'NPS de cliente' })
     await detail.getByRole('button', { name: 'Generar encuesta manual' }).click()
     const modal = page.getByRole('dialog', { name: 'Encuesta generada' })
     await expect(modal).toBeVisible()
@@ -158,8 +162,8 @@ test.describe('Automatización real de encuestas CRM', () => {
   test('el supervisor consulta el detalle pero no genera invitaciones', async ({ page }) => {
     await login(page, 'supervisor@helpdesk.com')
     await page.getByRole('navigation').getByRole('link', { name: 'Oportunidades' }).click()
-    await page.locator('article').filter({ hasText: 'Renovación' }).getByRole('button', { name: 'Ver detalle' }).click()
-    const detail = page.getByRole('dialog', { name: 'Renovación' })
+    await page.locator('article').filter({ hasText: 'Renovación' }).getByRole('button', { name: 'Gestionar encuesta' }).click()
+    const detail = page.getByRole('dialog').filter({ hasText: 'Encuesta de satisfacción' })
     await expect(detail.getByText('Encuesta de satisfacción')).toBeVisible()
     await expect(detail.getByRole('button', { name: 'Generar encuesta', exact: true })).toHaveCount(0)
     await expect(detail.getByRole('button', { name: 'Generar encuesta manual' })).toHaveCount(0)
@@ -180,17 +184,19 @@ test.describe('Automatización real de encuestas CRM', () => {
     await login(page, 'admin@helpdesk.com')
     await createWonSurvey(page, 'Primera postventa')
     await page.getByRole('link', { name: '← Encuestas' }).click()
-    await page.getByRole('button', { name: '+ Nueva encuesta' }).click()
+    await page.getByRole('button', { name: 'Nueva encuesta' }).click()
     const createDialog = page.getByRole('dialog', { name: 'Nueva encuesta' })
     await createDialog.getByLabel('Título').fill('Segunda postventa')
-    await createDialog.getByLabel('Disparador').selectOption({ label: 'Oportunidad ganada' })
+    await chooseSelectOption(createDialog.getByLabel('Disparador'), { label: 'Oportunidad ganada' })
     await createDialog.getByRole('button', { name: 'Guardar' }).click()
     await page.getByRole('button', { name: 'Agregar pregunta' }).click()
     await page.getByRole('textbox', { name: 'Pregunta' }).fill('¿Repetirías?')
-    await page.getByLabel('Tipo').selectOption('TEXT')
+    await chooseSelectOption(page.getByLabel('Tipo'), 'TEXT')
     await page.getByRole('dialog', { name: 'Pregunta' }).getByRole('button', { name: 'Agregar', exact: true }).click()
     await page.getByRole('button', { name: 'Activar' }).click()
-    await expect(page.getByText('Ya existe una encuesta activa para el disparador Oportunidad ganada.')).toBeVisible()
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Ya existe una encuesta activa para el disparador Oportunidad ganada.' }),
+    ).toBeVisible()
   })
 
   test('un enlace expirado o inexistente muestra el estado correcto en la página pública', async ({ page }) => {

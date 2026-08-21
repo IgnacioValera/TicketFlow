@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
 import { SlaSemaphore } from '@/components/tickets/SlaSemaphore'
 import type { Ticket, TicketStatus } from '@/types/ticket.types'
@@ -74,7 +74,7 @@ export function TicketsKanbanBoard({ tickets, loading = false }: TicketsKanbanBo
                   return (
                     <Link
                       key={ticket.id}
-                      to={`/tickets/${ticket.id}`}
+                      href={`/tickets/${ticket.id}`}
                       className="block rounded border border-slate-200 bg-white p-3 transition hover:border-brand-teal/50 hover:shadow-sm"
                     >
                       <div className="mb-2 flex items-start justify-between gap-2">

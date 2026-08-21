@@ -46,6 +46,7 @@ export class CreateTicketDto {
   @ApiProperty() @IsUUID('4', { message: 'El identificador de prioridad no es un UUID válido' }) priorityId: string
   @ApiPropertyOptional() @IsOptional() @IsUUID('4', { message: 'El identificador de cliente no es un UUID válido' }) clientId?: string
   @ApiPropertyOptional() @IsOptional() @IsUUID('4', { message: 'El identificador de cliente no es un UUID válido' }) companyId?: string
+  @ApiPropertyOptional() @IsOptional() @IsUUID('4', { message: 'El identificador de solicitante no es un UUID válido' }) requesterId?: string
 }
 
 function IsNotEmptyString(field: string) {
@@ -118,4 +119,8 @@ export class TicketsQueryDto {
   @ApiPropertyOptional() @IsOptional() @Transform(({ value }) => value === true || value === 'true') @IsBoolean() unassigned?: boolean
   @ApiPropertyOptional() @IsOptional() @Transform(({ value }) => value === true || value === 'true') @IsBoolean() mine?: boolean
   @ApiPropertyOptional({ enum: ['overdue', 'warning', 'on_time'] }) @IsOptional() @IsIn(['overdue', 'warning', 'on_time']) slaStatus?: 'overdue' | 'warning' | 'on_time'
+  @ApiPropertyOptional({ enum: ['open', 'inProgress', 'resolved', 'closed'] })
+  @IsOptional()
+  @IsIn(['open', 'inProgress', 'resolved', 'closed'])
+  preset?: 'open' | 'inProgress' | 'resolved' | 'closed'
 }

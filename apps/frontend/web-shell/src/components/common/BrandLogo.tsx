@@ -1,4 +1,5 @@
-import logoUrl from '@/assets/ticketflow-logo.svg'
+export const TICKETFLOW_LOGO_SRC = '/ticketflow-logo.svg'
+export const TICKETFLOW_FAVICON_SRC = '/favicon.svg'
 
 interface BrandLogoProps {
   variant?: 'color' | 'white'
@@ -15,11 +16,11 @@ export function BrandLogo({
 }: BrandLogoProps) {
   return (
     <img
-      src={logoUrl}
+      src={TICKETFLOW_LOGO_SRC}
       width={size}
       height={size}
       decoding="async"
-      alt={decorative ? '' : 'Logo de TicketFlow'}
+      alt={decorative ? '' : 'TicketFlow'}
       aria-hidden={decorative || undefined}
       className={`inline-block shrink-0 ${variant === 'white' ? 'brightness-0 invert' : ''} ${className}`}
     />
@@ -35,7 +36,7 @@ export function BrandMark({
 }) {
   return (
     <span className="flex min-w-0 items-center gap-2.5">
-      <BrandLogo variant={variant} size={32} decorative />
+      <BrandLogo variant={variant} size={32} />
       {!collapsed && (
         <span className="min-w-0 text-left">
           <span className="block truncate text-sm font-semibold leading-tight">TicketFlow</span>

@@ -1,6 +1,7 @@
 import type { KeyboardEvent, MouseEvent, ReactNode } from 'react'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
+import { SelectInput } from '@/components/common/UiControls'
 
 export interface Column<T> {
   key: string
@@ -10,7 +11,7 @@ export interface Column<T> {
   className?: string
 }
 
-interface PaginationState {
+export interface PaginationState {
   page: number
   perPage: number
   total: number
@@ -18,6 +19,66 @@ interface PaginationState {
 }
 
 const DEFAULT_PER_PAGE_OPTIONS = [5, 10, 20, 50]
+
+interface TablePaginationProps {
+  pagination?: PaginationState
+  onPageChange?: (page: number) => void
+  onPerPageChange?: (perPage: number) => void
+  perPageOptions?: number[]
+}
+
+export function TablePagination({
+  pagination,
+  onPageChange,
+  onPerPageChange,
+  perPageOptions = DEFAULT_PER_PAGE_OPTIONS,
+}: TablePaginationProps) {
+  if (!pagination || (pagination.totalPages <= 1 && !onPerPageChange)) return null
+  return (
+    <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm text-slate-600">
+        Página {pagination.page} de {pagination.totalPages} ({pagination.total} registros)
+      </p>
+      <div className="relative z-20 flex flex-wrap items-center gap-2">
+        {onPerPageChange && (
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            Mostrar
+            <SelectInput
+              value={pagination.perPage}
+              onChange={(event) => onPerPageChange(Number(event.target.value))}
+              aria-label="Registros por página"
+              className="w-20"
+              menuPlacement="top"
+            >
+              {perPageOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </SelectInput>
+            por página
+          </label>
+        )}
+        <button
+          type="button"
+          disabled={pagination.page <= 1}
+          onClick={() => onPageChange?.(pagination.page - 1)}
+          className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium hover:border-brand-teal disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Anterior
+        </button>
+        <button
+          type="button"
+          disabled={pagination.page >= pagination.totalPages}
+          onClick={() => onPageChange?.(pagination.page + 1)}
+          className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium hover:border-brand-teal disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Siguiente
+        </button>
+      </div>
+    </div>
+  )
+}
 
 interface DataTableProps<T> {
   columns: Column<T>[]
@@ -82,7 +143,7 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="overflow-hidden rounded border border-slate-200 bg-white">
+    <div className="rounded border border-slate-200 bg-white">
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-slate-200">
           <thead className="bg-slate-50">
@@ -139,49 +200,12 @@ export function DataTable<T>({
         </table>
       </div>
 
-      {pagination && (pagination.totalPages > 1 || onPerPageChange) && (
-        <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-slate-600">
-            Página {pagination.page} de {pagination.totalPages} ({pagination.total} registros)
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            {onPerPageChange && (
-              <label className="flex items-center gap-2 text-sm text-slate-600">
-                Mostrar
-                <select
-                  value={pagination.perPage}
-                  onChange={(event) => onPerPageChange(Number(event.target.value))}
-                  aria-label="Registros por página"
-                  className="rounded border border-slate-300 bg-white px-2 py-1.5 text-sm font-medium hover:border-brand-teal focus:border-brand-teal focus:outline-none"
-                >
-                  {perPageOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-                por página
-              </label>
-            )}
-            <button
-              type="button"
-              disabled={pagination.page <= 1}
-              onClick={() => onPageChange?.(pagination.page - 1)}
-              className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium hover:border-brand-teal disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Anterior
-            </button>
-            <button
-              type="button"
-              disabled={pagination.page >= pagination.totalPages}
-              onClick={() => onPageChange?.(pagination.page + 1)}
-              className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium hover:border-brand-teal disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Siguiente
-            </button>
-          </div>
-        </div>
-      )}
+      <TablePagination
+        pagination={pagination}
+        onPageChange={onPageChange}
+        onPerPageChange={onPerPageChange}
+        perPageOptions={perPageOptions}
+      />
     </div>
   )
 }

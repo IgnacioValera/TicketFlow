@@ -1,4 +1,6 @@
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
+import { useState } from 'react'
+import { ConfirmModal } from '@/components/common/Modal'
 import { PrimaryButton, SecondaryButton, SelectInput } from '@/components/common/UiControls'
 import { PERMISSIONS } from '@/constants/permissions'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -31,8 +33,9 @@ export function OpportunitySurveyCard({
   onGenerate,
 }: OpportunitySurveyCardProps) {
   const { hasPermission } = usePermissions()
-  const canGenerate = hasPermission(PERMISSIONS.CRM_OPPORTUNITY_MOVE)
+  const canGenerate = hasPermission(PERMISSIONS.CRM_SURVEY_MANAGE) || hasPermission(PERMISSIONS.CRM_OPPORTUNITY_MOVE)
   const canResults = hasPermission(PERMISSIONS.CRM_SURVEY_RESULTS)
+  const [regenerateOpen, setRegenerateOpen] = useState(false)
   const status = card?.status ?? 'UNCONFIGURED'
   const retryAutomatic = canGenerate && canRetryAutomaticInvitation(stage, status)
   const showManual = canGenerate
@@ -41,17 +44,17 @@ export function OpportunitySurveyCard({
     <section className="rounded border border-slate-200 bg-white p-4">
       <h3 className="text-sm font-semibold text-brand-navy">Encuesta de satisfacción</h3>
       {status === 'UNCONFIGURED' ? (
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-muted">
           No hay una encuesta activa de Oportunidad ganada. Esa se envía sola al marcar la oportunidad como Ganada.
         </p>
       ) : null}
       {status === 'NOT_GENERATED' && stage !== 'WON' ? (
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-muted">
           Al marcar esta oportunidad como Ganada se enviará “{card?.surveyTitle ?? 'la encuesta de postventa'}”.
         </p>
       ) : null}
       {status === 'NOT_GENERATED' && stage === 'WON' ? (
-        <p className="mt-2 text-sm text-slate-600">No se ha generado una invitación para esta oportunidad.</p>
+        <p className="mt-2 text-sm text-muted">No se ha generado una invitación para esta oportunidad.</p>
       ) : null}
       {status === 'PENDING' && card ? (
         <dl className="mt-2 space-y-1 text-sm">
@@ -69,10 +72,10 @@ export function OpportunitySurveyCard({
         </dl>
       ) : null}
       {status === 'EXPIRED' ? (
-        <p className="mt-2 text-sm text-slate-600">Estado: {INVITATION_STATUS_LABELS.EXPIRED}</p>
+        <p className="mt-2 text-sm text-muted">Estado: {INVITATION_STATUS_LABELS.EXPIRED}</p>
       ) : null}
       {status === 'REVOKED' ? (
-        <p className="mt-2 text-sm text-slate-600">Estado: {INVITATION_STATUS_LABELS.REVOKED}</p>
+        <p className="mt-2 text-sm text-muted">Estado: {INVITATION_STATUS_LABELS.REVOKED}</p>
       ) : null}
 
       {retryAutomatic ? (
@@ -84,7 +87,7 @@ export function OpportunitySurveyCard({
       {showManual ? (
         <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
           <p className="text-sm font-medium text-brand-navy">Enviar ahora (manual)</p>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-muted">
             Las encuestas con disparador Manual no esperan a Ganada: eliges una activa y generas el enlace.
           </p>
           {manualSurveys.length > 0 ? (
@@ -108,7 +111,7 @@ export function OpportunitySurveyCard({
               ) : null}
             </>
           ) : (
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-muted">
               Crea una encuesta con disparador Manual, agrégale preguntas y actívala para enviarla desde aquí.
             </p>
           )}
@@ -120,20 +123,32 @@ export function OpportunitySurveyCard({
           className="mt-3"
           type="button"
           disabled={generating}
-          onClick={() => {
-            if (!window.confirm('Se invalidará el enlace anterior. ¿Generar uno nuevo?')) return
-            onGenerate(true)
-          }}
+          onClick={() => setRegenerateOpen(true)}
         >
           Generar nuevo enlace
         </SecondaryButton>
       ) : null}
 
       {status === 'RESPONDED' && canResults && card?.surveyId ? (
-        <Link to={`/crm/surveys/${card.surveyId}/results`} className="mt-3 inline-block text-sm font-medium text-brand-teal hover:underline">
+        <Link href={`/crm/surveys/${card.surveyId}/results`} className="mt-3 inline-block text-sm font-medium text-brand-teal hover:underline">
           Ver resultados
         </Link>
       ) : null}
+
+      <ConfirmModal
+        open={regenerateOpen}
+        overlayClassName="z-[70]"
+        onClose={() => setRegenerateOpen(false)}
+        onConfirm={() => {
+          setRegenerateOpen(false)
+          onGenerate(true)
+        }}
+        title="¿Generar un enlace nuevo?"
+        message="Se invalidará el enlace anterior. El cliente ya no podrá usarlo."
+        confirmLabel="Generar uno nuevo"
+        cancelLabel="Cancelar"
+        variant="danger"
+      />
     </section>
   )
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
-import { assignmentDescription, TICKET_FLOW_COPY } from '@/pages/tickets/ticket-flow-copy'
+import { assignmentDescription, TICKET_FLOW_COPY } from '@/views/tickets/ticket-flow-copy'
 
 const MOJIBAKE = /Ã|Â|â|�/
 

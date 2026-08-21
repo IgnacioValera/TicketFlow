@@ -25,7 +25,7 @@ export function PasswordField({ label, id, className = '', ...props }: PasswordF
           type="button"
           onClick={() => setVisible((value) => !value)}
           className="absolute inset-y-0 right-0 grid w-11 place-items-center text-muted hover:text-text"
-          aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+          aria-label={visible ? 'Ocultar texto' : 'Mostrar texto'}
         >
           <AppIcon name={visible ? 'eye-off' : 'eye'} className="h-4 w-4" />
         </button>

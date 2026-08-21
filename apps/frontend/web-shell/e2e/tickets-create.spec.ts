@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
+import { chooseSelectOption } from './select'
 
 const AUTHORIZED_ROLES = [
   'admin@helpdesk.com',
@@ -18,8 +19,9 @@ async function login(page: Page, email: string) {
 async function fillValidTicketForm(page: Page, title: string) {
   await page.getByLabel('Título').fill(title)
   await page.getByLabel('Descripción').fill('Descripción válida para prueba de creación de ticket.')
-  await page.locator('#categoryId').selectOption({ index: 1 })
-  await page.locator('#priorityId').selectOption({ index: 1 })
+  await page.locator('#categoryId').click()
+  await page.getByRole('option').first().click()
+  await chooseSelectOption(page.locator('#priorityId'), { index: 1 })
 }
 
 test.describe('Crear ticket', () => {
@@ -38,8 +40,9 @@ test.describe('Crear ticket', () => {
     await page.goto('/tickets/create')
     await page.getByLabel('Título').fill('     ')
     await page.getByLabel('Descripción').fill('Descripción válida para prueba de creación de ticket.')
-    await page.locator('#categoryId').selectOption({ index: 1 })
-    await page.locator('#priorityId').selectOption({ index: 1 })
+    await page.locator('#categoryId').click()
+    await page.getByRole('option').first().click()
+    await chooseSelectOption(page.locator('#priorityId'), { index: 1 })
     await page.getByRole('button', { name: 'Crear ticket' }).click()
     await expect(page.getByText(/título es obligatorio/i)).toBeVisible()
     await expect(page).toHaveURL(/\/tickets\/create/)
@@ -48,9 +51,9 @@ test.describe('Crear ticket', () => {
   test('no muestra categorías inactivas en el selector', async ({ page }) => {
     await login(page, 'admin@helpdesk.com')
     await page.goto('/tickets/create')
-    const options = page.locator('#categoryId option')
-    await expect(options.filter({ hasText: 'Accesos' })).toHaveCount(0)
-    await expect(options.filter({ hasText: 'Hardware' })).toHaveCount(1)
+    await page.locator('#categoryId').click()
+    await expect(page.getByRole('option', { name: 'Accesos' })).toHaveCount(0)
+    await expect(page.getByRole('option', { name: 'Hardware' })).toHaveCount(1)
   })
 
   test('crea ticket con caracteres especiales y muestra folio', async ({ page }) => {
@@ -130,10 +133,11 @@ test.describe('Crear ticket', () => {
     const description = 'Descripción que debe conservarse tras fallo del servidor.'
     await page.getByLabel('Título').fill(title)
     await page.getByLabel('Descripción').fill(description)
-    await page.locator('#categoryId').selectOption({ index: 1 })
-    await page.locator('#priorityId').selectOption({ index: 1 })
+    await page.locator('#categoryId').click()
+    await page.getByRole('option').first().click()
+    await chooseSelectOption(page.locator('#priorityId'), { index: 1 })
     await page.getByRole('button', { name: 'Crear ticket' }).click()
-    await expect(page.getByRole('alert')).toContainText(/error simulado/i)
+    await expect(page.getByRole('alert').filter({ hasText: /error simulado/i })).toContainText(/error simulado/i)
     await expect(page.getByLabel('Título')).toHaveValue(title)
     await expect(page.getByLabel('Descripción')).toHaveValue(description)
     await expect(page).toHaveURL(/\/tickets\/create/)

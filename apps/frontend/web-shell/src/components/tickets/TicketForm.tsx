@@ -1,11 +1,17 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { EmptyState } from '@/components/common/EmptyState'
+import { SearchableSelect } from '@/components/common/SearchableSelect'
+import { SelectInput } from '@/components/common/UiControls'
+import { PERMISSIONS } from '@/constants/permissions'
+import { useAuth } from '@/hooks/useAuth'
+import { usePermissions } from '@/hooks/usePermissions'
 import type { Category, Priority } from '@/types/catalog.types'
+import type { User } from '@/types/user.types'
 import { LIMITS } from '@/constants/validation'
 import * as categoriesService from '@/services/categories.service'
-import * as crm from '@/services/crm.service'
 import * as prioritiesService from '@/services/priorities.service'
-import type { CrmClient } from '@/types/crm.types'
+import * as usersService from '@/services/users.service'
+import { REQUESTER_UNLINKED } from '@/utils/notifications'
 import { errorMessage } from '@/utils/validation'
 import {
   normalizeTicketForm,
@@ -29,7 +35,10 @@ const EMPTY: TicketFormValues = {
   categoryId: '',
   priorityId: '',
   clientId: '',
+  requesterId: '',
 }
+
+const PORTAL_ROLES = new Set(['CLIENT', 'REQUESTER'])
 
 export function TicketForm({
   initialValues,
@@ -38,11 +47,15 @@ export function TicketForm({
   onSubmit,
   onCancel,
 }: TicketFormProps) {
+  const { user } = useAuth()
+  const { hasPermission } = usePermissions()
+  const isPortal = Boolean(user && PORTAL_ROLES.has(user.role))
+  const canChooseRequester = hasPermission(PERMISSIONS.TICKET_VIEW_ALL)
   const [values, setValues] = useState<TicketFormValues>({ ...EMPTY, ...initialValues })
   const [error, setError] = useState('')
   const [categories, setCategories] = useState<Category[]>([])
   const [priorities, setPriorities] = useState<Priority[]>([])
-  const [clients, setClients] = useState<CrmClient[]>([])
+  const [requesters, setRequesters] = useState<User[]>([])
   const [catalogLoading, setCatalogLoading] = useState(true)
   const [catalogError, setCatalogError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -51,14 +64,16 @@ export function TicketForm({
     const load = async () => {
       setCatalogError('')
       try {
-        const [catRes, priRes, clientRes] = await Promise.all([
+        const [catRes, priRes, requesterRes] = await Promise.all([
           categoriesService.getCategories({ status: 'ACTIVE', perPage: 100 }),
           prioritiesService.getPriorities({ status: 'ACTIVE', perPage: 100 }),
-          crm.getClients({ perPage: 100, status: 'ACTIVE' }).catch(() => ({ data: [] as CrmClient[] })),
+          canChooseRequester
+            ? usersService.getRequesters().catch(() => ({ data: [] as User[] }))
+            : Promise.resolve({ data: [] as User[] }),
         ])
         setCategories(catRes.data.filter((c) => c.status === 'ACTIVE'))
         setPriorities(priRes.data.filter((p) => p.status === 'ACTIVE'))
-        setClients(clientRes.data)
+        setRequesters(requesterRes.data)
       } catch (err: unknown) {
         setCatalogError(errorMessage(err, 'No se pudieron cargar los catálogos'))
       } finally {
@@ -66,16 +81,21 @@ export function TicketForm({
       }
     }
     void load()
-  }, [])
+  }, [canChooseRequester])
 
   const catalogsReady = categories.length > 0 && priorities.length > 0
   const isBusy = loading || isSubmitting
+  const selectedRequester = requesters.find((item) => item.id === values.requesterId)
+  const portalUnlinked = isPortal && !user?.clientId
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (isSubmitting || loading) return
-
     setError('')
+    if (portalUnlinked) {
+      setError(REQUESTER_UNLINKED)
+      return
+    }
     const validationError = validateTicketForm(values)
     if (validationError) {
       setError(validationError)
@@ -96,7 +116,12 @@ export function TicketForm({
 
     setIsSubmitting(true)
     try {
-      await onSubmit(normalizeTicketForm(values))
+      const payload = normalizeTicketForm({
+        ...values,
+        clientId: undefined,
+        requesterId: isPortal ? undefined : values.requesterId,
+      })
+      await onSubmit(payload)
     } catch (err: unknown) {
       setError(errorMessage(err, 'No se pudo guardar el ticket'))
     } finally {
@@ -184,30 +209,25 @@ export function TicketForm({
           <label htmlFor="categoryId" className="mb-1 block text-sm font-medium text-brand-navy">
             Categoría
           </label>
-          <select
+          <SearchableSelect
             id="categoryId"
             value={values.categoryId}
-            onChange={(e) => setValues((v) => ({ ...v, categoryId: e.target.value }))}
-            className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
-            required
-          >
-            <option value="">Seleccionar...</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            onChange={(categoryId) => setValues((v) => ({ ...v, categoryId }))}
+            options={categories.map((c) => ({ value: c.id, label: c.name }))}
+            placeholder="Seleccionar..."
+            searchPlaceholder="Buscar categoría..."
+            emptyMessage="No hay categorías disponibles"
+            noResultsMessage="Ninguna categoría coincide con la búsqueda"
+          />
         </div>
         <div>
           <label htmlFor="priorityId" className="mb-1 block text-sm font-medium text-brand-navy">
             Prioridad
           </label>
-          <select
+          <SelectInput
             id="priorityId"
             value={values.priorityId}
             onChange={(e) => setValues((v) => ({ ...v, priorityId: e.target.value }))}
-            className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
             required
           >
             <option value="">Seleccionar...</option>
@@ -216,31 +236,53 @@ export function TicketForm({
                 {p.name}
               </option>
             ))}
-          </select>
+          </SelectInput>
         </div>
       </div>
-      <div>
-        <label htmlFor="clientId" className="mb-1 block text-sm font-medium text-brand-navy">
-          Cliente (opcional)
-        </label>
-        <select
-          id="clientId"
-          value={values.clientId ?? ''}
-          onChange={(e) => setValues((v) => ({ ...v, clientId: e.target.value }))}
-          className="w-full rounded-lg border border-brand-slate px-3 py-2 text-sm"
-        >
-          <option value="">Sin cliente</option>
-          {clients.map((client) => (
-            <option key={client.id} value={client.id}>
-              {client.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      {isPortal && (
+        <div>
+          <p className="mb-1 text-sm font-medium text-brand-navy">Cliente</p>
+          <p className="rounded-lg border border-brand-slate bg-page px-3 py-2 text-sm">
+            {user?.clientName || 'Sin cliente asignado'}
+          </p>
+          {portalUnlinked && (
+            <p className="mt-1 text-sm text-danger" role="alert">
+              {REQUESTER_UNLINKED}
+            </p>
+          )}
+        </div>
+      )}
+      {canChooseRequester && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="requesterId" className="mb-1 block text-sm font-medium text-brand-navy">
+              Solicitante
+            </label>
+            <SearchableSelect
+              id="requesterId"
+              value={values.requesterId ?? ''}
+              onChange={(requesterId) => setValues((v) => ({ ...v, requesterId }))}
+              options={requesters.map((item) => ({ value: item.id, label: item.fullName }))}
+              placeholder="Crear a mi nombre"
+              searchPlaceholder="Buscar solicitante..."
+              emptyMessage="No hay solicitantes disponibles"
+              noResultsMessage="Ningún solicitante coincide con la búsqueda"
+              allowEmpty
+              emptyLabel="Crear a mi nombre"
+            />
+          </div>
+          <div>
+            <p className="mb-1 text-sm font-medium text-brand-navy">Cliente</p>
+            <p className="rounded-lg border border-brand-slate bg-page px-3 py-2 text-sm">
+              {selectedRequester?.clientName || 'Se deriva del solicitante'}
+            </p>
+          </div>
+        </div>
+      )}
       <div className="flex flex-wrap gap-3 pt-2">
         <button
           type="submit"
-          disabled={isBusy}
+          disabled={isBusy || portalUnlinked}
           className="rounded-lg bg-brand-teal px-4 py-2 text-sm font-medium text-white hover:bg-brand-teal/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isBusy ? 'Guardando...' : submitLabel}

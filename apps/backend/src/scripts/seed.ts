@@ -1,9 +1,10 @@
 import 'reflect-metadata'
 import bcrypt from 'bcryptjs'
 import { ROLE_PERMISSION_CODES, PERMISSIONS } from '../common/permissions'
+import { ACCESS_MODULES, PERMISSION_DEFINITIONS, ROLE_DESCRIPTIONS, nextRolePermissionCodes } from '../common/access-catalog'
 import AppDataSource from '../database/data-source'
 import {
-  ActivityStatus, ActivityType, CatalogStatus, Category, Client, ClientSegment, ClientStatus, CompanyTier,
+  AccessModule, ActivityStatus, ActivityType, CatalogStatus, Category, Client, ClientSegment, ClientStatus, CompanyTier,
   CrmActivity, CrmContact, CrmOpportunity, CrmOpportunityStageHistory, CrmSurvey, CrmSurveyAnswer, CrmSurveyInvitation,
   CrmSurveyQuestion, CrmSurveyQuestionOption, CrmSurveyResponse, KnowledgeArticle, OpportunityStage, Permission, Priority,
   PriorityLevel, Role, RoleCode, SlaPolicy, SurveyQuestionType, SurveyStatus, SurveyTrigger, Ticket, TicketComment,
@@ -15,10 +16,58 @@ import { hashSurveyToken, invitationExpiry } from '../crm/survey-token'
 async function seed() {
   await AppDataSource.initialize()
   const permissionRepo = AppDataSource.getRepository(Permission), roleRepo = AppDataSource.getRepository(Role), userRepo = AppDataSource.getRepository(User)
+  const moduleRepo = AppDataSource.getRepository(AccessModule)
+  const moduleMap = new Map<string, AccessModule>()
+  for (const item of ACCESS_MODULES) {
+    let module = await moduleRepo.findOneBy({ code: item.code })
+    if (!module) {
+      module = await moduleRepo.save(moduleRepo.create({
+        code: item.code,
+        name: item.name,
+        description: item.description,
+        isActive: true,
+        isSystem: item.isSystem,
+        sortOrder: item.sortOrder,
+      }))
+    } else {
+      module.name = item.name
+      module.description = item.description
+      module.isSystem = item.isSystem
+      module.sortOrder = item.sortOrder
+      module = await moduleRepo.save(module)
+    }
+    moduleMap.set(item.code, module)
+  }
   const permissionMap = new Map<string, Permission>()
+  const newlyCreatedCodes: string[] = []
+  for (const definition of PERMISSION_DEFINITIONS) {
+    let permission = await permissionRepo.findOneBy({ code: definition.code })
+    const module = moduleMap.get(definition.moduleCode) ?? null
+    if (!permission) {
+      permission = await permissionRepo.save(permissionRepo.create({
+        code: definition.code,
+        name: definition.name,
+        description: definition.description,
+        action: definition.action,
+        module,
+      }))
+      newlyCreatedCodes.push(definition.code)
+    } else {
+      permission.name = definition.name
+      permission.description = definition.description
+      permission.action = definition.action
+      permission.module = module
+      permission = await permissionRepo.save(permission)
+    }
+    permissionMap.set(definition.code, permission)
+  }
   for (const code of Object.values(PERMISSIONS)) {
+    if (permissionMap.has(code)) continue
     let permission = await permissionRepo.findOneBy({ code })
-    if (!permission) permission = await permissionRepo.save(permissionRepo.create({ code, name: code.replaceAll('_', ' ') }))
+    if (!permission) {
+      permission = await permissionRepo.save(permissionRepo.create({ code, name: code.replaceAll('_', ' ') }))
+      newlyCreatedCodes.push(code)
+    }
     permissionMap.set(code, permission)
   }
   const roleNames: Record<RoleCode, string> = {
@@ -28,9 +77,19 @@ async function seed() {
   const roles = new Map<RoleCode, Role>()
   for (const code of Object.values(RoleCode)) {
     let role = await roleRepo.findOne({ where: { code }, relations: { permissions: true } })
-    if (!role) role = roleRepo.create({ code, name: roleNames[code] })
+    const isNewRole = !role
+    if (!role) role = roleRepo.create({ code, name: roleNames[code], description: ROLE_DESCRIPTIONS[code], permissionsVersion: 1 })
     role.name = roleNames[code]
-    role.permissions = [...ROLE_PERMISSION_CODES[code]].map((permission) => permissionMap.get(permission)!)
+    role.description = ROLE_DESCRIPTIONS[code]
+    const nextCodes = nextRolePermissionCodes({
+      isNewRole,
+      existingCodes: (role.permissions ?? []).map((permission) => permission.code),
+      defaultCodes: ROLE_PERMISSION_CODES[code],
+      newlyCreatedCodes,
+    })
+    if (nextCodes) {
+      role.permissions = nextCodes.map((permission) => permissionMap.get(permission)!).filter(Boolean)
+    }
     roles.set(code, await roleRepo.save(role))
   }
   const passwordHash = await bcrypt.hash('password', 12)
@@ -38,7 +97,7 @@ async function seed() {
     ['Admin Sistema', 'admin@helpdesk.com', RoleCode.ADMIN],
     ['Agente Soporte', 'agent@helpdesk.com', RoleCode.AGENT],
     ['Supervisor Mesa', 'supervisor@helpdesk.com', RoleCode.SUPERVISOR],
-    ['Usuario Solicitante', 'requester@helpdesk.com', RoleCode.CLIENT],
+    ['Usuario Solicitante', 'requester@helpdesk.com', RoleCode.REQUESTER],
     ['Ejecutivo Comercial', 'sales@helpdesk.com', RoleCode.SALES],
   ]
   const users = new Map<RoleCode, User>()
@@ -82,14 +141,19 @@ async function seed() {
     clients.set(name, client)
   }
 
+  const acme = clients.get('Acme Corp')!
+  const requesterUser = users.get(RoleCode.REQUESTER)!
+  requesterUser.client = acme
+  users.set(RoleCode.REQUESTER, await userRepo.save(requesterUser))
+
   const ticketRepo = AppDataSource.getRepository(Ticket)
   if (await ticketRepo.count() === 0) {
-    const now = Date.now(), requester = users.get(RoleCode.CLIENT)!, agent = users.get(RoleCode.AGENT)!, supervisor = users.get(RoleCode.SUPERVISOR)!, acme = clients.get('Acme Corp')!
+    const now = Date.now(), requester = users.get(RoleCode.REQUESTER)!, agent = users.get(RoleCode.AGENT)!, supervisor = users.get(RoleCode.SUPERVISOR)!
     const seeds: Array<[string,string,TicketStatus,Category,Priority,number,User|null,Client|null]> = [
-      ['No puedo acceder al sistema de nómina','Credenciales inválidas después de restablecer la contraseña.',TicketStatus.OPEN,categories.get('Software')!,priorities.get(PriorityLevel.HIGH)!,2,null,null],
-      ['Impresora no responde','La impresora del piso 3 no imprime documentos.',TicketStatus.ASSIGNED,categories.get('Hardware')!,priorities.get(PriorityLevel.MEDIUM)!,20,agent,null],
+      ['No puedo acceder al sistema de nómina','Credenciales inválidas después de restablecer la contraseña.',TicketStatus.OPEN,categories.get('Software')!,priorities.get(PriorityLevel.HIGH)!,2,null,acme],
+      ['Impresora no responde','La impresora del piso 3 no imprime documentos.',TicketStatus.ASSIGNED,categories.get('Hardware')!,priorities.get(PriorityLevel.MEDIUM)!,20,agent,acme],
       ['Error en módulo de reportes','El dashboard muestra error 500 al exportar.',TicketStatus.IN_PROGRESS,categories.get('Software')!,priorities.get(PriorityLevel.CRITICAL)!,6,agent,acme],
-      ['Solicitud de acceso VPN','Nuevo colaborador requiere acceso VPN.',TicketStatus.RESOLVED,categories.get('Accesos')!,priorities.get(PriorityLevel.MEDIUM)!,48,agent,null],
+      ['Solicitud de acceso VPN','Nuevo colaborador requiere acceso VPN.',TicketStatus.RESOLVED,categories.get('Accesos')!,priorities.get(PriorityLevel.MEDIUM)!,48,agent,acme],
       ['Servidor de archivos caído','No hay acceso al recurso compartido corporativo.',TicketStatus.ESCALATED,categories.get('Hardware')!,priorities.get(PriorityLevel.CRITICAL)!,10,agent,acme],
     ]
     let number = 0

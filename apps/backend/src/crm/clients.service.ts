@@ -49,8 +49,19 @@ export class ClientsService {
     if (query.ownerId) qb.andWhere('owner.id = :ownerId', { ownerId: query.ownerId })
     if (query.minScore !== undefined) qb.andWhere('client.score >= :minScore', { minScore: query.minScore })
     if (query.maxScore !== undefined) qb.andWhere('client.score <= :maxScore', { maxScore: query.maxScore })
-    if (query.search) {
-      qb.andWhere(new Brackets((where) => where.where('LOWER(client.name) LIKE :q').orWhere('LOWER(client.email) LIKE :q').orWhere('LOWER(client.industry) LIKE :q')), { q: `%${query.search.toLowerCase()}%` })
+    const search = query.search?.trim()
+    if (search) {
+      qb.andWhere(
+        new Brackets((where) =>
+          where
+            .where('LOWER(client.name) LIKE :q')
+            .orWhere('LOWER(client.email) LIKE :q')
+            .orWhere('LOWER(client.industry) LIKE :q')
+            .orWhere('LOWER(client.region) LIKE :q')
+            .orWhere('LOWER(client.phone) LIKE :q'),
+        ),
+        { q: `%${search.toLowerCase()}%` },
+      )
     }
     const [items, total] = await qb.orderBy('client.name', 'ASC').skip(skip).take(perPage).getManyAndCount()
     return { items: items.map((item) => this.serialize(item)), meta: pagination(page, perPage, total) }
@@ -59,10 +70,11 @@ export class ClientsService {
   async create(dto: CreateClientDto, user: User) {
     this.assertWrite(user)
     await this.ensureUniqueName(dto.name)
+    await this.ensureUniqueEmail(dto.email)
     const owner = dto.ownerId ? await this.findOwner(dto.ownerId) : user.role.code === 'SALES' ? user : null
     const client = await this.clients.save(this.clients.create({
       name: dto.name.trim(), industry: dto.industry.trim(), region: dto.region.trim(), tier: dto.tier, segment: dto.segment,
-      email: dto.email.toLowerCase().trim(), phone: dto.phone.trim(), status: dto.status ?? ClientStatus.PROSPECT, owner, score: 50,
+      email: dto.email.toLowerCase().trim(), phone: dto.phone.trim(), status: dto.status ?? ClientStatus.PROSPECT, owner, score: 0,
     }))
     return this.serialize(client)
   }
@@ -71,6 +83,7 @@ export class ClientsService {
     const client = await this.getAccessible(id, user)
     this.assertWrite(user)
     if (dto.name && dto.name.trim().toLowerCase() !== client.name.toLowerCase()) await this.ensureUniqueName(dto.name, id)
+    if (dto.email && dto.email.trim().toLowerCase() !== client.email.toLowerCase()) await this.ensureUniqueEmail(dto.email, id)
     if (dto.name) client.name = dto.name.trim()
     if (dto.industry) client.industry = dto.industry.trim()
     if (dto.region) client.region = dto.region.trim()
@@ -113,7 +126,9 @@ export class ClientsService {
       client: this.serialize(client),
       kpis: {
         score: score.score,
-        dimensions: score.dimensions,
+        insufficient: score.insufficient,
+        factors: score.factors,
+        updatedAt: new Date().toISOString(),
         contacts: contacts.length,
         openOpportunities: opportunities.filter((item) => item.stage !== OpportunityStage.WON && item.stage !== OpportunityStage.LOST).length,
         wonAmount: opportunities.filter((item) => item.stage === OpportunityStage.WON).reduce((sum, item) => sum + item.amount, 0),
@@ -149,7 +164,7 @@ export class ClientsService {
       ageDays: Math.max(0, Math.floor((Date.now() - client.createdAt.getTime()) / 86400000)),
     })
     if (persist) {
-      client.score = result.score
+      client.score = result.score ?? 0
       await this.clients.save(client)
     }
     return result
@@ -183,7 +198,7 @@ export class ClientsService {
   }
 
   private serializeContact(item: CrmContact) {
-    return { id: item.id, clientId: item.client?.id, firstName: item.firstName, lastName: item.lastName, email: item.email, phone: item.phone, jobTitle: item.jobTitle, isPrimary: item.isPrimary }
+    return { id: item.id, clientId: item.client?.id, clientName: item.client?.name ?? '', firstName: item.firstName, lastName: item.lastName, email: item.email, phone: item.phone, jobTitle: item.jobTitle, isPrimary: item.isPrimary }
   }
 
   private serializeOpportunity(item: CrmOpportunity) {
@@ -202,6 +217,12 @@ export class ClientsService {
     const qb = this.clients.createQueryBuilder('client').where('LOWER(client.name) = LOWER(:name)', { name: name.trim() })
     if (excludeId) qb.andWhere('client.id <> :excludeId', { excludeId })
     if (await qb.getExists()) throw new ConflictException('Ya existe un cliente con ese nombre')
+  }
+
+  private async ensureUniqueEmail(email: string, excludeId?: string) {
+    const qb = this.clients.createQueryBuilder('client').where('LOWER(client.email) = LOWER(:email)', { email: email.trim() })
+    if (excludeId) qb.andWhere('client.id <> :excludeId', { excludeId })
+    if (await qb.getExists()) throw new ConflictException('Ya existe un cliente con ese correo')
   }
 
   private async findOwner(id: string) {

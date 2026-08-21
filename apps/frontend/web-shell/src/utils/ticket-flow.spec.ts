@@ -5,6 +5,7 @@ import {
   countTicketsByStatusFilter,
   createSequenceGuard,
   displayValue,
+  filterTicketsByQuery,
   filterTicketsByStatus,
   formatFlowDate,
   formatFlowDuration,
@@ -248,6 +249,30 @@ describe('Flujo visual — etiquetas de evento', () => {
     expect(getEventTypeLabel(model.events[0]?.technicalEvent)).toBe(UNKNOWN_EVENT_TYPE_LABEL)
     expect(model.events[0]?.technicalEvent).toBe('UNKNOWN_EVENT_TYPE')
   })
+
+  it('muestra Agente de IA en la asignación automática', () => {
+    expect(getEventTypeLabel('AI_ASSIGNED')).toBe('Asignación automática')
+    const model = buildFlowModel({
+      id: 't1',
+      status: 'ASSIGNED',
+      statusHistory: [
+        event({ id: 'h1', eventType: 'CREATED', newStatus: 'OPEN', createdAt: '2026-08-20T10:00:00.000Z' }),
+        event({
+          id: 'h2',
+          eventType: 'AI_ASSIGNED',
+          oldStatus: 'OPEN',
+          newStatus: 'ASSIGNED',
+          changedBy: null,
+          changedByName: 'Agente de IA',
+          createdAt: '2026-08-20T10:01:00.000Z',
+        }),
+      ],
+    })
+    const assigned = model.events.find((item) => item.technicalEvent === 'AI_ASSIGNED')
+    expect(assigned?.actorName).toBe('Agente de IA')
+    expect(assigned?.title).toBe('Asignación automática')
+    expect(JSON.stringify(model.events)).not.toMatch(/STATUS_CHANGED/)
+  })
 })
 
 describe('Flujo visual — filtro de estado', () => {
@@ -297,5 +322,19 @@ describe('Flujo visual — filtro de estado', () => {
       CLOSED: 1,
       CANCELLED: 1,
     })
+  })
+})
+
+describe('Flujo visual — búsqueda de tickets', () => {
+  const tickets = [
+    { id: 't1', folio: 'HD-2026-0001', title: 'No puedo acceder al sistema' },
+    { id: 't2', folio: 'HD-2026-0002', title: 'Impresora no responde' },
+  ]
+
+  it('filtra por folio o título y deja la lista completa si no hay búsqueda', () => {
+    expect(filterTicketsByQuery(tickets, '')).toHaveLength(2)
+    expect(filterTicketsByQuery(tickets, '0002').map((item) => item.id)).toEqual(['t2'])
+    expect(filterTicketsByQuery(tickets, 'acceder').map((item) => item.id)).toEqual(['t1'])
+    expect(filterTicketsByQuery(tickets, 'sin coincidencias')).toHaveLength(0)
   })
 })
