@@ -40,6 +40,9 @@ export type AppIconName =
   | 'file'
   | 'x'
   | 'info'
+  | 'message-square'
+  | 'sparkles'
+  | 'bot'
 
 const paths: Record<AppIconName, string[]> = {
   dashboard: ['M4 13h6V4H4z', 'M14 20h6v-9h-6z', 'M14 4h6v3h-6z', 'M4 17h6v3H4z'],
@@ -99,6 +102,18 @@ const paths: Record<AppIconName, string[]> = {
   file: ['M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z', 'M14 3v5h5', 'M8 13h8', 'M8 17h5'],
   x: ['M18 6 6 18', 'M6 6l12 12'],
   info: ['M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z', 'M12 16v-4', 'M12 8h.01'],
+  'message-square': ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'],
+  sparkles: [
+    'M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6z',
+    'M19 13l.8 2.2L22 16l-2.2.8L19 19l-.8-2.2L16 16l2.2-.8z',
+  ],
+  bot: [
+    'M12 8V4',
+    'M8 8h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z',
+    'M9 13h.01',
+    'M15 13h.01',
+    'M10 17h4',
+  ],
 }
 
 export function AppIcon({
