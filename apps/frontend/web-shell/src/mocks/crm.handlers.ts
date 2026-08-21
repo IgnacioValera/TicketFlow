@@ -612,8 +612,7 @@ function surveyCard(opportunity: CrmOpportunity) {
 }
 
 function serializeOpportunity(item: CrmOpportunity, withCard = false) {
-  const payload = { ...item, activities: item.activities ?? [] }
-  return withCard ? { ...payload, surveyInvitation: surveyCard(item) } : payload
+  return withCard ? { ...item, surveyInvitation: surveyCard(item) } : item
 }
 
 export function createCrmHandlers(users: User[] = []) {
