@@ -145,6 +145,7 @@ export class N8nIntegrationService {
         assigneeName: agent.fullName,
         reason: dto.reason,
         confidence: dto.confidence,
+        assignmentKind: 'AUTOMATIC' as const,
       }
       try {
         const history = await manager.getRepository(TicketHistory).save(

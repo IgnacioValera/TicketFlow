@@ -215,7 +215,7 @@ export class TicketsService {
       await manager.getRepository(Ticket).save(ticket)
       const eventType = previousName ? 'REASSIGNED' : 'ASSIGNED'
       const history = await manager.getRepository(TicketHistory).save(manager.getRepository(TicketHistory).create({
-        ticket, changedBy: user, actorType: HistoryActorType.USER, actorName: user.fullName, eventType, oldStatus, newStatus: ticket.status, reason: 'Asignación de responsable', details: { from: previousName, to: agent.fullName },
+        ticket, changedBy: user, actorType: HistoryActorType.USER, actorName: user.fullName, eventType, oldStatus, newStatus: ticket.status, reason: 'Asignación de responsable', details: { from: previousName, to: agent.fullName, assignmentKind: 'MANUAL', assigneeName: agent.fullName },
       }))
       await this.notifications.dispatch(manager, {
         type: previousName ? NotificationType.TICKET_REASSIGNED : NotificationType.TICKET_ASSIGNED,

@@ -231,6 +231,8 @@ describe('N8nIntegrationService', () => {
     expect(histories[0]?.actorName).toBe('Agente de IA')
     expect(histories[0]?.actorType).toBe(HistoryActorType.SYSTEM)
     expect(histories[0]?.eventType).toBe('AI_ASSIGNED')
+    expect(histories[0]?.reason).toBe('Tiene la menor carga activa para atender este ticket.')
+    expect(histories[0]?.details).toEqual(expect.objectContaining({ assignmentKind: 'AUTOMATIC', assigneeName: 'Agente Soporte' }))
     expect(histories[0]?.changedBy).toBeNull()
     expect(notifications.dispatch).toHaveBeenCalledWith(
       expect.anything(),
