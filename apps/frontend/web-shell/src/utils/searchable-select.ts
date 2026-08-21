@@ -29,11 +29,15 @@ export function placeSelectMenu(
   trigger: { top: number; bottom: number; left: number; width: number },
   viewportHeight: number,
   maxMenuHeight = 256,
+  preferred: 'top' | 'bottom' = 'bottom',
 ) {
   const gap = 4
   const spaceBelow = viewportHeight - trigger.bottom - 8
   const spaceAbove = trigger.top - 8
-  const openUpward = spaceBelow < 140 && spaceAbove > spaceBelow
+  const openUpward =
+    preferred === 'top'
+      ? spaceAbove >= 96 || spaceAbove > spaceBelow
+      : spaceBelow < 140 && spaceAbove > spaceBelow
   const maxHeight = Math.max(96, Math.min(maxMenuHeight, openUpward ? spaceAbove : spaceBelow))
   return {
     left: trigger.left,

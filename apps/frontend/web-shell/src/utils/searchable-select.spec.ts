@@ -47,4 +47,10 @@ describe('placeSelectMenu', () => {
     expect(placed.bottom).toBe(800 - 720 + 4)
     expect(placed.top).toBeUndefined()
   })
+
+  it('respeta menuPlacement top aunque haya espacio abajo', () => {
+    const placed = placeSelectMenu({ top: 200, bottom: 240, left: 16, width: 240 }, 800, 256, 'top')
+    expect(placed.bottom).toBe(800 - 200 + 4)
+    expect(placed.top).toBeUndefined()
+  })
 })

@@ -22,6 +22,7 @@ interface SearchableSelectProps {
   emptyLabel?: string
   searchable?: boolean
   ariaLabel?: string
+  menuPlacement?: 'top' | 'bottom'
   style?: CSSProperties
 }
 
@@ -39,6 +40,7 @@ export function SearchableSelect({
   emptyLabel = 'Ninguno',
   searchable = true,
   ariaLabel,
+  menuPlacement = 'bottom',
   style,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false)
@@ -70,7 +72,7 @@ export function SearchableSelect({
     if (!open || !containerRef.current) return
     const update = () => {
       const rect = containerRef.current!.getBoundingClientRect()
-      const placed = placeSelectMenu(rect, window.innerHeight)
+      const placed = placeSelectMenu(rect, window.innerHeight, 256, menuPlacement)
       setMenuStyle({
         position: 'fixed',
         left: placed.left,
@@ -88,7 +90,7 @@ export function SearchableSelect({
       window.removeEventListener('resize', update)
       document.removeEventListener('scroll', update, true)
     }
-  }, [open, visibleOptions.length])
+  }, [menuPlacement, open, visibleOptions.length])
 
   useEffect(() => {
     if (!open) {
