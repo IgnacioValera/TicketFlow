@@ -1,4 +1,5 @@
 import type { Ticket, TicketStatus, TicketStatusHistory } from '@/types/ticket.types'
+import { assignmentAgentName } from '@/utils/ticket-event-context'
 import { TICKET_STATUS_LABELS } from '@/utils/reports'
 import { TRANSITIONS } from '@/utils/ticket-state-machine'
 
@@ -27,6 +28,8 @@ export interface FlowEvent {
   ticketStatus: TicketStatus | null
   oldStatus: TicketStatus | null
   reason: string | null
+  actorType: 'USER' | 'SYSTEM' | null
+  details: Record<string, unknown> | null
 }
 
 export interface FlowModel {
@@ -37,10 +40,10 @@ export interface FlowModel {
 
 export const FLOW_LAYOUT = {
   nodeWidth: 200,
-  nodeHeight: 128,
+  nodeHeight: 168,
   gapX: 56,
   mainY: 72,
-  exceptionY: 268,
+  exceptionY: 300,
   padding: 32,
 }
 
@@ -265,6 +268,8 @@ export function buildFlowModel(ticket: Pick<Ticket, 'id' | 'status' | 'statusHis
       ticketStatus: item.newStatus,
       oldStatus: item.oldStatus,
       reason: item.reason ?? null,
+      actorType: item.actorType ?? null,
+      details: item.details ?? null,
     }
   })
 
@@ -287,6 +292,8 @@ export function buildFlowModel(ticket: Pick<Ticket, 'id' | 'status' | 'statusHis
     ticketStatus: status,
     oldStatus: ticket.status,
     reason: null,
+    actorType: null,
+    details: null,
   }))
 
   return {
@@ -325,11 +332,17 @@ function eventTitle(item: TicketStatusHistory, type: string) {
 }
 
 function eventDescription(item: TicketStatusHistory, type: string) {
-  if (item.reason) return item.reason
+  const assigneeName = assignmentAgentName(item.details)
   if (type === 'CREATED') return 'El ticket ingresó al sistema y quedó en estado abierto.'
-  if (type === 'ASSIGNED' || type === 'AI_ASSIGNED') return 'Se asignó un responsable al ticket.'
+  if (type === 'AI_ASSIGNED') {
+    return assigneeName
+      ? `Se asignó a ${assigneeName} de forma automática.`
+      : 'Se asignó un responsable al ticket.'
+  }
+  if (type === 'ASSIGNED' || type === 'REASSIGNED') {
+    return assigneeName ? `Se asignó a ${assigneeName}.` : 'Se asignó un responsable al ticket.'
+  }
   if (type === 'AI_ASSIGNMENT_FAILED') return 'La asignación automática no se aplicó; el ticket permanece disponible.'
-  if (type === 'REASSIGNED') return 'El ticket cambió de responsable.'
   if (type === 'PRIORITY_CHANGED') return 'Se actualizó la prioridad del ticket.'
   if (item.oldStatus) {
     return `El estado cambió de ${TICKET_STATUS_LABELS[item.oldStatus]} a ${TICKET_STATUS_LABELS[item.newStatus]}.`

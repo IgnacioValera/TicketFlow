@@ -178,8 +178,11 @@ const ticketStores: TicketStore[] = [
         ticketId: 't2',
         oldStatus: 'OPEN',
         newStatus: 'ASSIGNED',
+        eventType: 'ASSIGNED',
         changedBy: '3',
         changedByName: 'Supervisor Mesa',
+        reason: 'Asignación de responsable',
+        details: { to: 'Agente Soporte', assignmentKind: 'MANUAL', assigneeName: 'Agente Soporte' },
         createdAt: hoursAgo(19),
       },
     ],
@@ -344,6 +347,7 @@ const ticketStores: TicketStore[] = [
       {
         id: 'h12',
         ticketId: 't5',
+        eventType: 'STATUS_CHANGED',
         oldStatus: 'IN_PROGRESS',
         newStatus: 'ESCALATED',
         changedBy: '2',
@@ -597,16 +601,19 @@ function addHistory(
   newStatus: TicketStatus,
   user: User,
   reason?: string,
+  extra?: Partial<Pick<TicketStatusHistory, 'eventType' | 'details' | 'actorType'>>,
 ) {
   store.statusHistory.push({
     id: `h-${Date.now()}`,
     ticketId: store.ticket.id,
-    eventType: inferMockEventType(oldStatus, newStatus),
+    eventType: extra?.eventType ?? inferMockEventType(oldStatus, newStatus),
     oldStatus,
     newStatus,
+    actorType: extra?.actorType ?? 'USER',
     changedBy: user.id,
     changedByName: user.fullName,
     reason,
+    details: extra?.details ?? null,
     createdAt: new Date().toISOString(),
   })
 }
@@ -920,13 +927,17 @@ export function createTicketHandlers(mockUsers: User[]) {
           { status: 422 },
         )
       const old = store.ticket.status
+      const previousName = store.ticket.assigneeName ?? null
       const previousAssigneeId = store.ticket.assigneeId
       store.ticket.assigneeId = agent.id
       store.ticket.assigneeName = agent.fullName
       if (store.ticket.status === 'OPEN') {
         store.ticket.status = 'ASSIGNED'
-        addHistory(store, old, 'ASSIGNED', user!, 'Asignado a agente')
       }
+      addHistory(store, old, store.ticket.status, user!, 'Asignación de responsable', {
+        eventType: previousName ? 'REASSIGNED' : 'ASSIGNED',
+        details: { from: previousName, to: agent.fullName, assignmentKind: 'MANUAL', assigneeName: agent.fullName },
+      })
       notifyTicketAssigned(store.ticket, user!, previousAssigneeId)
       return HttpResponse.json({
         success: true,

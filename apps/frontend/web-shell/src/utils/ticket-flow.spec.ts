@@ -192,6 +192,8 @@ const KNOWN_EVENT_CODES = [
   'STATUS_CHANGED',
   'PRIORITY_CHANGED',
   'UPDATED',
+  'AI_ASSIGNED',
+  'AI_ASSIGNMENT_FAILED',
   'UNKNOWN_EVENT_TYPE',
 ]
 
@@ -250,6 +252,27 @@ describe('Flujo visual — etiquetas de evento', () => {
     expect(model.events[0]?.technicalEvent).toBe('UNKNOWN_EVENT_TYPE')
   })
 
+  it('conserva el motivo aparte de la descripción del evento', () => {
+    const model = buildFlowModel({
+      id: 't1',
+      status: 'ESCALATED',
+      statusHistory: [
+        event({
+          id: 'h1',
+          newStatus: 'ESCALATED',
+          oldStatus: 'IN_PROGRESS',
+          createdAt: '2026-08-18T11:00:00.000Z',
+          eventType: 'STATUS_CHANGED',
+          reason: 'Requiere infraestructura',
+        }),
+      ],
+    })
+    const current = model.events.find((item) => item.id === 'h1')
+    expect(current?.reason).toBe('Requiere infraestructura')
+    expect(current?.description).not.toBe('Requiere infraestructura')
+    expect(current?.description).toMatch(/Escalado/)
+  })
+
   it('muestra Agente de IA en la asignación automática', () => {
     expect(getEventTypeLabel('AI_ASSIGNED')).toBe('Asignación automática')
     const model = buildFlowModel({
@@ -264,6 +287,8 @@ describe('Flujo visual — etiquetas de evento', () => {
           newStatus: 'ASSIGNED',
           changedBy: null,
           changedByName: 'Agente de IA',
+          reason: 'Tiene la menor carga de tickets activos.',
+          details: { assigneeName: 'Ana López', assignmentKind: 'AUTOMATIC' },
           createdAt: '2026-08-20T10:01:00.000Z',
         }),
       ],
@@ -271,6 +296,8 @@ describe('Flujo visual — etiquetas de evento', () => {
     const assigned = model.events.find((item) => item.technicalEvent === 'AI_ASSIGNED')
     expect(assigned?.actorName).toBe('Agente de IA')
     expect(assigned?.title).toBe('Asignación automática')
+    expect(assigned?.reason).toBe('Tiene la menor carga de tickets activos.')
+    expect(assigned?.description).toBe('Se asignó a Ana López de forma automática.')
     expect(JSON.stringify(model.events)).not.toMatch(/STATUS_CHANGED/)
   })
 })
