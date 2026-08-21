@@ -81,6 +81,13 @@ resource "aws_autoscaling_group" "frontend" {
     version = "$Latest"
   }
 
+  instance_refresh {
+    strategy = "Rolling"
+    preferences {
+      min_healthy_percentage = 0
+    }
+  }
+
   tag {
     key                 = "Name"
     value               = "${local.name}-frontend"
@@ -119,6 +126,13 @@ resource "aws_autoscaling_group" "backend" {
   launch_template {
     id      = aws_launch_template.backend.id
     version = "$Latest"
+  }
+
+  instance_refresh {
+    strategy = "Rolling"
+    preferences {
+      min_healthy_percentage = 0
+    }
   }
 
   tag {
