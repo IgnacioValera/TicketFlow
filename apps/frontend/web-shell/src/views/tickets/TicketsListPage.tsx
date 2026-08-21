@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AppIcon } from '@/components/common/AppIcon'
 import { SearchableSelect } from '@/components/common/SearchableSelect'
@@ -17,10 +17,22 @@ import * as prioritiesService from '@/services/priorities.service'
 import type { Category, Priority } from '@/types/catalog.types'
 import type { Ticket, TicketStatus, SlaFilterStatus, TicketPreset } from '@/types/ticket.types'
 import { calculateSlaStatus } from '@/utils/sla.utils'
-import { statusesForPreset } from '@/utils/dashboard.utils'
 
 type ListTab = 'all' | 'mine' | 'unassigned'
 type ViewMode = 'table' | 'kanban'
+
+const TICKET_PRESETS: TicketPreset[] = ['open', 'inProgress', 'resolved', 'closed']
+
+const PRESET_LABELS: Record<TicketPreset, string> = {
+  open: 'Abiertos',
+  inProgress: 'En proceso',
+  resolved: 'Resueltos',
+  closed: 'Cerrados',
+}
+
+function isTicketPreset(value: string | null): value is TicketPreset {
+  return !!value && TICKET_PRESETS.includes(value as TicketPreset)
+}
 
 function readSearchParam(
   params: { get(key: string): string | null },
@@ -36,7 +48,10 @@ function readSearchParam(
 export function TicketsListPage() {
   const { hasPermission } = usePermissions()
   const { tickets, loading, error, loadTickets } = useTickets()
-  const searchParams = useSearchParams() ?? new URLSearchParams()
+  const router = useRouter()
+  const pathname = usePathname() ?? '/tickets'
+  const searchParams = useSearchParams()
+  const queryString = searchParams?.toString() ?? ''
 
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(10)
@@ -58,25 +73,43 @@ export function TicketsListPage() {
 
   const [tab, setTab] = useState<ListTab>(defaultTab)
 
-  useEffect(() => {
-    const preset = readSearchParam(searchParams, ['preset']) as TicketPreset | null
-    const status = readSearchParam(searchParams, ['status']) as TicketStatus | null
-    const slaStatus = readSearchParam(searchParams, ['slaStatus', 'sla_status']) as SlaFilterStatus | null
-    const searchQuery = readSearchParam(searchParams, ['search'])
-    const priorityId = readSearchParam(searchParams, ['priorityId'])
-    const categoryId = readSearchParam(searchParams, ['categoryId'])
-    const unassigned = searchParams.get('unassigned') === 'true'
-    const mine = searchParams.get('mine') === 'true'
+  const replaceQuery = useCallback(
+    (patch: Record<string, string | null | undefined>) => {
+      const next = new URLSearchParams(queryString)
+      for (const [key, value] of Object.entries(patch)) {
+        if (value == null || value === '') next.delete(key)
+        else next.set(key, value)
+      }
+      const query = next.toString()
+      router.replace(query ? `${pathname}?${query}` : pathname)
+    },
+    [pathname, queryString, router],
+  )
 
-    setPresetFilter(preset && statusesForPreset(preset) ? preset : '')
+  useEffect(() => {
+    const params = new URLSearchParams(queryString)
+    const presetRaw = readSearchParam(params, ['preset'])
+    const preset = isTicketPreset(presetRaw) ? presetRaw : null
+    const status = readSearchParam(params, ['status']) as TicketStatus | null
+    const slaStatus = readSearchParam(params, ['slaStatus', 'sla_status']) as SlaFilterStatus | null
+    const searchQuery = readSearchParam(params, ['search'])
+    const priorityId = readSearchParam(params, ['priorityId'])
+    const categoryId = readSearchParam(params, ['categoryId'])
+    const unassigned = params.get('unassigned') === 'true'
+    const mine = params.get('mine') === 'true'
+
+    setPresetFilter(preset ?? '')
     setStatusFilter(preset ? '' : status ?? '')
     setSlaFilter(slaStatus ?? '')
     setSearch(searchQuery ?? '')
     setPriorityFilter(priorityId ?? '')
     setCategoryFilter(categoryId ?? '')
     setTab(unassigned ? 'unassigned' : mine ? 'mine' : defaultTab)
+    if (preset || status || slaStatus) setViewMode('table')
     setPage(1)
-  }, [searchParams, defaultTab])
+  }, [queryString, defaultTab])
+
+  const statusSelectValue = presetFilter ? `preset:${presetFilter}` : statusFilter
 
   useEffect(() => {
     const loadCatalogs = async () => {
@@ -302,15 +335,30 @@ export function TicketsListPage() {
         </div>
         {viewMode === 'table' && (
           <SelectInput
-            value={statusFilter}
+            aria-label="Estado"
+            value={statusSelectValue}
             onChange={(e) => {
-              setStatusFilter(e.target.value as TicketStatus | '')
-              setPresetFilter('')
+              const next = e.target.value
+              if (next.startsWith('preset:')) {
+                const preset = next.slice('preset:'.length)
+                if (!isTicketPreset(preset)) return
+                setPresetFilter(preset)
+                setStatusFilter('')
+                replaceQuery({ preset, status: null })
+              } else {
+                setPresetFilter('')
+                setStatusFilter(next as TicketStatus | '')
+                replaceQuery({ status: next || null, preset: null })
+              }
               setPage(1)
             }}
-            className="w-44"
+            className="w-48"
           >
             <option value="">Todos los estados</option>
+            <option value="preset:open">{PRESET_LABELS.open}</option>
+            <option value="preset:inProgress">{PRESET_LABELS.inProgress}</option>
+            <option value="preset:resolved">{PRESET_LABELS.resolved}</option>
+            <option value="preset:closed">{PRESET_LABELS.closed}</option>
             <option value="OPEN">Abierto</option>
             <option value="ASSIGNED">Asignado</option>
             <option value="IN_PROGRESS">En progreso</option>
@@ -325,6 +373,7 @@ export function TicketsListPage() {
           value={priorityFilter}
           onChange={(e) => {
             setPriorityFilter(e.target.value)
+            replaceQuery({ priorityId: e.target.value || null })
             setPage(1)
           }}
           className="w-44"
@@ -342,6 +391,7 @@ export function TicketsListPage() {
             value={categoryFilter}
             onChange={(value) => {
               setCategoryFilter(value)
+              replaceQuery({ categoryId: value || null })
               setPage(1)
             }}
             options={categories.map((c) => ({ value: c.id, label: c.name }))}
@@ -358,6 +408,7 @@ export function TicketsListPage() {
           value={slaFilter}
           onChange={(e) => {
             setSlaFilter(e.target.value as SlaFilterStatus | '')
+            replaceQuery({ slaStatus: e.target.value || null })
             setPage(1)
           }}
           className="w-40"

@@ -25,6 +25,25 @@ test.describe('Panel de mesa de ayuda', () => {
     await expect(page.getByRole('main').getByLabel('SLA')).toContainText('Vencidos')
   })
 
+  test('aplica el filtro de estado correcto al navegar desde KPIs', async ({ page }) => {
+    await login(page, 'admin@helpdesk.com')
+    await page.goto('/dashboard')
+
+    await page.getByRole('link', { name: /Abiertos:/ }).click()
+    await expect(page).toHaveURL(/\/tickets\?preset=open/)
+    await expect(page.getByRole('main').getByLabel('Estado')).toContainText('Abiertos')
+
+    await page.goto('/dashboard')
+    await page.getByRole('link', { name: /En proceso:/ }).click()
+    await expect(page).toHaveURL(/\/tickets\?preset=inProgress/)
+    await expect(page.getByRole('main').getByLabel('Estado')).toContainText('En proceso')
+
+    await page.goto('/dashboard')
+    await page.getByRole('link', { name: /Cerrados:/ }).click()
+    await expect(page).toHaveURL(/\/tickets\?preset=closed/)
+    await expect(page.getByRole('main').getByLabel('Estado')).toContainText('Cerrados')
+  })
+
   test('limita indicadores del agente a sus tickets', async ({ page }) => {
     await login(page, 'agent@helpdesk.com')
     await page.goto('/dashboard')
@@ -36,5 +55,6 @@ test.describe('Panel de mesa de ayuda', () => {
 
     await openCard.click()
     await expect(page).toHaveURL(/\/tickets\?preset=open/)
+    await expect(page.getByRole('main').getByLabel('Estado')).toContainText('Abiertos')
   })
 })

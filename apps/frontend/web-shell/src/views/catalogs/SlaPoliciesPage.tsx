@@ -147,17 +147,19 @@ export function SlaPoliciesPage() {
     setFormError('')
 
     try {
-      const payload = {
-        name,
-        priorityId: formState.priorityId,
-        responseHours,
-        resolutionHours,
-      }
-
       if (editingPolicy) {
-        await slaPoliciesService.updateSlaPolicy(editingPolicy.id, payload)
+        await slaPoliciesService.updateSlaPolicy(editingPolicy.id, {
+          name,
+          responseHours,
+          resolutionHours,
+        })
       } else {
-        await slaPoliciesService.createSlaPolicy(payload)
+        await slaPoliciesService.createSlaPolicy({
+          name,
+          priorityId: formState.priorityId,
+          responseHours,
+          resolutionHours,
+        })
       }
 
       closeFormModal()
@@ -273,6 +275,7 @@ export function SlaPoliciesPage() {
             <SelectInput
               id="sla-priority"
               value={formState.priorityId}
+              disabled={Boolean(editingPolicy)}
               onChange={(e) => setFormState((prev) => ({ ...prev, priorityId: e.target.value }))}
             >
               <option value="">Seleccionar prioridad</option>
@@ -282,6 +285,9 @@ export function SlaPoliciesPage() {
                 </option>
               ))}
             </SelectInput>
+            {editingPolicy ? (
+              <p className="mt-1 text-xs text-muted">La prioridad no se puede cambiar al editar.</p>
+            ) : null}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
