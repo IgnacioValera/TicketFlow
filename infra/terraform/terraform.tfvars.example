@@ -1,0 +1,11 @@
+# Copia a terraform.tfvars (no se versiona) y ajusta:
+#   cp terraform.tfvars.example terraform.tfvars
+
+alert_email = "tu-correo@example.com"
+aws_region  = "us-east-1"
+
+# AWS Academy Learner Lab (por defecto). voclabs no permite crear roles IAM.
+# lab_instance_profile_name = "LabInstanceProfile"
+
+# Opcional: limita WireGuard a tu IP publica/32
+# allowed_vpn_cidr = "x.x.x.x/32"
