@@ -96,6 +96,10 @@ Tras el primer deploy exitoso:
 
 Si el frontend quedó apuntando a una API vacía en el primer build, dispara un **Manual Deploy** de `ticketflow-web` para regenerar el bundle con `API_ORIGIN` ya resuelto.
 
+## Despliegue en AWS (Terraform)
+
+Laboratorio de ~7 días: VPC, NAT+WireGuard, RDS PostgreSQL 16, ALB, ASG frontend/backend, ECR y CI/CD (GitHub Actions con credenciales temporales de AWS Academy). Justificación, costos y `apply`/`destroy`: [`docs/infraestructura-aws.md`](docs/infraestructura-aws.md). Código: [`infra/terraform`](infra/terraform).
+
 ## Estructura
 
 | Carpeta | Descripción |
@@ -104,6 +108,8 @@ Si el frontend quedó apuntando a una API vacía en el primer build, dispara un 
 | `apps/backend` | API NestJS, migración, seed y pruebas |
 | `docker-compose.yml` | Stack local (PostgreSQL + API + frontend) |
 | `render.yaml` | Blueprint de despliegue en Render |
+| `infra/terraform` | Infraestructura AWS (VPC, ALB, ASG, RDS, ECR) |
+| `docs/infraestructura-aws.md` | Justificación técnica del despliegue AWS |
 
 ## Frontend (web-shell)
 

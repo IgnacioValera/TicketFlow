@@ -1,0 +1,82 @@
+name: CD Production
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/**"
+      - ".github/workflows/cd.yml"
+      - ".github/scripts/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy:
+    name: Build, push and rolling deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require AWS session secrets
+        run: |
+          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ] || [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ] || [ -z "${{ secrets.AWS_SESSION_TOKEN }}" ]; then
+            echo "Configura los secrets AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY y AWS_SESSION_TOKEN (credenciales temporales del lab AWS Academy)."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Read image URIs from SSM
+        id: images
+        run: |
+          echo "frontend=$(aws ssm get-parameter --name /ticketflow/ecr_frontend --query Parameter.Value --output text)" >> "$GITHUB_OUTPUT"
+          echo "backend=$(aws ssm get-parameter --name /ticketflow/ecr_backend --query Parameter.Value --output text)" >> "$GITHUB_OUTPUT"
+          echo "fe_tg=$(aws ssm get-parameter --name /ticketflow/frontend_tg_arn --query Parameter.Value --output text)" >> "$GITHUB_OUTPUT"
+          echo "be_tg=$(aws ssm get-parameter --name /ticketflow/backend_tg_arn --query Parameter.Value --output text)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/backend
+          push: true
+          tags: |
+            ${{ steps.images.outputs.backend }}:${{ github.sha }}
+            ${{ steps.images.outputs.backend }}:main
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/frontend/web-shell
+          push: true
+          build-args: |
+            VITE_API_BASE_URL=/api/v1
+            VITE_USE_MOCKS=false
+          tags: |
+            ${{ steps.images.outputs.frontend }}:${{ github.sha }}
+            ${{ steps.images.outputs.frontend }}:main
+
+      - name: Rolling deploy via SSM
+        run: bash .github/scripts/rolling-deploy.sh
+
+      - name: Wait until ALB targets are healthy
+        env:
+          FRONTEND_TG_ARN: ${{ steps.images.outputs.fe_tg }}
+          BACKEND_TG_ARN: ${{ steps.images.outputs.be_tg }}
+        run: bash .github/scripts/wait-target-health.sh
