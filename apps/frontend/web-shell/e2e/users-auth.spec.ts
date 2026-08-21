@@ -18,10 +18,7 @@ async function loginSuccessfully(page: Page, email: string, password = 'password
 }
 
 async function navigateSpa(page: Page, path: string) {
-  await page.evaluate((nextPath) => {
-    window.history.pushState({}, '', nextPath)
-    window.dispatchEvent(new PopStateEvent('popstate'))
-  }, path)
+  await page.goto(path, { waitUntil: 'domcontentloaded' })
 }
 
 async function logout(page: Page) {

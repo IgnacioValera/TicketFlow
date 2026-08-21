@@ -23,13 +23,13 @@ test.describe('Clientes CRM', () => {
     await page.getByRole('button', { name: 'Limpiar filtros' }).click()
     await expect(page.getByText('Acme Corp')).toBeVisible()
 
-    await page.getByRole('button', { name: '+ Nuevo cliente' }).click()
+    await page.getByRole('button', { name: 'Nuevo cliente' }).click()
     await page.getByRole('button', { name: 'Guardar' }).click()
     await expect(page.getByText('El nombre es obligatorio y no puede contener solo espacios')).toBeVisible()
     await page.getByRole('button', { name: 'Cancelar' }).click()
     await expect(page.getByRole('dialog')).toHaveCount(0)
 
-    await page.getByRole('button', { name: '+ Nuevo cliente' }).click()
+    await page.getByRole('button', { name: 'Nuevo cliente' }).click()
     const dialog = page.getByRole('dialog')
     await dialog.locator('input').nth(0).fill('Nueva Empresa')
     await dialog.locator('input').nth(1).fill('Servicios')

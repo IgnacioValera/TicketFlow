@@ -36,8 +36,8 @@ test.describe('Páginas de error y carga', () => {
     await login(page, 'admin@helpdesk.com')
     await page.goto('/tickets/ruta-inexistente', { waitUntil: 'domcontentloaded' })
     await expect(page.getByRole('heading', { name: 'Página no encontrada' })).toHaveCount(0)
-    await expect(page.getByRole('alert')).toBeVisible()
-    await expect(page.getByText(/no encontrado/i)).toBeVisible()
+    await expect(page.getByRole('alert').filter({ hasText: /no encontrado/i })).toBeVisible()
+    await expect(page.getByText(/no encontrado/i).first()).toBeVisible()
   })
 
   test('sin sesión, Ir al inicio lleva al login', async ({ page }) => {
@@ -86,10 +86,7 @@ test.describe('Páginas de error y carga', () => {
     await page.getByLabel('Contraseña').fill(temporaryPassword)
     await page.getByRole('button', { name: 'Ingresar' }).click()
     await expect(page).toHaveURL(/change-password/)
-    await page.evaluate(() => {
-      window.history.pushState({}, '', '/ruta-que-no-existe')
-      window.dispatchEvent(new PopStateEvent('popstate'))
-    })
+    await page.goto('/ruta-que-no-existe', { waitUntil: 'domcontentloaded' })
     await expect(page).toHaveURL(/change-password/)
   })
 

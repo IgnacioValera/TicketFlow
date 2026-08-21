@@ -1,8 +1,10 @@
-import { Outlet } from 'react-router-dom'
+'use client'
+
+import type { ReactNode } from 'react'
 import { AppIcon } from '@/components/common/AppIcon'
 import { BrandMark } from '@/components/common/BrandLogo'
 
-export function AuthLayout() {
+export function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className="grid min-h-screen bg-page lg:grid-cols-[1fr_1fr]">
       <section className="hidden min-h-screen flex-col justify-between bg-sidebar p-12 text-white lg:flex xl:p-16">
@@ -29,9 +31,7 @@ export function AuthLayout() {
           <div className="mb-8 lg:hidden">
             <BrandMark variant="color" />
           </div>
-          <div className="rounded border border-border bg-surface p-6 sm:p-8">
-            <Outlet />
-          </div>
+          <div className="rounded border border-border bg-surface p-6 sm:p-8">{children}</div>
         </div>
       </section>
     </div>

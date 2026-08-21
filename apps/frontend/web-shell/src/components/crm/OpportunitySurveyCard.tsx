@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
 import { PrimaryButton, SecondaryButton, SelectInput } from '@/components/common/UiControls'
 import { PERMISSIONS } from '@/constants/permissions'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -130,7 +130,7 @@ export function OpportunitySurveyCard({
       ) : null}
 
       {status === 'RESPONDED' && canResults && card?.surveyId ? (
-        <Link to={`/crm/surveys/${card.surveyId}/results`} className="mt-3 inline-block text-sm font-medium text-brand-teal hover:underline">
+        <Link href={`/crm/surveys/${card.surveyId}/results`} className="mt-3 inline-block text-sm font-medium text-brand-teal hover:underline">
           Ver resultados
         </Link>
       ) : null}

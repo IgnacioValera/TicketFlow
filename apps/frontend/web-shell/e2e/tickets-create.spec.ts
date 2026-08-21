@@ -137,7 +137,7 @@ test.describe('Crear ticket', () => {
     await page.getByRole('option').first().click()
     await chooseSelectOption(page.locator('#priorityId'), { index: 1 })
     await page.getByRole('button', { name: 'Crear ticket' }).click()
-    await expect(page.getByRole('alert')).toContainText(/error simulado/i)
+    await expect(page.getByRole('alert').filter({ hasText: /error simulado/i })).toContainText(/error simulado/i)
     await expect(page.getByLabel('Título')).toHaveValue(title)
     await expect(page.getByLabel('Descripción')).toHaveValue(description)
     await expect(page).toHaveURL(/\/tickets\/create/)

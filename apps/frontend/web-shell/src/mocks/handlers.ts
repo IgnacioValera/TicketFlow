@@ -14,6 +14,8 @@ import {
 import { mockKnowledgeArticles, findMockKnowledgeArticle, findMockKnowledgeArticleIncludingInactive, isKnowledgeUuid } from '@/mocks/knowledge-data'
 import { validatePasswordPolicy } from '@/utils/validation'
 
+const USERS_STORE_KEY = 'ticketflow-mock-users-v1'
+
 const mockPasswords: Record<string, string> = {
   '1': 'password',
   '2': 'password',
@@ -22,7 +24,7 @@ const mockPasswords: Record<string, string> = {
   '5': 'password',
 }
 
-const mockUsers: User[] = [
+const seedUsers: User[] = [
   {
     id: '1',
     fullName: 'Admin Sistema',
@@ -81,6 +83,39 @@ const mockUsers: User[] = [
     createdAt: '2026-04-01T09:00:00.000Z',
   },
 ]
+
+function readStore<T>(key: string, fallback: T): T {
+  if (typeof sessionStorage === 'undefined') return fallback
+  try {
+    const raw = sessionStorage.getItem(key)
+    if (!raw) return fallback
+    return JSON.parse(raw) as T
+  } catch {
+    return fallback
+  }
+}
+
+function writeStore(key: string, value: unknown) {
+  if (typeof sessionStorage === 'undefined') return
+  sessionStorage.setItem(key, JSON.stringify(value))
+}
+
+const mockUsers: User[] = (() => {
+  const stored = readStore<User[] | null>(USERS_STORE_KEY, null)
+  return stored?.length ? stored : seedUsers.map((user) => ({ ...user }))
+})()
+
+// After remounts, users may come from sessionStorage while in-memory passwords reset.
+for (const user of mockUsers) {
+  if (mockPasswords[user.id] == null) {
+    mockPasswords[user.id] = user.mustChangePassword ? 'Tf-A7k9!mQ2x' : 'Password1!'
+  }
+}
+
+function persistUsers() {
+  // Persist users (incl. mustChangePassword) but never plaintext passwords.
+  writeStore(USERS_STORE_KEY, mockUsers)
+}
 
 const mockClientOptions = [
   { id: 'c1', name: 'Acme Corp' },
@@ -377,6 +412,7 @@ export const handlers = [
     }
     mockPasswords[actor.id] = body.newPassword
     actor.mustChangePassword = false
+    persistUsers()
     return HttpResponse.json({
       success: true,
       message: 'Tu contraseña se actualizó correctamente.',
@@ -562,6 +598,7 @@ export const handlers = [
     }
     mockUsers.push(newUser)
     mockPasswords[newUser.id] = body.password
+    persistUsers()
     return HttpResponse.json(
       { success: true, message: 'Usuario creado', data: newUser, meta: null },
       { status: 201 },
@@ -583,6 +620,7 @@ export const handlers = [
       permissions: body.role ? ROLE_PERMISSIONS[body.role] : mockUsers[index].permissions,
     }
     mockUsers[index] = updated
+    persistUsers()
     return HttpResponse.json({
       success: true,
       message: 'Usuario actualizado',
@@ -601,6 +639,7 @@ export const handlers = [
       )
     }
     mockUsers[index] = { ...mockUsers[index], status: body.status }
+    persistUsers()
     return HttpResponse.json({
       success: true,
       message: 'Estado actualizado',
@@ -642,6 +681,7 @@ export const handlers = [
     }
     user.mustChangePassword = true
     mockPasswords[user.id] = 'Tf-A7k9!mQ2x'
+    persistUsers()
     return HttpResponse.json({
       success: true,
       message: 'La contraseña se restableció correctamente.',
@@ -1223,8 +1263,12 @@ export const handlers = [
   }),
 ]
 
+let mockingEnabled = false
+
 export async function enableMocking() {
+  if (mockingEnabled) return
   const { setupWorker } = await import('msw/browser')
   const worker = setupWorker(...handlers)
   await worker.start({ onUnhandledRequest: 'bypass' })
+  mockingEnabled = true
 }

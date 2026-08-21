@@ -1,5 +1,5 @@
 import { Component, Fragment, type ErrorInfo, type ReactNode } from 'react'
-import { UnexpectedErrorScreen } from '@/pages/errors/UnexpectedErrorScreen'
+import { UnexpectedErrorScreen } from '@/views/errors/UnexpectedErrorScreen'
 
 interface Props {
   children: ReactNode
@@ -18,7 +18,7 @@ export class AppErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    if (import.meta.env.DEV) {
+    if (process.env.NODE_ENV === 'development') {
       console.error(error, info.componentStack)
     }
   }
