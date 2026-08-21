@@ -20,6 +20,7 @@ interface SearchableSelectProps {
   emptyLabel?: string
   searchable?: boolean
   ariaLabel?: string
+  menuPlacement?: 'top' | 'bottom'
   style?: CSSProperties
 }
 
@@ -37,6 +38,7 @@ export function SearchableSelect({
   emptyLabel = 'Ninguno',
   searchable = true,
   ariaLabel,
+  menuPlacement = 'bottom',
   style,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false)
@@ -136,8 +138,11 @@ export function SearchableSelect({
         />
       </button>
       {open && (
-        <div className="absolute z-40 mt-1 w-full overflow-hidden rounded border border-slate-300 bg-white shadow-lg">
-          {searchable ? (
+        <div
+          className={`absolute z-50 w-full overflow-hidden rounded border border-slate-300 bg-white shadow-lg ${
+            menuPlacement === 'top' ? 'bottom-full mb-1' : 'top-full mt-1'
+          }`}
+        >          {searchable ? (
             <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-2">
               <AppIcon name="search" className="h-4 w-4 shrink-0 text-muted" />
               <input

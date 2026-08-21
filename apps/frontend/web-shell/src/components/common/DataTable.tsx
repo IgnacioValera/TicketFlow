@@ -39,7 +39,7 @@ export function TablePagination({
       <p className="text-sm text-slate-600">
         Página {pagination.page} de {pagination.totalPages} ({pagination.total} registros)
       </p>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="relative z-20 flex flex-wrap items-center gap-2">
         {onPerPageChange && (
           <label className="flex items-center gap-2 text-sm text-slate-600">
             Mostrar
@@ -48,6 +48,7 @@ export function TablePagination({
               onChange={(event) => onPerPageChange(Number(event.target.value))}
               aria-label="Registros por página"
               className="w-20"
+              menuPlacement="top"
             >
               {perPageOptions.map((option) => (
                 <option key={option} value={option}>
@@ -142,7 +143,7 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="overflow-hidden rounded border border-slate-200 bg-white">
+    <div className="rounded border border-slate-200 bg-white">
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-slate-200">
           <thead className="bg-slate-50">

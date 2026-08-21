@@ -5,7 +5,7 @@ import { ActivityStatusBadge, ActivityTypeBadge } from '@/components/common/CrmB
 import { DataTable, type Column } from '@/components/common/DataTable'
 import { ConfirmToast } from '@/components/common/FeedbackAlert'
 import { FormField } from '@/components/common/FormField'
-import { Modal } from '@/components/common/Modal'
+import { ConfirmModal, Modal } from '@/components/common/Modal'
 import { TableActionButton } from '@/components/common/TableActionButton'
 import { SearchableSelect } from '@/components/common/SearchableSelect'
 import { PrimaryButton, SecondaryButton, SelectInput, TextArea, TextInput } from '@/components/common/UiControls'
@@ -14,6 +14,7 @@ import { usePermissions } from '@/hooks/usePermissions'
 import * as crm from '@/services/crm.service'
 import type { ActivityStatus, ActivityType, CrmActivity, CrmClient } from '@/types/crm.types'
 import { ACTIVITY_STATUS_LABELS, ACTIVITY_TYPE_LABELS, formatDateTime } from '@/utils/labels'
+import { getErrorMessages } from '@/utils/errors'
 
 export function ActivitiesPage() {
   const { hasPermission } = usePermissions()
@@ -26,6 +27,9 @@ export function ActivitiesPage() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const [open, setOpen] = useState(false)
+  const [detail, setDetail] = useState<CrmActivity | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<CrmActivity | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [form, setForm] = useState({ clientId: '', type: 'CALL' as ActivityType, subject: '', body: '', dueAt: '' })
   const [clientError, setClientError] = useState('')
   const [toast, setToast] = useState<{ title: string; message: string } | null>(null)
@@ -61,6 +65,8 @@ export function ActivitiesPage() {
     void crm.getClients({ perPage: 100 }).then((r) => setClients(r.data))
   }, [])
 
+  const canEdit = hasPermission(PERMISSIONS.CRM_ACTIVITY_EDIT)
+
   const columns: Column<CrmActivity>[] = useMemo(
     () => [
       { key: 'subject', header: 'Asunto', render: (row) => <span className="font-medium">{row.subject}</span> },
@@ -71,20 +77,34 @@ export function ActivitiesPage() {
       {
         key: 'actions',
         header: 'Acciones',
-        render: (row) =>
-          row.status === 'PENDING' && hasPermission(PERMISSIONS.CRM_ACTIVITY_EDIT) ? (
+        render: (row) => (
+          <div className="flex flex-wrap gap-1.5">
             <TableActionButton
-              label={`Completar actividad ${row.subject}`}
-              icon="check"
-              variant="success"
-              onClick={() => void crm.completeActivity(row.id).then(load)}
+              label={`Ver actividad ${row.subject}`}
+              icon="eye"
+              onClick={() => setDetail(row)}
             />
-          ) : (
-            '—'
-          ),
+            {row.status === 'PENDING' && canEdit ? (
+              <TableActionButton
+                label={`Completar actividad ${row.subject}`}
+                icon="check"
+                variant="success"
+                onClick={() => void crm.completeActivity(row.id).then(load)}
+              />
+            ) : null}
+            {canEdit && row.status !== 'CANCELLED' ? (
+              <TableActionButton
+                label={`Eliminar actividad ${row.subject}`}
+                icon="trash"
+                variant="danger"
+                onClick={() => setDeleteTarget(row)}
+              />
+            ) : null}
+          </div>
+        ),
       },
     ],
-    [hasPermission, load],
+    [canEdit, load],
   )
 
   const submit = async (e: FormEvent) => {
@@ -101,6 +121,28 @@ export function ActivitiesPage() {
       title: 'Actividad creada',
       message: `${created.subject} se agregó al seguimiento comercial.`,
     })
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget || deleting) return
+    setDeleting(true)
+    try {
+      await crm.deleteActivity(deleteTarget.id)
+      setToast({
+        title: 'Actividad eliminada',
+        message: `${deleteTarget.subject} se eliminó del seguimiento.`,
+      })
+      setDeleteTarget(null)
+      if (detail?.id === deleteTarget.id) setDetail(null)
+      await load()
+    } catch (err: unknown) {
+      setToast({
+        title: 'No se pudo eliminar',
+        message: getErrorMessages(err, 'No se pudo eliminar la actividad.')[0],
+      })
+    } finally {
+      setDeleting(false)
+    }
   }
 
   return (
@@ -221,6 +263,77 @@ export function ActivitiesPage() {
           </div>
         </form>
       </Modal>
+
+      <Modal open={Boolean(detail)} onClose={() => setDetail(null)} title="Detalle de actividad">
+        {detail ? (
+          <div className="space-y-3 text-sm">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Asunto</p>
+              <p className="mt-0.5 font-medium text-brand-navy">{detail.subject}</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">Tipo</p>
+                <div className="mt-1">
+                  <ActivityTypeBadge type={detail.type} />
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">Estado</p>
+                <div className="mt-1">
+                  <ActivityStatusBadge status={detail.status} />
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">Cliente</p>
+                <p className="mt-0.5 text-brand-navy">{detail.clientName}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">Vence</p>
+                <p className="mt-0.5 text-brand-navy">{formatDateTime(detail.dueAt)}</p>
+              </div>
+            </div>
+            {detail.opportunityTitle ? (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">Oportunidad</p>
+                <p className="mt-0.5 text-brand-navy">{detail.opportunityTitle}</p>
+              </div>
+            ) : null}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Descripción</p>
+              <p className="mt-0.5 whitespace-pre-wrap text-brand-navy">{detail.body?.trim() || 'Sin descripción'}</p>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              {canEdit && detail.status !== 'CANCELLED' ? (
+                <SecondaryButton
+                  onClick={() => {
+                    setDeleteTarget(detail)
+                  }}
+                >
+                  Eliminar
+                </SecondaryButton>
+              ) : null}
+              <PrimaryButton onClick={() => setDetail(null)}>Cerrar</PrimaryButton>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
+
+      <ConfirmModal
+        open={Boolean(deleteTarget)}
+        onClose={() => !deleting && setDeleteTarget(null)}
+        onConfirm={() => void confirmDelete()}
+        title="Eliminar actividad"
+        message={
+          deleteTarget
+            ? `¿Eliminar “${deleteTarget.subject}”? Esta acción no se puede deshacer.`
+            : ''
+        }
+        confirmLabel="Eliminar"
+        variant="danger"
+        loading={deleting}
+        loadingLabel="Eliminando…"
+      />
     </div>
   )
 }

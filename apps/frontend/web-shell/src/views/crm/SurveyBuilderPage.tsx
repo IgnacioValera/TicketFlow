@@ -203,7 +203,7 @@ export function SurveyBuilderPage() {
 
   if (error && !survey) return <p className="text-sm text-brand-scarlet">{error}</p>
   if (!survey) return <p className="text-sm text-muted">Cargando...</p>
-  const canEdit = survey.status === 'DRAFT'
+  const canEdit = survey.status === 'DRAFT' || survey.status === 'CLOSED' || survey.status === 'PUBLISHED'
 
   return (
     <div className="space-y-4">

@@ -50,7 +50,8 @@ export function SelectInput({
   name,
   'aria-label': ariaLabel,
   style,
-}: SelectHTMLAttributes<HTMLSelectElement>) {
+  menuPlacement = 'bottom',
+}: SelectHTMLAttributes<HTMLSelectElement> & { menuPlacement?: 'top' | 'bottom' }) {
   const stringValue = value == null ? '' : String(Array.isArray(value) ? value[0] : value)
   const { options, emptyLabel } = parseSelectOptions(children)
 
@@ -71,6 +72,7 @@ export function SelectInput({
         searchable={false}
         disabled={disabled}
         ariaLabel={typeof ariaLabel === 'string' ? ariaLabel : undefined}
+        menuPlacement={menuPlacement}
         style={style as CSSProperties | undefined}
       />
     </div>

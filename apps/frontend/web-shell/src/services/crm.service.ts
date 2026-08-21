@@ -103,6 +103,10 @@ export async function completeActivity(id: string) {
   const response = await apiPatch<CrmActivity>(`/crm/activities/${id}/complete`)
   return response.data
 }
+export async function deleteActivity(id: string) {
+  const response = await apiDelete<CrmActivity>(`/crm/activities/${id}`)
+  return response.data
+}
 
 export async function getSurveys(params: Record<string, unknown> = {}) {
   return apiGet<CrmSurvey[]>('/crm/surveys', params) as Promise<ApiResponse<CrmSurvey[]>>

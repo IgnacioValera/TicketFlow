@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import type {
+  CrmActivity,
   CrmClient,
   CrmContact,
   CrmDashboard,
@@ -65,6 +66,65 @@ let mockClients: CrmClient[] = [
     ownerId: null,
     ownerName: null,
     createdAt: '2025-06-10T00:00:00.000Z',
+  },
+]
+
+let mockActivities: CrmActivity[] = [
+  {
+    id: 'a1',
+    clientId: 'c1',
+    clientName: 'Acme Corp',
+    opportunityId: 'o1',
+    opportunityTitle: 'Renovación',
+    type: 'CALL',
+    status: 'PENDING',
+    subject: 'Seguimiento 1 Renovación ERP',
+    body: 'Llamar para confirmar alcance.',
+    dueAt: '2026-08-21T15:00:00.000Z',
+    completedAt: null,
+    createdAt: '2026-08-18T10:00:00.000Z',
+  },
+  {
+    id: 'a2',
+    clientId: 'c2',
+    clientName: 'Globex',
+    opportunityId: null,
+    opportunityTitle: null,
+    type: 'TASK',
+    status: 'COMPLETED',
+    subject: 'Enviar propuesta comercial',
+    body: 'Propuesta enviada por correo.',
+    dueAt: '2026-08-15T12:00:00.000Z',
+    completedAt: '2026-08-15T11:30:00.000Z',
+    createdAt: '2026-08-14T09:00:00.000Z',
+  },
+  {
+    id: 'a3',
+    clientId: 'c1',
+    clientName: 'Acme Corp',
+    opportunityId: 'o1',
+    opportunityTitle: 'Renovación',
+    type: 'MEETING',
+    status: 'PENDING',
+    subject: 'Cerrar deal',
+    body: 'Reunión de cierre con stakeholders.',
+    dueAt: '2026-08-22T17:00:00.000Z',
+    completedAt: null,
+    createdAt: '2026-08-19T08:00:00.000Z',
+  },
+  {
+    id: 'a4',
+    clientId: 'c3',
+    clientName: 'Initech',
+    opportunityId: null,
+    opportunityTitle: null,
+    type: 'NOTE',
+    status: 'CANCELLED',
+    subject: 'Nota cancelada de prueba',
+    body: 'Ya no aplica.',
+    dueAt: null,
+    completedAt: null,
+    createdAt: '2026-08-10T08:00:00.000Z',
   },
 ]
 
@@ -803,6 +863,76 @@ export function createCrmHandlers(users: User[] = []) {
         meta: { page, perPage, total: items.length, totalPages: Math.max(1, Math.ceil(items.length / perPage)) },
       })
     }),
+    http.get('*/api/v1/crm/activities', ({ request }) => {
+      const url = new URL(request.url)
+      const page = Number(url.searchParams.get('page') ?? 1)
+      const perPage = Number(url.searchParams.get('perPage') ?? 10)
+      const status = url.searchParams.get('status')
+      const search = (url.searchParams.get('search') ?? '').trim().toLowerCase()
+      let items = [...mockActivities]
+      if (status) items = items.filter((item) => item.status === status)
+      if (search) {
+        items = items.filter((item) =>
+          `${item.subject} ${item.clientName} ${item.body}`.toLowerCase().includes(search),
+        )
+      }
+      const start = (page - 1) * perPage
+      return HttpResponse.json({
+        success: true,
+        message: 'OK',
+        data: items.slice(start, start + perPage),
+        meta: {
+          page,
+          perPage,
+          total: items.length,
+          totalPages: Math.max(1, Math.ceil(items.length / perPage) || 1),
+        },
+      })
+    }),
+    http.post('*/api/v1/crm/activities', async ({ request }) => {
+      const body = (await request.json()) as {
+        clientId?: string
+        type?: CrmActivity['type']
+        subject?: string
+        body?: string
+        dueAt?: string
+        opportunityId?: string
+      }
+      const client = mockClients.find((item) => item.id === body.clientId)
+      if (!client) return jsonError('Cliente no encontrado', 404)
+      if (!body.subject?.trim()) return jsonError('El asunto es obligatorio', 400)
+      const created: CrmActivity = {
+        id: `a-${Date.now()}`,
+        clientId: client.id,
+        clientName: client.name,
+        opportunityId: body.opportunityId ?? null,
+        opportunityTitle: null,
+        type: body.type ?? 'CALL',
+        status: 'PENDING',
+        subject: body.subject.trim(),
+        body: body.body?.trim() ?? '',
+        dueAt: body.dueAt || null,
+        completedAt: null,
+        createdAt: nowIso(),
+      }
+      mockActivities = [created, ...mockActivities]
+      return json(created, 'Actividad creada', 201)
+    }),
+    http.patch('*/api/v1/crm/activities/:id/complete', ({ params }) => {
+      const item = mockActivities.find((entry) => entry.id === params.id)
+      if (!item) return jsonError('Actividad no encontrada', 404)
+      if (item.status === 'COMPLETED') return jsonError('La actividad ya está completada', 422)
+      if (item.status === 'CANCELLED') return jsonError('La actividad ya está cancelada', 422)
+      item.status = 'COMPLETED'
+      item.completedAt = nowIso()
+      return json(item, 'Actividad completada')
+    }),
+    http.delete('*/api/v1/crm/activities/:id', ({ params }) => {
+      const index = mockActivities.findIndex((entry) => entry.id === params.id)
+      if (index === -1) return jsonError('Actividad no encontrada', 404)
+      const [removed] = mockActivities.splice(index, 1)
+      return json(removed, 'Actividad eliminada')
+    }),
     http.get('*/api/v1/crm/opportunities', ({ request }) => {
       hydrateMockStore()
       const url = new URL(request.url)
@@ -1044,7 +1174,7 @@ export function createCrmHandlers(users: User[] = []) {
     http.put('*/api/v1/crm/surveys/:id/questions/order', async ({ params, request }) => {
       const survey = surveys.find((item) => item.id === params.id)
       if (!survey) return jsonError('Encuesta no encontrada', 404)
-      if (survey.status !== 'DRAFT') return jsonError('Sólo se editan encuestas en borrador', 422)
+      if (!['DRAFT', 'CLOSED', 'PUBLISHED'].includes(survey.status)) return jsonError('No se puede editar esta encuesta', 422)
       const body = (await request.json()) as { questionIds: string[] }
       const current = survey.questions ?? []
       if (body.questionIds.length !== current.length || current.some((question) => !body.questionIds.includes(question.id))) {
@@ -1060,7 +1190,7 @@ export function createCrmHandlers(users: User[] = []) {
     http.put('*/api/v1/crm/surveys/:id', async ({ params, request }) => {
       const survey = surveys.find((item) => item.id === params.id)
       if (!survey) return jsonError('Encuesta no encontrada', 404)
-      if (survey.status !== 'DRAFT') return jsonError('Sólo se editan encuestas en borrador', 422)
+      if (!['DRAFT', 'CLOSED', 'PUBLISHED'].includes(survey.status)) return jsonError('No se puede editar esta encuesta', 422)
       const body = (await request.json()) as { title?: string; description?: string; trigger?: SurveyTrigger }
       if (body.title) survey.title = body.title.trim()
       if (body.description !== undefined) survey.description = body.description.trim()
@@ -1096,7 +1226,7 @@ export function createCrmHandlers(users: User[] = []) {
     http.post('*/api/v1/crm/surveys/:id/questions', async ({ params, request }) => {
       const survey = surveys.find((item) => item.id === params.id)
       if (!survey) return jsonError('Encuesta no encontrada', 404)
-      if (survey.status !== 'DRAFT') return jsonError('Sólo se editan encuestas en borrador', 422)
+      if (!['DRAFT', 'CLOSED', 'PUBLISHED'].includes(survey.status)) return jsonError('No se puede editar esta encuesta', 422)
       const body = (await request.json()) as {
         prompt: string
         type: SurveyQuestionType
@@ -1131,7 +1261,7 @@ export function createCrmHandlers(users: User[] = []) {
     http.delete('*/api/v1/crm/surveys/:id/questions/:questionId', ({ params }) => {
       const survey = surveys.find((item) => item.id === params.id)
       if (!survey) return jsonError('Encuesta no encontrada', 404)
-      if (survey.status !== 'DRAFT') return jsonError('Sólo se editan encuestas en borrador', 422)
+      if (!['DRAFT', 'CLOSED', 'PUBLISHED'].includes(survey.status)) return jsonError('No se puede editar esta encuesta', 422)
       survey.questions = (survey.questions ?? []).filter((question) => question.id !== params.questionId)
       survey.questionCount = survey.questions.length
       persistMockStore()

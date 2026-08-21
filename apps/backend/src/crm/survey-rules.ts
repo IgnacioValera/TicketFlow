@@ -46,8 +46,8 @@ export function assertQuestion(dto: { type: SurveyQuestionType; options?: Survey
 }
 
 export function assertCanEditSurvey(status: SurveyStatus) {
-  if (status !== SurveyStatus.DRAFT) {
-    throw new UnprocessableEntityException('Sólo se editan encuestas en borrador')
+  if (status !== SurveyStatus.DRAFT && status !== SurveyStatus.CLOSED && status !== SurveyStatus.PUBLISHED) {
+    throw new UnprocessableEntityException('No se puede editar esta encuesta')
   }
 }
 
