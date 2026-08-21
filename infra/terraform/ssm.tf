@@ -11,7 +11,7 @@ resource "random_password" "jwt_refresh" {
 resource "aws_ssm_parameter" "database_url" {
   name  = "/ticketflow/DATABASE_URL"
   type  = "SecureString"
-  value = "postgresql://ticketflow:${random_password.db.result}@${aws_db_instance.main.address}:5432/ticketflow?sslmode=require"
+  value = "postgresql://ticketflow:${random_password.db.result}@${aws_db_instance.main.address}:5432/ticketflow"
 }
 
 resource "aws_ssm_parameter" "jwt_access" {
