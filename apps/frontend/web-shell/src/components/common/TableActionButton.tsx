@@ -80,11 +80,20 @@ export function TableActionButton({
     </Link>
   ) : (
     <button
+      {...props}
       type="button"
       aria-label={label}
       disabled={disabled}
+      draggable={false}
       className={classes}
-      {...props}
+      onPointerDown={(event) => {
+        event.stopPropagation()
+        props.onPointerDown?.(event)
+      }}
+      onMouseDown={(event) => {
+        event.stopPropagation()
+        props.onMouseDown?.(event)
+      }}
     >
       {iconEl}
     </button>
@@ -94,6 +103,8 @@ export function TableActionButton({
     <>
       <span
         className="inline-flex"
+        onPointerDown={(event) => event.stopPropagation()}
+        onMouseDown={(event) => event.stopPropagation()}
         onMouseEnter={(event) => show(event.currentTarget)}
         onMouseLeave={hide}
         onFocus={(event) => show(event.currentTarget)}

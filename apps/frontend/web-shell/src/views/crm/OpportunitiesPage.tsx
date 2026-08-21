@@ -3,10 +3,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type
 import { AppIcon } from '@/components/common/AppIcon'
 import { OpportunityStageBadge } from '@/components/common/CrmBadge'
 import { DataTable, type Column } from '@/components/common/DataTable'
-import { ConfirmToast } from '@/components/common/FeedbackAlert'
+import { ConfirmToast, FeedbackAlert } from '@/components/common/FeedbackAlert'
 import { ErrorState } from '@/components/common/ErrorState'
 import { FormField } from '@/components/common/FormField'
-import { Modal } from '@/components/common/Modal'
+import { ConfirmModal, Modal } from '@/components/common/Modal'
 import { TableActionButton } from '@/components/common/TableActionButton'
 import { SearchableSelect } from '@/components/common/SearchableSelect'
 import { PrimaryButton, SecondaryButton, SelectInput, TextArea, TextInput } from '@/components/common/UiControls'
@@ -20,7 +20,7 @@ import * as crm from '@/services/crm.service'
 import type { CrmClient, CrmContact, CrmOpportunity, CrmSurvey, OpportunityStage } from '@/types/crm.types'
 import { PROBABILITY_BY_STAGE } from '@/types/crm.types'
 import { getErrorMessages } from '@/utils/errors'
-import { invitationRequestSurveyId, type CreatedSurveyInvitation, type SurveyInvitationCard } from '@/utils/opportunity-survey'
+import { invitationRequestSurveyId, isRegenerateConfirmation, type CreatedSurveyInvitation, type SurveyInvitationCard } from '@/utils/opportunity-survey'
 import {
   ALL_STAGES,
   EMPTY_OPPORTUNITY_FORM,
@@ -70,9 +70,12 @@ export function OpportunitiesPage() {
   const [reopenReason, setReopenReason] = useState('')
   const [createdInvitation, setCreatedInvitation] = useState<CreatedSurveyInvitation | null>(null)
   const [detail, setDetail] = useState<CrmOpportunity | null>(null)
+  const [surveyFor, setSurveyFor] = useState<CrmOpportunity | null>(null)
   const [manualSurveys, setManualSurveys] = useState<CrmSurvey[]>([])
   const [selectedManualId, setSelectedManualId] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [surveyError, setSurveyError] = useState('')
+  const [regenerateOpen, setRegenerateOpen] = useState(false)
   const movingRef = useRef(false)
   const savingRef = useRef(false)
   const [form, setForm] = useState<OpportunityFormValues>(EMPTY_OPPORTUNITY_FORM)
@@ -86,11 +89,9 @@ export function OpportunitiesPage() {
   const canCreate = hasPermission(PERMISSIONS.CRM_OPPORTUNITY_CREATE)
   const canEdit = hasPermission(PERMISSIONS.CRM_OPPORTUNITY_EDIT)
   const canMove = hasPermission(PERMISSIONS.CRM_OPPORTUNITY_MOVE)
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setSearch(searchInput), 300)
-    return () => window.clearTimeout(timer)
-  }, [searchInput])
+  const canView = hasPermission(PERMISSIONS.CRM_OPPORTUNITY_VIEW)
+  const canSurvey =
+    hasPermission(PERMISSIONS.CRM_SURVEY_VIEW) || hasPermission(PERMISSIONS.CRM_SURVEY_MANAGE)
 
   useEffect(() => {
     if (!toast) return
@@ -154,44 +155,59 @@ export function OpportunitiesPage() {
     setOpen(true)
   }
 
-  const openDetail = async (item: CrmOpportunity) => {
+  const openDetail = async (item: CrmOpportunity, focus: 'info' | 'survey' = 'info') => {
     const fresh = await crm.getOpportunity(item.id)
-    setDetail(fresh)
-    const surveys = await crm.getSurveys({ status: 'PUBLISHED', perPage: 100 })
-    setManualSurveys(surveys.data.filter((survey) => survey.trigger === 'MANUAL'))
+    setSurveyError('')
     setSelectedManualId('')
+    setRegenerateOpen(false)
+    if (focus === 'survey') {
+      setDetail(null)
+      setSurveyFor(fresh)
+      const surveys = await crm.getSurveys({ status: 'PUBLISHED', perPage: 100 })
+      setManualSurveys(surveys.data.filter((survey) => survey.trigger === 'MANUAL'))
+      return
+    }
+    setSurveyFor(null)
+    setDetail(fresh)
   }
 
   const generateFromDetail = async (confirmRegenerate = false) => {
-    if (!detail || generating) return
-    const card = detail.surveyInvitation
+    if (!surveyFor || generating) return
+    const card = surveyFor.surveyInvitation
     const cardSurveyId = card && 'surveyId' in card ? card.surveyId ?? undefined : undefined
     const surveyId = invitationRequestSurveyId({
       selectedManualId,
-      stage: detail.stage,
+      stage: surveyFor.stage,
       cardSurveyId,
       confirmRegenerate,
     })
-    if (!confirmRegenerate && !surveyId && detail.stage !== 'WON') {
-      setError('Selecciona una encuesta manual activa. La de Oportunidad ganada se envía al marcarla como Ganada.')
+    if (!confirmRegenerate && !surveyId && surveyFor.stage !== 'WON') {
+      setSurveyError('Selecciona una encuesta manual activa. La de Oportunidad ganada se envía al marcarla como Ganada.')
       return
     }
     setGenerating(true)
+    setSurveyError('')
     try {
-      const result = await crm.createSurveyInvitation(detail.id, {
+      const result = await crm.createSurveyInvitation(surveyFor.id, {
         surveyId,
         confirmRegenerate,
       })
       if (result.created && result.responseUrl) {
-        setDetail(null)
+        setSurveyFor(null)
         setCreatedInvitation(result)
       }
       else {
-        const fresh = await crm.getOpportunity(detail.id)
-        setDetail(fresh)
+        const fresh = await crm.getOpportunity(surveyFor.id)
+        setSurveyFor(fresh)
       }
     } catch (err: unknown) {
-      setError(getErrorMessages(err, 'No se pudo generar la encuesta.')[0])
+      const message = getErrorMessages(err, 'No se pudo generar la encuesta.')[0]
+      if (isRegenerateConfirmation(message)) {
+        setSurveyError('')
+        setRegenerateOpen(true)
+        return
+      }
+      setSurveyError(message)
     } finally {
       setGenerating(false)
     }
@@ -386,11 +402,12 @@ export function OpportunitiesPage() {
       {
         key: 'actions',
         header: 'Acciones',
+        className: 'whitespace-nowrap',
         render: (row) => (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-nowrap items-center gap-2" onPointerDown={(event) => event.stopPropagation()}>
             {canEdit && (
               <TableActionButton
-                label={`Editar oportunidad ${row.title}`}
+                label="Editar oportunidad"
                 icon="edit"
                 onClick={(event) => {
                   event.stopPropagation()
@@ -398,19 +415,31 @@ export function OpportunitiesPage() {
                 }}
               />
             )}
-            <TableActionButton
-              label={`Ver detalle de ${row.title}`}
-              icon="eye"
-              onClick={(event) => {
-                event.stopPropagation()
-                void openDetail(row)
-              }}
-            />
+            {canView && (
+              <TableActionButton
+                label="Ver oportunidad"
+                icon="eye"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  void openDetail(row, 'info')
+                }}
+              />
+            )}
+            {canSurvey && (
+              <TableActionButton
+                label="Gestionar encuesta"
+                icon="file"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  void openDetail(row, 'survey')
+                }}
+              />
+            )}
           </div>
         ),
       },
     ],
-    [canEdit],
+    [canEdit, canSurvey, canView],
   )
 
   return (
@@ -605,19 +634,28 @@ export function OpportunitiesPage() {
                           {item.probability}% · {item.ownerName || 'Sin responsable'}
                         </p>
                         <p className="text-xs text-muted">{formatDate(item.expectedCloseDate)}</p>
-                        <div className="mt-2 flex flex-wrap gap-2">
+                        <div className="mt-2 flex flex-nowrap items-center gap-2" onPointerDown={(event) => event.stopPropagation()}>
                           {canEdit && (
                             <TableActionButton
-                              label={`Editar oportunidad ${item.title}`}
+                              label="Editar oportunidad"
                               icon="edit"
                               onClick={() => openEdit(item)}
                             />
                           )}
-                          <TableActionButton
-                            label={`Ver detalle de ${item.title}`}
-                            icon="eye"
-                            onClick={() => void openDetail(item)}
-                          />
+                          {canView && (
+                            <TableActionButton
+                              label="Ver oportunidad"
+                              icon="eye"
+                              onClick={() => void openDetail(item, 'info')}
+                            />
+                          )}
+                          {canSurvey && (
+                            <TableActionButton
+                              label="Gestionar encuesta"
+                              icon="file"
+                              onClick={() => void openDetail(item, 'survey')}
+                            />
+                          )}
                         </div>
                       </article>
                     ))}
@@ -644,12 +682,76 @@ export function OpportunitiesPage() {
       >
         {detail ? (
           <div className="space-y-4">
-            <p className="text-sm text-muted">
-              {detail.clientName} · {formatMoney(detail.amount, detail.currency)} · {getOpportunityStageLabel(detail.stage)}
-            </p>
+            <dl className="grid gap-3 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted">Cliente</dt>
+                <dd className="mt-1 text-text">{detail.clientName}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted">Nombre</dt>
+                <dd className="mt-1 text-text">{detail.title}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted">Etapa</dt>
+                <dd className="mt-1"><OpportunityStageBadge stage={detail.stage} /></dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted">Estado</dt>
+                <dd className="mt-1 text-text">{getOpportunityStatusLabel(opportunityStatus(detail.stage))}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted">Importe</dt>
+                <dd className="mt-1 text-text">{formatMoney(detail.amount, detail.currency)}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted">Probabilidad</dt>
+                <dd className="mt-1 text-text">{detail.probability}%</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted">Responsable</dt>
+                <dd className="mt-1 text-text">{detail.ownerName || 'Sin asignar'}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted">Cierre estimado</dt>
+                <dd className="mt-1 text-text">{formatDate(detail.expectedCloseDate)}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted">Contacto</dt>
+                <dd className="mt-1 text-text">{detail.contactName || 'Sin contacto'}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted">Creación</dt>
+                <dd className="mt-1 text-text">{formatDate(detail.createdAt)}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted">Actualización</dt>
+                <dd className="mt-1 text-text">{formatDate(detail.updatedAt)}</dd>
+              </div>
+            </dl>
+            <section>
+              <h3 className="text-sm font-semibold text-brand-navy">Notas</h3>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-text">{detail.notes?.trim() ? detail.notes : 'Sin notas'}</p>
+            </section>
+          </div>
+        ) : null}
+      </Modal>
+      <Modal
+        open={Boolean(surveyFor)}
+        onClose={() => {
+          if (generating) return
+          setSurveyFor(null)
+          setRegenerateOpen(false)
+          setSurveyError('')
+        }}
+        title={surveyFor ? `Encuesta · ${surveyFor.title}` : 'Encuesta'}
+        size="md"
+      >
+        {surveyFor ? (
+          <div className="space-y-3">
+            {surveyError ? <FeedbackAlert variant="danger" title="No se pudo generar" message={surveyError} /> : null}
             <OpportunitySurveyCard
-              card={detail.surveyInvitation as SurveyInvitationCard | null}
-              stage={detail.stage}
+              card={surveyFor.surveyInvitation as SurveyInvitationCard | null}
+              stage={surveyFor.stage}
               manualSurveys={manualSurveys}
               selectedManualId={selectedManualId}
               onManualChange={setSelectedManualId}
@@ -659,6 +761,22 @@ export function OpportunitiesPage() {
           </div>
         ) : null}
       </Modal>
+      <ConfirmModal
+        open={regenerateOpen}
+        overlayClassName="z-[80]"
+        onClose={() => setRegenerateOpen(false)}
+        onConfirm={() => {
+          setRegenerateOpen(false)
+          void generateFromDetail(true)
+        }}
+        title="¿Generar un enlace nuevo?"
+        message="Ya existe un enlace para esta encuesta. Si generas uno nuevo, el anterior dejará de funcionar y no podrás recuperarlo."
+        confirmLabel="Generar uno nuevo"
+        cancelLabel="Cancelar"
+        variant="danger"
+        loading={generating}
+        loadingLabel="Generando…"
+      />
       <Modal open={open} onClose={() => !saving && resetForm()} title={editing ? 'Editar oportunidad' : 'Nueva oportunidad'}>
         <form onSubmit={(e) => void submit(e)} className="space-y-3">
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">Información general</p>

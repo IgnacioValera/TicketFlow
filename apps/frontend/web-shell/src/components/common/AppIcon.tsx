@@ -39,6 +39,7 @@ export type AppIconName =
   | 'download'
   | 'file'
   | 'x'
+  | 'info'
 
 const paths: Record<AppIconName, string[]> = {
   dashboard: ['M4 13h6V4H4z', 'M14 20h6v-9h-6z', 'M14 4h6v3h-6z', 'M4 17h6v3H4z'],
@@ -97,6 +98,7 @@ const paths: Record<AppIconName, string[]> = {
   download: ['M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4', 'M7 10l5 5 5-5', 'M12 15V3'],
   file: ['M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z', 'M14 3v5h5', 'M8 13h8', 'M8 17h5'],
   x: ['M18 6 6 18', 'M6 6l12 12'],
+  info: ['M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z', 'M12 16v-4', 'M12 8h.01'],
 }
 
 export function AppIcon({

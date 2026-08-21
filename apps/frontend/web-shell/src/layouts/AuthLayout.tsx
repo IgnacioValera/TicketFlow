@@ -3,8 +3,24 @@
 import type { ReactNode } from 'react'
 import { AppIcon } from '@/components/common/AppIcon'
 import { BrandMark } from '@/components/common/BrandLogo'
+import { ErrorState } from '@/components/common/ErrorState'
+import { PageLoader } from '@/components/common/PageLoader'
+import { useAuth } from '@/hooks/useAuth'
 
 export function AuthLayout({ children }: { children: ReactNode }) {
+  const { isLoading, sessionError, retrySession } = useAuth()
+
+  if (isLoading) return <PageLoader />
+  if (sessionError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-page px-5">
+        <div className="w-full max-w-lg">
+          <ErrorState message={sessionError} onRetry={() => void retrySession()} />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="grid min-h-screen bg-page lg:grid-cols-[1fr_1fr]">
       <section className="hidden min-h-screen flex-col justify-between bg-sidebar p-12 text-white lg:flex xl:p-16">

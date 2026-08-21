@@ -37,7 +37,7 @@ export const INVITATION_STATUS_LABELS: Record<InvitationCardStatus, string> = {
 }
 
 export function canRegenerateInvitation(status: InvitationCardStatus) {
-  return status === 'EXPIRED' || status === 'REVOKED'
+  return status === 'EXPIRED' || status === 'REVOKED' || status === 'PENDING'
 }
 
 export function canRetryAutomaticInvitation(stage: string, status: InvitationCardStatus) {
@@ -73,5 +73,34 @@ export function invitationCardStatus(input: {
 }
 
 export function invitationCopyWarning(copied: boolean) {
-  return copied ? null : '¿Cerrar sin copiar el enlace? Por seguridad no volverá a mostrarse.'
+  return copied ? null : 'Copia el enlace antes de cerrar. Por seguridad no volverá a mostrarse.'
+}
+
+export function isRegenerateConfirmation(message: string) {
+  return message.toLowerCase().includes('confirma la regeneración del enlace')
+}
+
+export async function copyTextToClipboard(value: string) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value)
+      return true
+    }
+  } catch {
+    /* fallback below */
+  }
+  try {
+    const area = document.createElement('textarea')
+    area.value = value
+    area.setAttribute('readonly', '')
+    area.style.position = 'fixed'
+    area.style.left = '-9999px'
+    document.body.appendChild(area)
+    area.select()
+    const ok = document.execCommand('copy')
+    area.remove()
+    return ok
+  } catch {
+    return false
+  }
 }
