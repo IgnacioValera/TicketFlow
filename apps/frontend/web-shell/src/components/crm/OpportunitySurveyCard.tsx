@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { useState } from 'react'
+import { ConfirmModal } from '@/components/common/Modal'
 import { PrimaryButton, SecondaryButton, SelectInput } from '@/components/common/UiControls'
 import { PERMISSIONS } from '@/constants/permissions'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -31,8 +33,9 @@ export function OpportunitySurveyCard({
   onGenerate,
 }: OpportunitySurveyCardProps) {
   const { hasPermission } = usePermissions()
-  const canGenerate = hasPermission(PERMISSIONS.CRM_OPPORTUNITY_MOVE)
+  const canGenerate = hasPermission(PERMISSIONS.CRM_SURVEY_MANAGE) || hasPermission(PERMISSIONS.CRM_OPPORTUNITY_MOVE)
   const canResults = hasPermission(PERMISSIONS.CRM_SURVEY_RESULTS)
+  const [regenerateOpen, setRegenerateOpen] = useState(false)
   const status = card?.status ?? 'UNCONFIGURED'
   const retryAutomatic = canGenerate && canRetryAutomaticInvitation(stage, status)
   const showManual = canGenerate
@@ -120,10 +123,7 @@ export function OpportunitySurveyCard({
           className="mt-3"
           type="button"
           disabled={generating}
-          onClick={() => {
-            if (!window.confirm('Se invalidará el enlace anterior. ¿Generar uno nuevo?')) return
-            onGenerate(true)
-          }}
+          onClick={() => setRegenerateOpen(true)}
         >
           Generar nuevo enlace
         </SecondaryButton>
@@ -134,6 +134,21 @@ export function OpportunitySurveyCard({
           Ver resultados
         </Link>
       ) : null}
+
+      <ConfirmModal
+        open={regenerateOpen}
+        overlayClassName="z-[70]"
+        onClose={() => setRegenerateOpen(false)}
+        onConfirm={() => {
+          setRegenerateOpen(false)
+          onGenerate(true)
+        }}
+        title="¿Generar un enlace nuevo?"
+        message="Se invalidará el enlace anterior. El cliente ya no podrá usarlo."
+        confirmLabel="Generar uno nuevo"
+        cancelLabel="Cancelar"
+        variant="danger"
+      />
     </section>
   )
 }

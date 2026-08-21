@@ -74,7 +74,7 @@ export class ClientsService {
     const owner = dto.ownerId ? await this.findOwner(dto.ownerId) : user.role.code === 'SALES' ? user : null
     const client = await this.clients.save(this.clients.create({
       name: dto.name.trim(), industry: dto.industry.trim(), region: dto.region.trim(), tier: dto.tier, segment: dto.segment,
-      email: dto.email.toLowerCase().trim(), phone: dto.phone.trim(), status: dto.status ?? ClientStatus.PROSPECT, owner, score: 50,
+      email: dto.email.toLowerCase().trim(), phone: dto.phone.trim(), status: dto.status ?? ClientStatus.PROSPECT, owner, score: 0,
     }))
     return this.serialize(client)
   }
@@ -126,7 +126,9 @@ export class ClientsService {
       client: this.serialize(client),
       kpis: {
         score: score.score,
-        dimensions: score.dimensions,
+        insufficient: score.insufficient,
+        factors: score.factors,
+        updatedAt: new Date().toISOString(),
         contacts: contacts.length,
         openOpportunities: opportunities.filter((item) => item.stage !== OpportunityStage.WON && item.stage !== OpportunityStage.LOST).length,
         wonAmount: opportunities.filter((item) => item.stage === OpportunityStage.WON).reduce((sum, item) => sum + item.amount, 0),
@@ -162,7 +164,7 @@ export class ClientsService {
       ageDays: Math.max(0, Math.floor((Date.now() - client.createdAt.getTime()) / 86400000)),
     })
     if (persist) {
-      client.score = result.score
+      client.score = result.score ?? 0
       await this.clients.save(client)
     }
     return result

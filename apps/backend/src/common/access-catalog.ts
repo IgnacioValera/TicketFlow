@@ -85,6 +85,7 @@ export const PERMISSION_DEFINITIONS = [
   { code: PERMISSIONS.CRM_CONTACT_VIEW, name: 'Ver contactos', description: 'Consultar contactos de clientes.', action: 'VIEW', moduleCode: ACCESS_MODULE_CODES.CRM_CONTACTS },
   { code: PERMISSIONS.CRM_CONTACT_CREATE, name: 'Crear contactos', description: 'Registrar un contacto nuevo.', action: 'CREATE', moduleCode: ACCESS_MODULE_CODES.CRM_CONTACTS },
   { code: PERMISSIONS.CRM_CONTACT_EDIT, name: 'Editar contactos', description: 'Actualizar la información de un contacto.', action: 'EDIT', moduleCode: ACCESS_MODULE_CODES.CRM_CONTACTS },
+  { code: PERMISSIONS.CRM_CONTACT_DELETE, name: 'Eliminar contactos', description: 'Quitar un contacto de la cartera sin borrar el cliente ni su información relacionada.', action: 'DELETE', moduleCode: ACCESS_MODULE_CODES.CRM_CONTACTS },
   { code: PERMISSIONS.CRM_OPPORTUNITY_VIEW, name: 'Ver oportunidades', description: 'Consultar el pipeline comercial.', action: 'VIEW', moduleCode: ACCESS_MODULE_CODES.CRM_OPPORTUNITIES },
   { code: PERMISSIONS.CRM_OPPORTUNITY_CREATE, name: 'Crear oportunidades', description: 'Registrar una oportunidad nueva.', action: 'CREATE', moduleCode: ACCESS_MODULE_CODES.CRM_OPPORTUNITIES },
   { code: PERMISSIONS.CRM_OPPORTUNITY_EDIT, name: 'Editar oportunidades', description: 'Actualizar una oportunidad existente.', action: 'EDIT', moduleCode: ACCESS_MODULE_CODES.CRM_OPPORTUNITIES },
