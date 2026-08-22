@@ -17,6 +17,14 @@ test.describe('Oportunidades CRM', () => {
     await expect(page.getByText('Renovación')).toBeVisible()
     await expect(page.getByText('4 oportunidades')).toBeVisible()
 
+    await page.getByPlaceholder('Buscar oportunidades...').fill('Renovación')
+    await expect(page.getByText('Renovación')).toBeVisible()
+    await expect(page.getByText('Licencias')).toHaveCount(0)
+    await expect(page.getByText('1 oportunidades')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Limpiar filtros' }).click()
+    await expect(page.getByText('4 oportunidades')).toBeVisible()
+
     await chooseSelectOption(page.getByLabel('Cliente', { exact: true }), { label: 'Acme Corp' })
     await expect(page.getByText('Renovación')).toBeVisible()
     await expect(page.getByText('Licencias')).toHaveCount(0)

@@ -99,6 +99,14 @@ export function OpportunitiesPage() {
     return () => window.clearTimeout(timer)
   }, [toast])
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSearch(searchInput)
+      setPage(1)
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [searchInput])
+
   const load = useCallback(async () => {
     try {
       const response = await crm.getOpportunities({
@@ -449,10 +457,7 @@ export function OpportunitiesPage() {
           <TextInput
             placeholder="Buscar oportunidades..."
             value={searchInput}
-            onChange={(e) => {
-              setSearchInput(e.target.value)
-              setPage(1)
-            }}
+            onChange={(e) => setSearchInput(e.target.value)}
           />
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
