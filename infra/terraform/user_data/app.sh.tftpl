@@ -1,0 +1,67 @@
+#!/bin/bash
+set -euxo pipefail
+exec > >(tee /var/log/ticketflow-user-data.log) 2>&1
+
+dnf install -y docker
+systemctl enable --now docker
+install -d -m 0755 /opt/ticketflow/uploads
+
+cat > /opt/ticketflow/env.sh << EOF
+export AWS_REGION="${region}"
+export ECR_URL="${ecr_url}"
+export ROLE="${role}"
+EOF
+chmod 0644 /opt/ticketflow/env.sh
+
+cat > /opt/ticketflow/run.sh << 'SCRIPT'
+#!/bin/bash
+set -euxo pipefail
+source /opt/ticketflow/env.sh
+IMAGE="$${ECR_URL}:main"
+REGISTRY="$${ECR_URL%%/*}"
+
+aws ecr get-login-password --region "$${AWS_REGION}" | docker login --username AWS --password-stdin "$${REGISTRY}"
+
+ok=0
+for i in $(seq 1 60); do
+  if docker pull "$${IMAGE}"; then
+    ok=1
+    break
+  fi
+  echo "Esperando imagen ECR $${IMAGE} (intento $${i}/60)"
+  sleep 30
+done
+
+if [[ "$${ok}" != "1" ]]; then
+  echo "No se pudo hacer pull de $${IMAGE} tras ~30 min" >&2
+  exit 1
+fi
+
+docker rm -f ticketflow || true
+
+if [[ "$${ROLE}" == "backend" ]]; then
+  DATABASE_URL="$(aws ssm get-parameter --region "$${AWS_REGION}" --name /ticketflow/DATABASE_URL --with-decryption --query Parameter.Value --output text)"
+  JWT_ACCESS_SECRET="$(aws ssm get-parameter --region "$${AWS_REGION}" --name /ticketflow/JWT_ACCESS_SECRET --with-decryption --query Parameter.Value --output text)"
+  JWT_REFRESH_SECRET="$(aws ssm get-parameter --region "$${AWS_REGION}" --name /ticketflow/JWT_REFRESH_SECRET --with-decryption --query Parameter.Value --output text)"
+  ALB_DNS="$(aws ssm get-parameter --region "$${AWS_REGION}" --name /ticketflow/alb_dns --query Parameter.Value --output text)"
+  docker run -d --name ticketflow --restart unless-stopped \
+    -p 8000:8000 \
+    -e NODE_ENV=production \
+    -e PORT=8000 \
+    -e DATABASE_URL="$${DATABASE_URL}" \
+    -e DB_SSL=true \
+    -e JWT_ACCESS_SECRET="$${JWT_ACCESS_SECRET}" \
+    -e JWT_REFRESH_SECRET="$${JWT_REFRESH_SECRET}" \
+    -e JWT_ACCESS_EXPIRES_IN=15m \
+    -e JWT_REFRESH_EXPIRES_IN=7d \
+    -e APP_URL="http://$${ALB_DNS}" \
+    -e FRONTEND_URL="http://$${ALB_DNS}" \
+    -e UPLOAD_DIR=uploads \
+    -v /opt/ticketflow/uploads:/app/uploads \
+    "$${IMAGE}"
+else
+  docker run -d --name ticketflow --restart unless-stopped -p 80:3000 "$${IMAGE}"
+fi
+SCRIPT
+chmod +x /opt/ticketflow/run.sh
+/opt/ticketflow/run.sh

@@ -1,10 +1,11 @@
 import { ConfigService } from '@nestjs/config'
 import { TypeOrmModuleOptions } from '@nestjs/typeorm'
 import { ENTITIES } from './entities'
+import { postgresSsl, postgresUrlWithoutSslMode } from './postgres-ssl'
 
 export function buildTypeOrmOptions(config: ConfigService): TypeOrmModuleOptions {
-  const ssl = config.get('DB_SSL') === 'true' ? { rejectUnauthorized: false } : false
-  const databaseUrl = config.get<string>('DATABASE_URL')
+  const ssl = postgresSsl(config.get('DB_SSL'))
+  const databaseUrl = postgresUrlWithoutSslMode(config.get<string>('DATABASE_URL'))
 
   if (databaseUrl) {
     return {

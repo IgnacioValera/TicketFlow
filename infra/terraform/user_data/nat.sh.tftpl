@@ -1,0 +1,48 @@
+#!/bin/bash
+set -euxo pipefail
+exec > >(tee /var/log/ticketflow-nat-user-data.log) 2>&1
+
+dnf install -y iptables-nft wireguard-tools
+
+cat > /usr/local/sbin/ticketflow-nat.sh << 'NAT'
+#!/bin/bash
+set -euo pipefail
+sysctl -w net.ipv4.ip_forward=1
+IFACE="$(ip -o -4 route show to default | awk '{print $5}' | head -n1)"
+iptables -t nat -C POSTROUTING -o "$${IFACE}" -j MASQUERADE 2>/dev/null || \
+  iptables -t nat -A POSTROUTING -o "$${IFACE}" -j MASQUERADE
+iptables -C FORWARD -j ACCEPT 2>/dev/null || iptables -A FORWARD -j ACCEPT
+NAT
+chmod +x /usr/local/sbin/ticketflow-nat.sh
+echo "net.ipv4.ip_forward = 1" > /etc/sysctl.d/99-ticketflow-forward.conf
+/usr/local/sbin/ticketflow-nat.sh
+
+cat > /etc/systemd/system/ticketflow-nat.service << 'UNIT'
+[Unit]
+Description=TicketFlow NAT masquerade
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/ticketflow-nat.sh
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+systemctl enable --now ticketflow-nat.service
+
+install -d -m 0700 /etc/wireguard
+cat > /etc/wireguard/wg0.conf << EOF
+[Interface]
+Address = ${vpn_server_ip}
+ListenPort = 51820
+PrivateKey = ${server_private_key}
+
+[Peer]
+PublicKey = ${client_public_key}
+AllowedIPs = ${vpn_client_cidr}
+EOF
+chmod 600 /etc/wireguard/wg0.conf
+systemctl enable --now wg-quick@wg0
